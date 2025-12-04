@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from sqlalchemy import func
 from datetime import date, datetime
-import os, csv, io, math
+import os, csv, io, math, pytz
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,6 +26,17 @@ login_manager.login_view = 'login'
 # Flask-Migrate for schema changes
 from flask_migrate import Migrate
 migrate = Migrate(app, db)
+
+# ================== TIMEZONE CONFIGURATION ==================
+IST = pytz.timezone('Asia/Kolkata')
+
+def get_today_ist():
+    """Get today's date in YYYY-MM-DD format (IST)"""
+    return datetime.now(IST).strftime('%Y-%m-%d')
+
+def get_ist_datetime():
+    """Get current datetime in IST"""
+    return datetime.now(IST)
 
 # ================== RATE CHARTS ==================
 BUFFALO_RATE_CHART = {
@@ -100,7 +111,7 @@ class Collection(db.Model):
     rate_per_liter = db.Column(db.Float, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     note = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
 
     supplier = db.relationship('Supplier')
 
@@ -117,7 +128,7 @@ class Sale(db.Model):
     rate_per_liter = db.Column(db.Float, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     note = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
 
     customer = db.relationship('Customer')
 
@@ -129,7 +140,7 @@ class Withdrawal(db.Model):
     date = db.Column(db.String(10), nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     note = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
 
     supplier = db.relationship('Supplier')
 
@@ -141,7 +152,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='employee')
     mobile = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
     is_active = db.Column(db.Boolean, default=True)
     
     # Link to supplier or customer
@@ -310,7 +321,7 @@ def index():
 @login_required
 def dashboard():
     """Original dashboard view"""
-    today = date.today().isoformat()
+    today = get_today_ist()  # CHANGED: date.today().isoformat()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
@@ -372,7 +383,7 @@ def my_account():
 @role_required('admin', 'employee')
 def add_collection_page():
     """Dedicated page for adding collections"""
-    today = date.today().isoformat()
+    today = get_today_ist()  # CHANGED: date.today().isoformat()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
@@ -520,7 +531,7 @@ def add_collection():
     fat = float(data.get('fat') or 0)
     milk_type = data.get('milk_type', 'buffalo')
     session = data.get('session') or 'morning'
-    d = data.get('date') or date.today().isoformat()
+    d = data.get('date') or get_today_ist()  # CHANGED: date.today().isoformat()
     
     rate = find_rate(fat, milk_type)
     if rate is None:
@@ -550,7 +561,7 @@ def add_collection():
 @role_required('admin', 'employee')
 def quick_add_page():
     supplier_id = request.args.get('supplier_id')
-    today = date.today().isoformat()
+    today = get_today_ist()  # CHANGED: date.today().isoformat()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     return render_template('quick_add.html', supplier_id=supplier_id, today=today, suppliers=suppliers)
@@ -570,7 +581,7 @@ def quick_add():
     fat = float(request.form.get('fat_quick') or 0)
     milk_type = request.form.get('milk_type_quick', 'buffalo')
     session = request.form.get('session_quick') or 'morning'
-    d = request.form.get('date_quick') or date.today().isoformat()
+    d = request.form.get('date_quick') or get_today_ist()  # CHANGED
     
     rate = find_rate(fat, milk_type)
     if rate is None:
@@ -603,7 +614,7 @@ def sales():
     customers = sort_by_id(customers, 'cust_id')
     
     # Get today's sales
-    today = date.today().isoformat()
+    today = get_today_ist()  # CHANGED: date.today().isoformat()
     today_sales = Sale.query.filter_by(date=today).all()
     
     # Calculate statistics
@@ -634,7 +645,7 @@ def add_sale():
     fat = float(request.form.get('fat') or 0)
     milk_type = request.form.get('milk_type', 'buffalo')
     session = request.form.get('session', 'morning')
-    d = request.form.get('date') or date.today().isoformat()
+    d = request.form.get('date') or get_today_ist()  # CHANGED
     
     rate = find_rate(fat, milk_type)
     if rate is None:
@@ -663,7 +674,7 @@ def add_sale():
 @app.route('/daily')
 @login_required
 def daily():
-    req_date = request.args.get('date') or date.today().isoformat()
+    req_date = request.args.get('date') or get_today_ist()  # CHANGED
     session_filter = request.args.get('session', 'all')
     
     query = Collection.query.filter_by(date=req_date)
@@ -690,7 +701,7 @@ def daily():
 @app.route('/daily_sales')
 @login_required
 def daily_sales():
-    req_date = request.args.get('date') or date.today().isoformat()
+    req_date = request.args.get('date') or get_today_ist()  # CHANGED
     session_filter = request.args.get('session', 'all')
     
     query = Sale.query.filter_by(date=req_date)
@@ -783,7 +794,7 @@ def add_withdrawal():
         return redirect(url_for('monthly'))
     
     amt = int(float(request.form.get('amount_w') or 0))
-    d = request.form.get('date_w') or date.today().isoformat()
+    d = request.form.get('date_w') or get_today_ist()  # CHANGED
     note = request.form.get('note_w')
     
     w = Withdrawal(supplier_id=s.id, date=d, amount=amt, note=note)
@@ -813,7 +824,7 @@ def edit_withdrawal(wid):
 @app.route('/monthly')
 @login_required
 def monthly():
-    month = request.args.get('month') or date.today().strftime("%Y-%m")
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")  # CHANGED
     like = month + '%'
     
     # Supplier collections
@@ -890,7 +901,7 @@ def monthly():
 @app.route('/export_month_csv')
 @login_required
 def export_month_csv():
-    month = request.args.get('month') or date.today().strftime("%Y-%m")
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")  # CHANGED
     like = month + '%'
     
     rows = db.session.query(
@@ -922,7 +933,7 @@ def export_month_csv():
 @app.route('/export_month_summary_csv')
 @login_required
 def export_month_summary_csv():
-    month = request.args.get('month') or date.today().strftime("%Y-%m")
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")  # CHANGED
     like = month + '%'
     
     rows = db.session.query(

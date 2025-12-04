@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Withdrawal{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-edit"></i> Edit Withdrawal</h2>
+
+<div class="card">
+    <div class="card-header">
+        Edit Withdrawal #{{ w.id }}
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Supplier</label>
+                    <input type="text" class="form-control" value="{{ w.supplier.supplier_id }} - {{ w.supplier.name }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="date" class="form-control" value="{{ w.date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Amount (₹)</label>
+                    <input type="number" name="amount" class="form-control" value="{{ w.amount }}" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-save"></i> Update
+                    </button>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-12">
+                    <label class="form-label">Note</label>
+                    <input type="text" name="note" class="form-control" value="{{ w.note or '' }}">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('supplier_view', supplier_id=w.supplier.supplier_id) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Supplier
+    </a>
+</div>
+{% endblock %}

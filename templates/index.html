@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Milk Booth{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="fw-bold text-dark mb-3">
+            <i class="fas fa-chart-line text-primary"></i> Milk Booth Dashboard
+        </h2>
+        <p class="lead text-muted">Welcome, {{ current_user.username }}! Today is {{ today }}</p>
+    </div>
+</div>
+
+<!-- Main Action Buttons -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
+                <h4>Add Collection</h4>
+                <p>Record milk collection from suppliers</p>
+                <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary w-100">
+                    <i class="fas fa-plus"></i> Add Collection
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-bolt fa-3x text-warning mb-3"></i>
+                <h4>Quick Add</h4>
+                <p>Fast collection entry</p>
+                <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning w-100">
+                    <i class="fas fa-bolt"></i> Quick Add
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-shopping-cart fa-3x text-success mb-3"></i>
+                <h4>Record Sale</h4>
+                <p>Sell milk to customers</p>
+                <a href="{{ url_for('sales') }}" class="btn btn-success w-100">
+                    <i class="fas fa-cash-register"></i> Record Sale
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card" onclick="window.location='{{ url_for('daily') }}'">
+            <i class="fas fa-weight text-primary"></i>
+            <div class="number">{{ "%.2f"|format(total_liters) }}</div>
+            <div class="label">Today's Liters Collected</div>
+            <small class="text-muted mt-2 d-block">
+                <i class="fas fa-arrow-right"></i> Click to view daily collections
+            </small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" onclick="window.location='{{ url_for('daily') }}'">
+            <i class="fas fa-rupee-sign text-success"></i>
+            <div class="number">₹ {{ total_amount }}</div>
+            <div class="label">Today's Collection Amount</div>
+            <small class="text-muted mt-2 d-block">
+                <i class="fas fa-arrow-right"></i> View detailed breakdown
+            </small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" onclick="window.location='{{ url_for('daily') }}'">
+            <i class="fas fa-percentage text-warning"></i>
+            <div class="number">{{ "%.1f"|format(avg_fat) }}%</div>
+            <div class="label">Average Fat Today</div>
+            <small class="text-muted mt-2 d-block">
+                <i class="fas fa-arrow-right"></i> Check milk quality
+            </small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" onclick="window.location='{{ url_for('suppliers') }}'">
+            <i class="fas fa-users text-info"></i>
+            <div class="number">{{ suppliers|length }}</div>
+            <div class="label">Total Suppliers</div>
+            <small class="text-muted mt-2 d-block">
+                <i class="fas fa-arrow-right"></i> Manage suppliers
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-truck-loading"></i> Collections
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('daily') }}" class="btn btn-primary w-100 mb-2">
+                    <i class="fas fa-calendar-day"></i> Daily Collections
+                </a>
+                <a href="{{ url_for('suppliers') }}" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="fas fa-users"></i> Manage Suppliers
+                </a>
+                <a href="{{ url_for('monthly') }}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-calendar-alt"></i> Monthly Report
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-shopping-cart"></i> Sales
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('daily_sales') }}" class="btn btn-success w-100 mb-2">
+                    <i class="fas fa-chart-line"></i> Daily Sales
+                </a>
+                <a href="{{ url_for('customers') }}" class="btn btn-outline-success w-100 mb-2">
+                    <i class="fas fa-users"></i> Manage Customers
+                </a>
+                <a href="{{ url_for('sales') }}" class="btn btn-outline-success w-100">
+                    <i class="fas fa-cash-register"></i> Record Sale
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <i class="fas fa-cogs"></i> System
+            </div>
+            <div class="card-body">
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('register') }}" class="btn btn-warning w-100 mb-2">
+                    <i class="fas fa-user-plus"></i> Register User
+                </a>
+                <a href="{{ url_for('manage_users') }}" class="btn btn-outline-warning w-100 mb-2">
+                    <i class="fas fa-users-cog"></i> Manage Users
+                </a>
+                {% endif %}
+                <a href="{{ url_for('my_account') }}" class="btn btn-outline-info w-100 mb-2">
+                    <i class="fas fa-user-circle"></i> My Account
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger w-100">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Customer - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-shopping-cart"></i> Customer Details: {{ customer.cust_id }}</h2>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Customer Information</div>
+            <div class="card-body">
+                <p><strong>ID:</strong> {{ customer.cust_id }}</p>
+                <p><strong>Name:</strong> {{ customer.name }}</p>
+                <p><strong>Mobile:</strong> {{ customer.mobile or '-' }}</p>
+                <p><strong>Address:</strong> {{ customer.address or '-' }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Purchase Summary</div>
+            <div class="card-body text-center">
+                <h3 class="text-success">₹ {{ total_amount }}</h3>
+                <p class="text-muted">Total Amount</p>
+                <h4 class="text-primary">{{ "%.2f"|format(total_liters) }} L</h4>
+                <p class="text-muted">Total Liters</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Purchase History</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Session</th>
+                        <th>Type</th>
+                        <th>Liters</th>
+                        <th>Fat %</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sales %}
+                    <tr>
+                        <td>{{ s.date }}</td>
+                        <td>{{ s.session|title }}</td>
+                        <td>{{ s.milk_type|title }}</td>
+                        <td>{{ "%.2f"|format(s.liters) }}</td>
+                        <td>{{ "%.1f"|format(s.fat) }}%</td>
+                        <td>₹ {{ s.amount }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            No purchase history found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('customers') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Customers
+    </a>
+</div>
+{% endblock %}

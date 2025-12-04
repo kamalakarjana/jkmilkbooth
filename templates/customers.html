@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Customers{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-shopping-cart"></i> Customers Management</h2>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-plus"></i> Add New Customer
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('customers') }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="cust_id" class="form-control" placeholder="Customer ID" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="name" class="form-control" placeholder="Name" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="mobile" class="form-control" placeholder="Mobile">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="address" class="form-control" placeholder="Address">
+                </div>
+                <div class="col-12 mt-2">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Add Customer
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-list"></i> All Customers ({{ customers|length }})
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Mobile</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td><strong>{{ c.cust_id }}</strong></td>
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.mobile or '-' }}</td>
+                        <td>{{ c.address or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('customer_view', cust_id=c.cust_id) }}" 
+                               class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No customers found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

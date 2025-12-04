@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Add Collection - Milk Booth{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="fw-bold text-dark mb-3">
+            <i class="fas fa-plus-circle text-primary"></i> Add Milk Collection
+        </h2>
+        <p class="lead text-muted">Add new milk collection from supplier</p>
+    </div>
+</div>
+
+<!-- Today's Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <i class="fas fa-weight text-primary"></i>
+            <div class="number">{{ "%.2f"|format(total_liters) }}</div>
+            <div class="label">Today's Liters</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <i class="fas fa-rupee-sign text-success"></i>
+            <div class="number">₹ {{ total_amount }}</div>
+            <div class="label">Today's Amount</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <i class="fas fa-percentage text-warning"></i>
+            <div class="number">{{ "%.1f"|format(avg_fat) }}%</div>
+            <div class="label">Avg Fat Today</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" onclick="window.location='{{ url_for('quick_add_page') }}'">
+            <i class="fas fa-bolt text-danger"></i>
+            <div class="number">Quick Add</div>
+            <div class="label">Fast Entry</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Form for Adding Collection -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <i class="fas fa-plus-circle"></i> Add New Collection (From Supplier)
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('add_collection') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Supplier *</label>
+                    <select name="supplier_id" class="form-select" required>
+                        <option value="">-- Select Supplier --</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.supplier_id }}">{{ s.supplier_id }} - {{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Milk Type *</label>
+                    <select name="milk_type" class="form-select" required>
+                        <option value="buffalo" selected>Buffalo Milk</option>
+                        <option value="cow">Cow Milk</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Date *</label>
+                    <input name="date" type="date" class="form-control" value="{{ today }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Session *</label>
+                    <select name="session" class="form-select" required>
+                        <option value="morning">Morning</option>
+                        <option value="evening">Evening</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Liters *</label>
+                    <input name="liters" type="number" step="0.01" class="form-control" placeholder="0.00" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Fat % *</label>
+                    <input name="fat" type="number" step="0.1" class="form-control" placeholder="6.0" required>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-8">
+                    <label class="form-label">Note (Optional)</label>
+                    <input name="note" type="text" class="form-control" placeholder="Any special notes...">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-save"></i> Add Collection
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <i class="fas fa-bolt"></i> Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning w-100 mb-2">
+                    <i class="fas fa-bolt"></i> Quick Add Collection
+                </a>
+                <a href="{{ url_for('daily') }}" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="fas fa-calendar-day"></i> View Daily Collections
+                </a>
+                <a href="{{ url_for('suppliers') }}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-truck-loading"></i> Manage Suppliers
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-shopping-cart"></i> Sales
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('sales') }}" class="btn btn-success w-100 mb-2">
+                    <i class="fas fa-plus"></i> Record Sale
+                </a>
+                <a href="{{ url_for('daily_sales') }}" class="btn btn-outline-success w-100 mb-2">
+                    <i class="fas fa-chart-line"></i> Daily Sales Report
+                </a>
+                <a href="{{ url_for('customers') }}" class="btn btn-outline-success w-100">
+                    <i class="fas fa-users"></i> Manage Customers
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-chart-bar"></i> Reports
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('monthly') }}" class="btn btn-info w-100 mb-2">
+                    <i class="fas fa-calendar-alt"></i> Monthly Report
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-info w-100 mb-2">
+                    <i class="fas fa-home"></i> Main Dashboard
+                </a>
+                <a href="{{ url_for('add_collection_page') }}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-redo"></i> Refresh This Page
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Suppliers List -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-truck-loading"></i> All Suppliers ({{ suppliers|length }} suppliers)
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for s in suppliers %}
+            <div class="col-md-3 mb-3">
+                <div class="supplier-card">
+                    <h5 class="mb-1">ID: <strong>{{ s.supplier_id }}</strong></h5>
+                    <p class="mb-1">{{ s.name }}</p>
+                    {% if s.mobile %}
+                    <small class="text-muted"><i class="fas fa-phone"></i> {{ s.mobile }}</small>
+                    {% endif %}
+                    <div class="mt-2">
+                        <a href="{{ url_for('quick_add_page', supplier_id=s.supplier_id) }}" 
+                           class="btn btn-warning btn-sm w-100 mb-1">
+                            <i class="fas fa-bolt"></i> Quick Add
+                        </a>
+                        <a href="{{ url_for('supplier_view', supplier_id=s.supplier_id) }}" 
+                           class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-eye"></i> View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+milkbooth.db
+milkbooth-stable.db
+
+# Backups
+*.backup
+backups/
+*.old
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp files
+*.tmp
+*.temp
+
+# Flask
+instance/
+
+# Migration files (except the main ones)
+migrations/versions/*
+
+# Personal backups
+app.py.backup*
+templates_backup/

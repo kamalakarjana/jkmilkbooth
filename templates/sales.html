@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Record Sale{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-shopping-cart text-success"></i> Record Sale</h2>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <i class="fas fa-plus-circle"></i> Add New Sale
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('add_sale') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Customer</label>
+                    <select name="cust_id" class="form-select" required>
+                        <option value="">-- Select Customer --</option>
+                        {% for c in customers %}
+                        <option value="{{ c.cust_id }}">{{ c.cust_id }} - {{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Milk Type</label>
+                    <select name="milk_type" class="form-select">
+                        <option value="buffalo">Buffalo</option>
+                        <option value="cow">Cow</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="date" class="form-control" value="{{ today }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Session</label>
+                    <select name="session" class="form-select">
+                        <option value="morning">Morning</option>
+                        <option value="evening">Evening</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Liters</label>
+                    <input type="number" step="0.01" name="liters" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Fat %</label>
+                    <input type="number" step="0.1" name="fat" class="form-control" required>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-8">
+                    <label class="form-label">Note (Optional)</label>
+                    <input type="text" name="note" class="form-control" placeholder="Note...">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-save"></i> Record Sale
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

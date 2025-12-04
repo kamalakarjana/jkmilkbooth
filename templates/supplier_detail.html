@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier - {{ supplier.name }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-truck-loading"></i> Supplier Details: {{ supplier.supplier_id }}</h2>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Supplier Information</div>
+            <div class="card-body">
+                <p><strong>ID:</strong> {{ supplier.supplier_id }}</p>
+                <p><strong>Name:</strong> {{ supplier.name }}</p>
+                <p><strong>Mobile:</strong> {{ supplier.mobile or '-' }}</p>
+                <p><strong>Address:</strong> {{ supplier.address or '-' }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Summary</div>
+            <div class="card-body text-center">
+                <h3 class="text-primary">₹ {{ total_amount }}</h3>
+                <p class="text-muted">Total Amount</p>
+                <h4 class="text-success">{{ "%.2f"|format(total_liters) }} L</h4>
+                <p class="text-muted">Total Liters</p>
+                <h5 class="text-warning">₹ {{ total_withdrawn }}</h5>
+                <p class="text-muted">Total Withdrawn</p>
+                <h5 class="{% if balance > 0 %}text-success{% else %}text-secondary{% endif %}">₹ {{ balance }}</h5>
+                <p class="text-muted">Current Balance</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Recent Collections</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Session</th>
+                        <th>Type</th>
+                        <th>Liters</th>
+                        <th>Fat %</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in collections %}
+                    <tr>
+                        <td>{{ c.date }}</td>
+                        <td>{{ c.session|title }}</td>
+                        <td>{{ c.milk_type|title }}</td>
+                        <td>{{ "%.2f"|format(c.liters) }}</td>
+                        <td>{{ "%.1f"|format(c.fat) }}%</td>
+                        <td>₹ {{ c.amount }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            No collections found
+                        </td>
+                    tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Withdrawals</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for w in withdrawals %}
+                    <tr>
+                        <td>{{ w.date }}</td>
+                        <td>₹ {{ w.amount }}</td>
+                        <td>{{ w.note or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center py-4 text-muted">
+                            No withdrawals found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('suppliers') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Suppliers
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Register User{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-user-plus"></i> Register New User</h2>
+
+<div class="card">
+    <div class="card-header">
+        User Registration
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Username*</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Email*</label>
+                    <input type="email" name="email" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Password*</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                    <label class="form-label">Role*</label>
+                    <select name="role" class="form-select" required id="roleSelect">
+                        <option value="">-- Select Role --</option>
+                        <option value="admin">Admin</option>
+                        <option value="employee">Employee</option>
+                        <option value="supplier">Supplier</option>
+                        <option value="customer">Customer</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Mobile</label>
+                    <input type="text" name="mobile" class="form-control">
+                </div>
+            </div>
+            
+            <!-- Supplier ID field (hidden by default) -->
+            <div class="row g-3 mt-2" id="supplierField" style="display: none;">
+                <div class="col-md-8">
+                    <label class="form-label">Supplier ID (Optional - link to existing supplier)</label>
+                    <select name="supplier_id" class="form-select">
+                        <option value="">-- Select Supplier --</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.supplier_id }}">{{ s.supplier_id }} - {{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Customer ID field (hidden by default) -->
+            <div class="row g-3 mt-2" id="customerField" style="display: none;">
+                <div class="col-md-8">
+                    <label class="form-label">Customer ID (Optional - link to existing customer)</label>
+                    <select name="customer_id" class="form-select">
+                        <option value="">-- Select Customer --</option>
+                        {% for c in customers %}
+                        <option value="{{ c.cust_id }}">{{ c.cust_id }} - {{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Register User
+                    </button>
+                    <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Users
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Show/hide supplier/customer fields based on role selection
+    document.getElementById('roleSelect').addEventListener('change', function() {
+        const role = this.value;
+        const supplierField = document.getElementById('supplierField');
+        const customerField = document.getElementById('customerField');
+        
+        supplierField.style.display = 'none';
+        customerField.style.display = 'none';
+        
+        if (role === 'supplier') {
+            supplierField.style.display = 'block';
+        } else if (role === 'customer') {
+            customerField.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

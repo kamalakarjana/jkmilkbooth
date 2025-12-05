@@ -12,6 +12,12 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
       margin-bottom: 15px;
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
     .stat-card .number {
       font-size: 1.5rem;
@@ -22,42 +28,62 @@
       background-color: #2c3e50;
       color: white;
     }
+    .badge-balance {
+      font-size: 0.9rem;
+      padding: 5px 10px;
+    }
+    .withdrawal-btn {
+      padding: 3px 8px;
+      font-size: 0.8rem;
+    }
+    .text-profit {
+      color: #28a745 !important;
+      font-weight: bold;
+    }
+    .text-loss {
+      color: #dc3545 !important;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body class="p-3">
 <div class="container">
   <h3 class="mb-3">
-    <i class="fas fa-calendar-alt text-primary"></i> Monthly Totals — {{ month }}
+    <i class="fas fa-calendar-alt text-primary"></i> Monthly Report — {{ month }}
   </h3>
   
   <!-- Monthly Statistics -->
   <div class="row mb-4">
     <div class="col-md-3">
-      <div class="stat-card">
+      <div class="stat-card" onclick="window.location='#suppliers'">
         <i class="fas fa-weight text-primary mb-2"></i>
         <div class="number">{{ "%.2f"|format(monthly_total_liters) }}</div>
         <div class="text-muted">Total Liters Collected</div>
+        <small class="text-primary">From {{ supplier_data|length }} suppliers</small>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="stat-card">
+      <div class="stat-card" onclick="window.location='#suppliers'">
         <i class="fas fa-rupee-sign text-success mb-2"></i>
         <div class="number">₹ {{ monthly_total_amount }}</div>
         <div class="text-muted">Total Collection Amount</div>
+        <small class="text-success">Amount receivable</small>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="stat-card">
-        <i class="fas fa-money-bill-wave text-warning mb-2"></i>
+      <div class="stat-card" onclick="window.location='#suppliers'">
+        <i class="fas fa-money-bill-wave text-danger mb-2"></i>
         <div class="number">₹ {{ monthly_total_withdrawn }}</div>
         <div class="text-muted">Total Withdrawn</div>
+        <small class="text-danger">Already paid</small>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="stat-card">
-        <i class="fas fa-shopping-cart text-info mb-2"></i>
-        <div class="number">₹ {{ monthly_total_sales }}</div>
-        <div class="text-muted">Total Sales</div>
+      <div class="stat-card" onclick="window.location='#suppliers'">
+        <i class="fas fa-balance-scale text-info mb-2"></i>
+        <div class="number">₹ {{ monthly_total_amount - monthly_total_withdrawn }}</div>
+        <div class="text-muted">Net Payable</div>
+        <small class="text-info">Balance to pay</small>
       </div>
     </div>
   </div>
@@ -73,17 +99,20 @@
       </button>
     </div>
     <div class="col-md-6 text-end">
+      <a href="{{ url_for('withdrawals') }}" class="btn btn-outline-warning">
+        <i class="fas fa-money-bill-wave"></i> View All Withdrawals
+      </a>
       <a href="{{ url_for('export_month_summary_csv', month=month) }}" class="btn btn-outline-primary">
-        <i class="fas fa-download"></i> Export Summary CSV
+        <i class="fas fa-download"></i> Export Summary
       </a>
       <a href="{{ url_for('export_month_csv', month=month) }}" class="btn btn-outline-secondary">
-        <i class="fas fa-file-export"></i> Export Details CSV
+        <i class="fas fa-file-export"></i> Export Details
       </a>
     </div>
   </form>
 
   <!-- Suppliers Section -->
-  <h4 class="mt-4"><i class="fas fa-truck-loading text-primary"></i> Suppliers Summary</h4>
+  <h4 class="mt-4" id="suppliers"><i class="fas fa-truck-loading text-primary"></i> Suppliers Summary</h4>
   <div class="table-responsive mb-4">
     <table class="table table-hover">
       <thead>
@@ -92,9 +121,10 @@
           <th>Name</th>
           <th>Mobile</th>
           <th>Total Liters</th>
-          <th>Total Amount</th>
-          <th>Withdrawn</th>
-          <th>Balance</th>
+          <th>Collection (₹)</th>
+          <th class="text-danger">Withdrawn (₹)</th>
+          <th class="text-success">Balance (₹)</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -104,17 +134,24 @@
             <td><a href="{{ url_for('supplier_view', supplier_id=row.supplier_id) }}">{{ row.name }}</a></td>
             <td>{{ row.mobile or '-' }}</td>
             <td>{{ "%.2f"|format(row.total_liters) }}</td>
-            <td>₹ {{ row.total_amount }}</td>
-            <td>₹ {{ row.withdrawn }}</td>
+            <td class="fw-bold">₹ {{ row.total_amount }}</td>
+            <td class="text-danger fw-bold">- ₹ {{ row.withdrawn }}</td>
             <td>
-              <span class="badge {% if row.balance > 0 %}bg-success{% else %}bg-secondary{% endif %}">
+              <span class="badge {% if row.balance > 0 %}bg-success{% else %}bg-secondary{% endif %} badge-balance">
                 ₹ {{ row.balance }}
               </span>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-warning withdrawal-btn" 
+                      onclick="quickWithdrawal('{{ row.supplier_id }}', '{{ row.name }}', {{ row.balance }})"
+                      title="Add Withdrawal">
+                <i class="fas fa-money-bill-wave"></i> Add
+              </button>
             </td>
           </tr>
         {% else %}
           <tr>
-            <td colspan="7" class="text-center py-4">
+            <td colspan="8" class="text-center py-4">
               <div class="text-muted">
                 <i class="fas fa-inbox fa-2x mb-3"></i>
                 <p>No supplier data found for {{ month }}</p>
@@ -123,11 +160,21 @@
           </tr>
         {% endfor %}
       </tbody>
+      <tfoot class="table-dark">
+        <tr>
+          <th colspan="3">TOTALS</th>
+          <th>{{ "%.2f"|format(monthly_total_liters) }}</th>
+          <th>₹ {{ monthly_total_amount }}</th>
+          <th class="text-danger">- ₹ {{ monthly_total_withdrawn }}</th>
+          <th class="text-success">₹ {{ monthly_total_amount - monthly_total_withdrawn }}</th>
+          <th></th>
+        </tr>
+      </tfoot>
     </table>
   </div>
 
   <!-- Customers Section -->
-  <h4 class="mt-4"><i class="fas fa-shopping-cart text-success"></i> Sales Customers Summary</h4>
+  <h4 class="mt-4" id="customers"><i class="fas fa-shopping-cart text-success"></i> Sales Customers Summary</h4>
   <div class="table-responsive mb-4">
     <table class="table table-hover">
       <thead>
@@ -136,7 +183,7 @@
           <th>Name</th>
           <th>Mobile</th>
           <th>Total Liters</th>
-          <th>Total Amount</th>
+          <th>Total Amount (₹)</th>
         </tr>
       </thead>
       <tbody>
@@ -146,7 +193,7 @@
             <td><a href="{{ url_for('customer_view', cust_id=row.cust_id) }}">{{ row.name }}</a></td>
             <td>{{ row.mobile or '-' }}</td>
             <td>{{ "%.2f"|format(row.total_liters) }}</td>
-            <td>₹ {{ row.total_amount }}</td>
+            <td class="fw-bold">₹ {{ row.total_amount }}</td>
           </tr>
         {% else %}
           <tr>
@@ -159,43 +206,184 @@
           </tr>
         {% endfor %}
       </tbody>
+      <tfoot class="table-dark">
+        <tr>
+          <th colspan="3">TOTALS</th>
+          <th>
+            {% set total_sales_liters = customer_data|sum(attribute='total_liters') %}
+            {{ "%.2f"|format(total_sales_liters) }}
+          </th>
+          <th>₹ {{ monthly_total_sales }}</th>
+        </tr>
+      </tfoot>
     </table>
   </div>
 
-  <hr>
-  
-  <!-- Record Withdrawal Form -->
-  <h5><i class="fas fa-money-bill-wave text-warning"></i> Record Withdrawal</h5>
-  <form method="post" action="{{ url_for('add_withdrawal') }}" class="row g-2 mb-4">
-    <div class="col-md-3">
-      <input name="supplier_id_w" class="form-control" placeholder="Supplier ID e.g. S001" required>
+  <!-- Financial Summary -->
+  <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+      <i class="fas fa-chart-bar"></i> Financial Summary for {{ month }}
     </div>
-    <div class="col-md-2">
-      <input name="date_w" type="date" class="form-control" value="{{ month + '-01' }}">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Supplier Transactions</h5>
+          <table class="table table-bordered">
+            <tr>
+              <td><strong>Total Collections</strong></td>
+              <td class="text-end">₹ {{ monthly_total_amount }}</td>
+            </tr>
+            <tr>
+              <td><strong>Total Withdrawals</strong></td>
+              <td class="text-end text-danger">- ₹ {{ monthly_total_withdrawn }}</td>
+            </tr>
+            <tr class="table-success">
+              <td><strong>Net Payable to Suppliers</strong></td>
+              <td class="text-end text-success fw-bold">₹ {{ monthly_total_amount - monthly_total_withdrawn }}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="col-md-6">
+          <h5>Sales & Profit Analysis</h5>
+          <table class="table table-bordered">
+            <tr>
+              <td><strong>Total Sales Income</strong></td>
+              <td class="text-end">₹ {{ monthly_total_sales }}</td>
+            </tr>
+            <tr>
+              <td><strong>Total Supplier Cost</strong></td>
+              <td class="text-end">₹ {{ monthly_total_amount - monthly_total_withdrawn }}</td>
+            </tr>
+            <tr>
+              <td><strong>Gross Profit/Loss</strong></td>
+              <td class="text-end {% if monthly_total_sales > (monthly_total_amount - monthly_total_withdrawn) %}text-profit{% else %}text-loss{% endif %}">
+                ₹ {{ monthly_total_sales - (monthly_total_amount - monthly_total_withdrawn) }}
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="alert alert-warning mt-3">
+        <i class="fas fa-exclamation-circle"></i>
+        <strong>Note:</strong> Withdrawals are payments made to suppliers during the month. 
+        The "Balance" column shows the remaining amount to be paid after deducting withdrawals.
+      </div>
     </div>
-    <div class="col-md-3">
-      <input name="amount_w" type="number" class="form-control" placeholder="Amount (₹)" required>
-    </div>
-    <div class="col-md-4">
-      <input name="note_w" class="form-control" placeholder="Note (optional)">
-    </div>
-    <div class="col-12 mt-2">
-      <button class="btn btn-warning">
-        <i class="fas fa-save"></i> Record Withdrawal
-      </button>
-    </div>
-  </form>
+  </div>
 
-  <div class="mt-3">
-    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Add Collection
-    </a>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
+  <!-- Quick Withdrawal Form -->
+  <div class="card">
+    <div class="card-header bg-warning text-dark">
+      <i class="fas fa-money-bill-wave"></i> Quick Withdrawal Entry
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('add_withdrawal') }}" class="row g-2 mb-4">
+        <div class="col-md-3">
+          <input name="supplier_id_w" class="form-control" placeholder="Supplier ID e.g. S001" required>
+        </div>
+        <div class="col-md-2">
+          <input name="date_w" type="date" class="form-control" value="{{ month + '-01' }}">
+        </div>
+        <div class="col-md-3">
+          <input name="amount_w" type="number" class="form-control" placeholder="Amount (₹)" required>
+        </div>
+        <div class="col-md-4">
+          <input name="note_w" class="form-control" placeholder="Note (optional)">
+        </div>
+        <div class="col-12 mt-2">
+          <button class="btn btn-warning">
+            <i class="fas fa-save"></i> Record Withdrawal
+          </button>
+          <small class="text-muted ms-2">Or use the "Add" button next to each supplier for quick entry</small>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex justify-content-between">
+    <div>
+      <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Collection
+      </a>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+    <div>
+      <a href="{{ url_for('withdrawals') }}" class="btn btn-outline-danger">
+        <i class="fas fa-money-bill-wave"></i> Manage Withdrawals
+      </a>
+    </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function quickWithdrawal(supplierId, supplierName, maxAmount) {
+    const amount = prompt(`Add withdrawal for ${supplierName}\nAvailable balance: ₹${maxAmount}\n\nEnter amount:`, maxAmount);
+    
+    if (amount && !isNaN(amount) && amount > 0) {
+        if (parseFloat(amount) > parseFloat(maxAmount)) {
+            if (!confirm(`Warning: Amount (₹${amount}) exceeds balance (₹${maxAmount}). Continue anyway?`)) {
+                return;
+            }
+        }
+        
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ url_for('add_withdrawal') }}";
+        
+        const supplierInput = document.createElement('input');
+        supplierInput.type = 'hidden';
+        supplierInput.name = 'supplier_id_w';
+        supplierInput.value = supplierId;
+        
+        const amountInput = document.createElement('input');
+        amountInput.type = 'hidden';
+        amountInput.name = 'amount_w';
+        amountInput.value = amount;
+        
+        const dateInput = document.createElement('input');
+        dateInput.type = 'hidden';
+        dateInput.name = 'date_w';
+        dateInput.value = new Date().toISOString().split('T')[0];
+        
+        const noteInput = document.createElement('input');
+        noteInput.type = 'hidden';
+        noteInput.name = 'note_w';
+        noteInput.value = `Quick withdrawal via monthly report`;
+        
+        form.appendChild(supplierInput);
+        form.appendChild(amountInput);
+        form.appendChild(dateInput);
+        form.appendChild(noteInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Auto-fill today's date in withdrawal form
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.querySelector('input[name="date_w"]');
+    if (dateInput) {
+        // If date is empty or set to month-01, update to today
+        if (!dateInput.value || dateInput.value.endsWith('-01')) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${year}-${month}-${day}`;
+        }
+    }
+    
+    // Make stat cards clickable to scroll to suppliers section
+    const statCards = document.querySelectorAll('.stat-card[onclick]');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+    });
+});
+</script>
 </body>
 </html>

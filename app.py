@@ -820,6 +820,56 @@ def edit_withdrawal(wid):
     
     return render_template('edit_withdrawal.html', w=w)
 
+# ================== DELETE WITHDRAWAL ==================
+@app.route('/delete_withdrawal/<int:wid>', methods=['POST'])
+@login_required
+@role_required('admin')
+def delete_withdrawal(wid):
+    w = Withdrawal.query.get_or_404(wid)
+    supplier_id = w.supplier.supplier_id
+    db.session.delete(w)
+    db.session.commit()
+    flash("Withdrawal deleted", "success")
+    return redirect(url_for('supplier_view', supplier_id=supplier_id))
+
+# ================== WITHDRAWALS PAGE ==================
+@app.route('/withdrawals')
+@login_required
+@role_required('admin', 'employee')
+def withdrawals():
+    """View all withdrawals"""
+    today = get_today_ist()
+    
+    # Get all withdrawals (most recent first)
+    withdrawals_list = Withdrawal.query.order_by(Withdrawal.date.desc(), Withdrawal.created_at.desc()).limit(100).all()
+    
+    # Get all suppliers for the dropdown
+    suppliers = Supplier.query.all()
+    suppliers = sort_by_id(suppliers, 'supplier_id')
+    
+    # Calculate current month totals
+    current_month = datetime.now(IST).strftime("%Y-%m")
+    like = current_month + '%'
+    
+    # Total withdrawn this month
+    monthly_withdrawals = Withdrawal.query.filter(Withdrawal.date.like(like)).all()
+    total_withdrawn = sum(w.amount for w in monthly_withdrawals)
+    
+    # Calculate monthly collections
+    monthly_collections = Collection.query.filter(Collection.date.like(like)).all()
+    monthly_collection_amount = sum(c.amount for c in monthly_collections)
+    
+    # Net balance for the month
+    monthly_balance = monthly_collection_amount - total_withdrawn
+    
+    return render_template('withdrawals.html',
+                         withdrawals=withdrawals_list,
+                         suppliers=suppliers,
+                         today=today,
+                         total_withdrawn=total_withdrawn,
+                         monthly_balance=monthly_balance,
+                         current_month=current_month)
+
 # ================== MONTHLY REPORTS ==================
 @app.route('/monthly')
 @login_required

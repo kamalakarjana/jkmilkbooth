@@ -537,8 +537,8 @@ def supplier_view(supplier_id):
     available_months = db.session.query(
         func.substr(Collection.date, 1, 7).label('month')
     ).filter_by(supplier_id=s.id)\
-     .group_by('month')\
-     .order_by('month DESC')\
+     .group_by(func.substr(Collection.date, 1, 7))\
+     .order_by(func.substr(Collection.date, 1, 7).desc())\
      .all()
     
     month_options = [m.month for m in available_months]
@@ -589,8 +589,8 @@ def supplier_payment_cycles(supplier_id):
     available_months = db.session.query(
         func.substr(Collection.date, 1, 7).label('month')
     ).filter_by(supplier_id=s.id)\
-     .group_by('month')\
-     .order_by('month DESC')\
+     .group_by(func.substr(Collection.date, 1, 7))\
+     .order_by(func.substr(Collection.date, 1, 7).desc())\
      .all()
     
     # Format months for dropdown

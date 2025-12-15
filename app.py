@@ -39,6 +39,10 @@ def get_ist_datetime():
     """Get current datetime in IST"""
     return datetime.now(IST)
 
+def get_last_day_of_month(year, month):
+    """Get the last day of a month"""
+    return monthrange(year, month)[1]
+
 # ================== RATE CHARTS ==================
 BUFFALO_RATE_CHART = {
     5.0:38.70,5.1:39.47,5.2:40.25,5.3:41.02,5.4:41.80,
@@ -74,9 +78,61 @@ def find_rate(fat, milk_type='buffalo'):
     else:
         return BUFFALO_RATE_CHART.get(k)
 
-def get_last_day_of_month(year, month):
-    """Get the last day of a month"""
-    return monthrange(year, month)[1]
+def calculate_payment_cycles(collections, year, month):
+    """Calculate payment cycles for a given month"""
+    # Filter collections for the specific month
+    month_str = f"{year}-{month:02d}"
+    monthly_collections = [c for c in collections if c.date.startswith(month_str)]
+    
+    # Initialize cycles
+    cycles = {
+        'cycle_1': {
+            'start': f"{year}-{month:02d}-01",
+            'end': f"{year}-{month:02d}-15",
+            'morning': {'liters': 0, 'amount': 0, 'count': 0},
+            'evening': {'liters': 0, 'amount': 0, 'count': 0},
+            'total_liters': 0,
+            'total_amount': 0
+        },
+        'cycle_2': {
+            'start': f"{year}-{month:02d}-16",
+            'end': f"{year}-{month:02d}-{get_last_day_of_month(year, month):02d}",
+            'morning': {'liters': 0, 'amount': 0, 'count': 0},
+            'evening': {'liters': 0, 'amount': 0, 'count': 0},
+            'total_liters': 0,
+            'total_amount': 0
+        }
+    }
+    
+    # Process each collection
+    for coll in monthly_collections:
+        try:
+            day = int(coll.date.split('-')[2])
+            
+            # Determine which cycle
+            if 1 <= day <= 15:
+                cycle = cycles['cycle_1']
+            else:
+                cycle = cycles['cycle_2']
+            
+            # Add to morning/evening totals
+            if coll.session == 'morning':
+                cycle['morning']['liters'] += coll.liters
+                cycle['morning']['amount'] += coll.amount
+                cycle['morning']['count'] += 1
+            else:  # evening
+                cycle['evening']['liters'] += coll.liters
+                cycle['evening']['amount'] += coll.amount
+                cycle['evening']['count'] += 1
+            
+            # Update cycle totals
+            cycle['total_liters'] += coll.liters
+            cycle['total_amount'] += coll.amount
+            
+        except (ValueError, IndexError):
+            continue
+    
+    return cycles
 
 # ================== MODELS ==================
 class Supplier(db.Model):
@@ -204,62 +260,6 @@ def sort_by_id(items, id_field='supplier_id'):
     else:
         return sorted(items, key=lambda x: int(getattr(x, id_field)) if getattr(x, id_field).isdigit() else 999999)
 
-def calculate_payment_cycles(collections, year, month):
-    """Calculate payment cycles for a given month"""
-    # Filter collections for the specific month
-    month_str = f"{year}-{month:02d}"
-    monthly_collections = [c for c in collections if c.date.startswith(month_str)]
-    
-    # Initialize cycles
-    cycles = {
-        'cycle_1': {
-            'start': f"{year}-{month:02d}-01",
-            'end': f"{year}-{month:02d}-15",
-            'morning': {'liters': 0, 'amount': 0, 'count': 0},
-            'evening': {'liters': 0, 'amount': 0, 'count': 0},
-            'total_liters': 0,
-            'total_amount': 0
-        },
-        'cycle_2': {
-            'start': f"{year}-{month:02d}-16",
-            'end': f"{year}-{month:02d}-{get_last_day_of_month(year, month):02d}",
-            'morning': {'liters': 0, 'amount': 0, 'count': 0},
-            'evening': {'liters': 0, 'amount': 0, 'count': 0},
-            'total_liters': 0,
-            'total_amount': 0
-        }
-    }
-    
-    # Process each collection
-    for coll in monthly_collections:
-        try:
-            day = int(coll.date.split('-')[2])
-            
-            # Determine which cycle
-            if 1 <= day <= 15:
-                cycle = cycles['cycle_1']
-            else:
-                cycle = cycles['cycle_2']
-            
-            # Add to morning/evening totals
-            if coll.session == 'morning':
-                cycle['morning']['liters'] += coll.liters
-                cycle['morning']['amount'] += coll.amount
-                cycle['morning']['count'] += 1
-            else:  # evening
-                cycle['evening']['liters'] += coll.liters
-                cycle['evening']['amount'] += coll.amount
-                cycle['evening']['count'] += 1
-            
-            # Update cycle totals
-            cycle['total_liters'] += coll.liters
-            cycle['total_amount'] += coll.amount
-            
-        except (ValueError, IndexError):
-            continue
-    
-    return cycles
-
 # Role-based access control
 def role_required(*roles):
     def decorator(f):
@@ -289,6 +289,26 @@ def create_default_admin():
             db.session.add(admin)
             db.session.commit()
             print("Default admin created: admin / admin123")
+
+# ================== TEMPLATE CONTEXT PROCESSORS ==================
+@app.context_processor
+def utility_processor():
+    """Make utility functions available to all templates"""
+    def today_date():
+        return get_today_ist()
+    
+    def current_year():
+        return datetime.now(IST).year
+    
+    def current_month():
+        return datetime.now(IST).month
+    
+    return {
+        'today_date': today_date,
+        'current_year': current_year,
+        'current_month': current_month,
+        'now': get_ist_datetime
+    }
 
 # ================== AUTHENTICATION ROUTES ==================
 @app.route('/login', methods=['GET', 'POST'])

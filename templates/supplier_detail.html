@@ -46,12 +46,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="cycles-tab" data-bs-toggle="tab" data-bs-target="#cycles" type="button">
-            <i class="fas fa-calendar-alt"></i> Payment Cycles
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="collections-tab" data-bs-toggle="tab" data-bs-target="#collections" type="button">
-            <i class="fas fa-history"></i> Collections
+            <i class="fas fa-calendar-alt"></i> Collections & Payment Cycles
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -127,11 +122,11 @@
         </div>
     </div>
 
-    <!-- Tab 2: Payment Cycles -->
+    <!-- Tab 2: Combined Collections & Payment Cycles -->
     <div class="tab-pane fade" id="cycles" role="tabpanel">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <i class="fas fa-calendar-alt"></i> Payment Cycles Analysis
+                <i class="fas fa-calendar-alt"></i> Collections & Payment Cycles Analysis
             </div>
             <div class="card-body">
                 <!-- Month Selection -->
@@ -253,8 +248,75 @@
                     </div>
                 </div>
 
+                <!-- Collections Table Section -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-history"></i> Collections for {{ selected_month }} ({{ monthly_collections|length }} entries)</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-warning" onclick="filterCollectionsTable('all', 'morning')">
+                                <i class="fas fa-sun"></i> Morning
+                            </button>
+                            <button class="btn btn-outline-info" onclick="filterCollectionsTable('all', 'evening')">
+                                <i class="fas fa-moon"></i> Evening
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="filterCollectionsTable('all', 'all')">
+                                All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-hover" id="monthly-collections-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Session</th>
+                                        <th>Liters</th>
+                                        <th>Fat %</th>
+                                        <th>Amount</th>
+                                        <th>Cycle</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for c in monthly_collections %}
+                                    <tr class="collection-row" data-cycle="{% if c.date.split('-')[2]|int <= 15 %}cycle1{% else %}cycle2{% endif %}" data-session="{{ c.session }}">
+                                        <td>{{ c.date }}</td>
+                                        <td>
+                                            <span class="badge {% if c.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
+                                                {{ c.session|title }}
+                                            </span>
+                                        </td>
+                                        <td>{{ "%.2f"|format(c.liters) }}</td>
+                                        <td>{{ "%.1f"|format(c.fat) }}%</td>
+                                        <td class="fw-bold">₹ {{ c.amount }}</td>
+                                        <td>
+                                            <span class="badge {% if c.date.split('-')[2]|int <= 15 %}bg-primary{% else %}bg-success{% endif %}">
+                                                {% if c.date.split('-')[2]|int <= 15 %}Cycle 1{% else %}Cycle 2{% endif %}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">
+                                            No collections found
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-light">
+                                        <td colspan="4" class="text-end fw-bold">Month Total:</td>
+                                        <td class="fw-bold text-success">₹ {{ month_summary.total_amount }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Quick Stats -->
-                <div class="row">
+                <div class="row mt-4">
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">Session Totals</div>
@@ -293,6 +355,12 @@
                                         <td>Month Withdrawn:</td>
                                         <td class="fw-bold text-warning">₹ {{ month_summary.total_withdrawn }}</td>
                                     </tr>
+                                    <tr>
+                                        <td>Remaining Balance:</td>
+                                        <td class="fw-bold {% if month_summary.balance > 0 %}text-success{% else %}text-secondary{% endif %}">
+                                            ₹ {{ month_summary.balance }}
+                                        </td>
+                                    </tr>
                                 </table>
                             </div>
                         </div>
@@ -303,80 +371,14 @@
                 <div class="text-center py-5">
                     <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
                     <h4 class="text-muted">Select a Month</h4>
-                    <p class="text-muted">Choose a month from the dropdown to view payment cycles</p>
+                    <p class="text-muted">Choose a month from the dropdown to view collections and payment cycles</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Tab 3: Collections -->
-    <div class="tab-pane fade" id="collections" role="tabpanel">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-history"></i> Collections</span>
-                {% if selected_month %}
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-warning" onclick="filterCollectionsTable('all', 'morning')">
-                        <i class="fas fa-sun"></i> Morning
-                    </button>
-                    <button class="btn btn-outline-info" onclick="filterCollectionsTable('all', 'evening')">
-                        <i class="fas fa-moon"></i> Evening
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="filterCollectionsTable('all', 'all')">
-                        All
-                    </button>
-                </div>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                {% if selected_month %}
-                <h6 class="mb-3">Collections for {{ selected_month }} ({{ monthly_collections|length }} entries)</h6>
-                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-sm table-hover" id="monthly-collections-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Session</th>
-                                <th>Liters</th>
-                                <th>Fat %</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for c in monthly_collections %}
-                            <tr class="collection-row" data-cycle="{% if c.date.split('-')[2]|int <= 15 %}cycle1{% else %}cycle2{% endif %}" data-session="{{ c.session }}">
-                                <td>{{ c.date }}</td>
-                                <td>
-                                    <span class="badge {% if c.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
-                                        {{ c.session|title }}
-                                    </span>
-                                </td>
-                                <td>{{ "%.2f"|format(c.liters) }}</td>
-                                <td>{{ "%.1f"|format(c.fat) }}%</td>
-                                <td class="fw-bold">₹ {{ c.amount }}</td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">
-                                    No collections found
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
-                    <p class="text-muted">Select a month in Payment Cycles tab to view collections</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab 4: Withdrawals -->
+    <!-- Tab 3: Withdrawals -->
     <div class="tab-pane fade" id="withdrawals" role="tabpanel">
         <div class="card">
             <div class="card-header"><i class="fas fa-money-bill-wave"></i> Withdrawals</div>
@@ -411,7 +413,7 @@
         </div>
     </div>
 
-    <!-- Tab 5: Downloads (Only shown when month selected) -->
+    <!-- Tab 4: Downloads (Only shown when month selected) -->
     {% if selected_month %}
     <div class="tab-pane fade" id="downloads" role="tabpanel">
         <div class="card">
@@ -577,10 +579,16 @@
 .highlight-evening {
     background-color: rgba(23, 162, 184, 0.1) !important;
 }
+.highlight-cycle1 {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+.highlight-cycle2 {
+    background-color: rgba(25, 135, 84, 0.05) !important;
+}
 </style>
 
 <script>
-// Simple JavaScript functions (same as before, but simplified)
+// Simple JavaScript functions
 function showSessionDetails(cycle, session) {
     filterCollectionsTable(cycle, session);
     showNotification(`Showing ${session} collections for ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'}`, 'info');
@@ -603,14 +611,21 @@ function filterCollectionsTable(cycleFilter, sessionFilter) {
         
         if (shouldShow) {
             row.style.display = '';
-            if (sessionFilter === 'morning') {
+            // Clear all highlights first
+            row.classList.remove('highlight-morning', 'highlight-evening', 'highlight-cycle1', 'highlight-cycle2');
+            
+            // Apply session highlights
+            if (sessionFilter === 'morning' || rowSession === 'morning') {
                 row.classList.add('highlight-morning');
-                row.classList.remove('highlight-evening');
-            } else if (sessionFilter === 'evening') {
+            } else if (sessionFilter === 'evening' || rowSession === 'evening') {
                 row.classList.add('highlight-evening');
-                row.classList.remove('highlight-morning');
-            } else {
-                row.classList.remove('highlight-morning', 'highlight-evening');
+            }
+            
+            // Apply cycle highlights
+            if (cycleFilter === 'cycle1' || rowCycle === 'cycle1') {
+                row.classList.add('highlight-cycle1');
+            } else if (cycleFilter === 'cycle2' || rowCycle === 'cycle2') {
+                row.classList.add('highlight-cycle2');
             }
         } else {
             row.style.display = 'none';
@@ -627,13 +642,35 @@ function showNotification(message, type = 'info') {
     setTimeout(() => notification.remove(), 3000);
 }
 
-// Download functions (keep the same download functions from previous version)
-// ... [All download functions remain the same as in previous code] ...
-</script>
+// Download functions (simplified placeholders)
+function downloadCycleCSV(cycle) {
+    showNotification(`Downloading ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'} CSV...`, 'info');
+    // Add your download logic here
+}
 
-<!-- Keep all the download JavaScript functions from the previous version -->
-<script>
-// [Include all the download functions from the previous code here]
-// They remain exactly the same - just not shown to save space
+function downloadSessionCSV(session) {
+    showNotification(`Downloading ${session} session CSV...`, 'info');
+    // Add your download logic here
+}
+
+function downloadCSV() {
+    showNotification('Downloading complete report CSV...', 'info');
+    // Add your download logic here
+}
+
+function downloadCyclePDF(cycle) {
+    showNotification(`Downloading ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'} PDF...`, 'info');
+    // Add your download logic here
+}
+
+function downloadFullReportPDF() {
+    showNotification('Downloading full PDF report...', 'info');
+    // Add your download logic here
+}
+
+function printPaymentCycles() {
+    showNotification('Opening print dialog...', 'info');
+    setTimeout(() => window.print(), 500);
+}
 </script>
 {% endblock %}

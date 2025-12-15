@@ -34,6 +34,44 @@
     </div>
 </div>
 
+<!-- New Payment Cycles Button -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <i class="fas fa-calendar-alt"></i> Payment Cycles (1-15 & 16-31)
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <p class="mb-3">View detailed payment cycles with morning/evening breakdown:</p>
+                <ul>
+                    <li><strong>Cycle 1:</strong> 1st to 15th of each month</li>
+                    <li><strong>Cycle 2:</strong> 16th to last day of each month</li>
+                </ul>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{{ url_for('supplier_payment_cycles', supplier_id=supplier.supplier_id) }}" 
+                   class="btn btn-primary btn-lg">
+                    <i class="fas fa-money-bill-wave"></i> View Payment Cycles
+                </a>
+            </div>
+        </div>
+        
+        {% if month_options %}
+        <div class="mt-3">
+            <p class="mb-2"><strong>Quick Select Month:</strong></p>
+            <div class="d-flex flex-wrap gap-2">
+                {% for month in month_options|slice(0, 6) %}
+                <a href="{{ url_for('supplier_payment_cycles', supplier_id=supplier.supplier_id) }}?month={{ month }}" 
+                   class="btn btn-outline-primary btn-sm">
+                    {{ month }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="card mb-4">
     <div class="card-header">Recent Collections</div>
     <div class="card-body">
@@ -64,7 +102,7 @@
                         <td colspan="6" class="text-center py-4 text-muted">
                             No collections found
                         </td>
-                    tr>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>

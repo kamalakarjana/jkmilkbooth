@@ -19,7 +19,7 @@
     </div>
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">Summary</div>
+            <div class="card-header">Overall Summary</div>
             <div class="card-body text-center">
                 <h3 class="text-primary">₹ {{ total_amount }}</h3>
                 <p class="text-muted">Total Amount</p>
@@ -34,46 +34,289 @@
     </div>
 </div>
 
-<!-- New Payment Cycles Button -->
+<!-- Payment Cycles Section -->
 <div class="card mb-4">
     <div class="card-header bg-primary text-white">
-        <i class="fas fa-calendar-alt"></i> Payment Cycles (1-15 & 16-31)
+        <i class="fas fa-calendar-alt"></i> Payment Cycles Analysis
     </div>
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-8">
-                <p class="mb-3">View detailed payment cycles with morning/evening breakdown:</p>
-                <ul>
-                    <li><strong>Cycle 1:</strong> 1st to 15th of each month</li>
-                    <li><strong>Cycle 2:</strong> 16th to last day of each month</li>
-                </ul>
+        <!-- Month Selection -->
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Select Month</label>
+                <select name="month" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Select Month to View Cycles --</option>
+                    {% for month_option in month_options %}
+                    <option value="{{ month_option }}" {% if month_option == selected_month %}selected{% endif %}>
+                        {{ month_option }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col-md-4 text-end">
-                <a href="{{ url_for('supplier_payment_cycles', supplier_id=supplier.supplier_id) }}" 
-                   class="btn btn-primary btn-lg">
-                    <i class="fas fa-money-bill-wave"></i> View Payment Cycles
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Show
+                </button>
+            </div>
+            {% if selected_month %}
+            <div class="col-md-6 d-flex align-items-end justify-content-end">
+                <a href="{{ url_for('supplier_view', supplier_id=supplier.supplier_id) }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Clear Filter
                 </a>
+            </div>
+            {% endif %}
+        </form>
+
+        {% if selected_month %}
+        <!-- Monthly Summary -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-rupee-sign text-success"></i>
+                    <div class="number">₹ {{ month_summary.total_amount }}</div>
+                    <div class="label">Month Collection</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-weight text-primary"></i>
+                    <div class="number">{{ "%.2f"|format(month_summary.total_liters) }} L</div>
+                    <div class="label">Month Liters</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-money-bill-wave text-warning"></i>
+                    <div class="number">₹ {{ month_summary.total_withdrawn }}</div>
+                    <div class="label">Month Withdrawn</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-balance-scale text-info"></i>
+                    <div class="number">₹ {{ month_summary.balance }}</div>
+                    <div class="label">Month Balance</div>
+                </div>
             </div>
         </div>
-        
-        {% if month_options and month_options|length > 0 %}
-        <div class="mt-3">
-            <p class="mb-2"><strong>Quick Select Month:</strong></p>
-            <div class="d-flex flex-wrap gap-2">
-                {% for month in month_options[:6] %}
-                <a href="{{ url_for('supplier_payment_cycles', supplier_id=supplier.supplier_id) }}?month={{ month }}" 
-                   class="btn btn-outline-primary btn-sm">
-                    {{ month }}
-                </a>
-                {% endfor %}
+
+        <!-- Cycle 1: 1st to 15th -->
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-day"></i> Cycle 1: 1st - 15th of {{ selected_month }}</span>
+                <div>
+                    <button class="btn btn-sm btn-light me-2" onclick="showCycleDetails('cycle1', 'morning')">
+                        <i class="fas fa-sun"></i> Morning: ₹ {{ cycles.cycle_1.morning.amount }}
+                    </button>
+                    <button class="btn btn-sm btn-light" onclick="showCycleDetails('cycle1', 'evening')">
+                        <i class="fas fa-moon"></i> Evening: ₹ {{ cycles.cycle_1.evening.amount }}
+                    </button>
+                </div>
             </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Session</th>
+                                <th>Collections</th>
+                                <th>Total Liters</th>
+                                <th>Total Amount</th>
+                                <th>Avg per Collection</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Morning</strong></td>
+                                <td>{{ cycles.cycle_1.morning.count }}</td>
+                                <td>{{ "%.2f"|format(cycles.cycle_1.morning.liters) }} L</td>
+                                <td class="fw-bold text-success">₹ {{ cycles.cycle_1.morning.amount }}</td>
+                                <td>
+                                    {% if cycles.cycle_1.morning.count > 0 %}
+                                    ₹ {{ (cycles.cycle_1.morning.amount / cycles.cycle_1.morning.count)|round(2) }}
+                                    {% else %}
+                                    ₹ 0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Evening</strong></td>
+                                <td>{{ cycles.cycle_1.evening.count }}</td>
+                                <td>{{ "%.2f"|format(cycles.cycle_1.evening.liters) }} L</td>
+                                <td class="fw-bold text-success">₹ {{ cycles.cycle_1.evening.amount }}</td>
+                                <td>
+                                    {% if cycles.cycle_1.evening.count > 0 %}
+                                    ₹ {{ (cycles.cycle_1.evening.amount / cycles.cycle_1.evening.count)|round(2) }}
+                                    {% else %}
+                                    ₹ 0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr class="table-success fw-bold">
+                                <td><strong>Cycle 1 Total</strong></td>
+                                <td>{{ cycles.cycle_1.morning.count + cycles.cycle_1.evening.count }}</td>
+                                <td>{{ "%.2f"|format(cycles.cycle_1.total_liters) }} L</td>
+                                <td>₹ {{ cycles.cycle_1.total_amount }}</td>
+                                <td>
+                                    {% set total_cycle1 = cycles.cycle_1.morning.count + cycles.cycle_1.evening.count %}
+                                    {% if total_cycle1 > 0 %}
+                                    ₹ {{ (cycles.cycle_1.total_amount / total_cycle1)|round(2) }}
+                                    {% else %}
+                                    ₹ 0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cycle 2: 16th to End of Month -->
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-calendar-day"></i> Cycle 2: 16th - {{ cycles.cycle_2.end.split('-')[2] }}th of {{ selected_month }}</span>
+                <div>
+                    <button class="btn btn-sm btn-light me-2" onclick="showCycleDetails('cycle2', 'morning')">
+                        <i class="fas fa-sun"></i> Morning: ₹ {{ cycles.cycle_2.morning.amount }}
+                    </button>
+                    <button class="btn btn-sm btn-light" onclick="showCycleDetails('cycle2', 'evening')">
+                        <i class="fas fa-moon"></i> Evening: ₹ {{ cycles.cycle_2.evening.amount }}
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Session</th>
+                                <th>Collections</th>
+                                <th>Total Liters</th>
+                                <th>Total Amount</th>
+                                <th>Avg per Collection</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Morning</strong></td>
+                                <td>{{ cycles.cycle_2.morning.count }}</td>
+                                <td>{{ "%.2f"|format(cycles.cycle_2.morning.liters) }} L</td>
+                                <td class="fw-bold text-success">₹ {{ cycles.cycle_2.morning.amount }}</td>
+                                <td>
+                                    {% if cycles.cycle_2.morning.count > 0 %}
+                                    ₹ {{ (cycles.cycle_2.morning.amount / cycles.cycle_2.morning.count)|round(2) }}
+                                    {% else %}
+                                    ₹ 0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Evening</strong></td>
+                                <td>{{ cycles.cycle_2.evening.count }}</td>
+                                <td>{{ "%.2f"|format(cycles.cycle_2.evening.liters) }} L</td>
+                                <td class="fw-bold text-success">₹ {{ cycles.cycle_2.evening.amount }}</td>
+                                <td>
+                                    {% if cycles.cycle_2.evening.count > 0 %}
+                                    ₹ {{ (cycles.cycle_2.evening.amount / cycles.cycle_2.evening.count)|round(2) }}
+                                    {% else %}
+                                    ₹ 0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr class="table-success fw-bold">
+                                <td><strong>Cycle 2 Total</strong></td>
+                                <td>{{ cycles.cycle_2.morning.count + cycles.cycle_2.evening.count }}</td>
+                                <td>{{ "%.2f"|format(cycles.cycle_2.total_liters) }} L</td>
+                                <td>₹ {{ cycles.cycle_2.total_amount }}</td>
+                                <td>
+                                    {% set total_cycle2 = cycles.cycle_2.morning.count + cycles.cycle_2.evening.count %}
+                                    {% if total_cycle2 > 0 %}
+                                    ₹ {{ (cycles.cycle_2.total_amount / total_cycle2)|round(2) }}
+                                    {% else %}
+                                    ₹ 0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Collections for Selected Month -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-list"></i> Collections for {{ selected_month }} ({{ monthly_collections|length }} entries)
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Session</th>
+                                <th>Type</th>
+                                <th>Liters</th>
+                                <th>Fat %</th>
+                                <th>Rate</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in monthly_collections %}
+                            <tr>
+                                <td>{{ c.date }}</td>
+                                <td>
+                                    <span class="badge {% if c.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
+                                        {{ c.session|title }}
+                                    </span>
+                                </td>
+                                <td>{{ c.milk_type|title }}</td>
+                                <td>{{ "%.2f"|format(c.liters) }}</td>
+                                <td>{{ "%.1f"|format(c.fat) }}%</td>
+                                <td>₹ {{ c.rate_per_liter }}</td>
+                                <td class="fw-bold">₹ {{ c.amount }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    No collections found for {{ selected_month }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if monthly_collections %}
+                        <tfoot class="table-dark">
+                            <tr>
+                                <th colspan="3">Totals for {{ selected_month }}</th>
+                                <th>{{ "%.2f"|format(month_summary.total_liters) }} L</th>
+                                <th>-</th>
+                                <th>-</th>
+                                <th>₹ {{ month_summary.total_amount }}</th>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- No month selected message -->
+        <div class="text-center py-5">
+            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">Select a Month to View Payment Cycles</h4>
+            <p class="text-muted">Choose a month from the dropdown above to see the 1-15 and 16-31 payment cycles breakdown</p>
         </div>
         {% endif %}
     </div>
 </div>
 
+<!-- Recent Collections (All time) -->
 <div class="card mb-4">
-    <div class="card-header">Recent Collections</div>
+    <div class="card-header">
+        <i class="fas fa-history"></i> Recent Collections (All Time)
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -110,7 +353,8 @@
     </div>
 </div>
 
-<div class="card">
+<!-- Withdrawals -->
+<div class="card mb-4">
     <div class="card-header">Withdrawals</div>
     <div class="card-body">
         <div class="table-responsive">
@@ -142,9 +386,101 @@
     </div>
 </div>
 
-<div class="mt-3">
-    <a href="{{ url_for('suppliers') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Suppliers
-    </a>
+<!-- Action Buttons -->
+<div class="mt-3 d-flex justify-content-between">
+    <div>
+        <a href="{{ url_for('suppliers') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Suppliers
+        </a>
+    </div>
+    <div>
+        {% if current_user.role in ['admin', 'employee'] %}
+        <button class="btn btn-warning" onclick="printPaymentCycles()">
+            <i class="fas fa-print"></i> Print Payment Cycles
+        </button>
+        {% endif %}
+    </div>
 </div>
+
+<style>
+.stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+}
+.stat-card i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+.stat-card .number {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+.stat-card .label {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+.cycle-details {
+    display: none;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+</style>
+
+<script>
+function showCycleDetails(cycle, session) {
+    // Filter and show collections for specific cycle and session
+    let cycleName = cycle === 'cycle1' ? 'Cycle 1 (1st-15th)' : 'Cycle 2 (16th-end)';
+    let sessionName = session === 'morning' ? 'Morning' : 'Evening';
+    
+    // Create a modal or alert with details
+    alert(`Showing details for ${sessionName} collections in ${cycleName}`);
+    
+    // You can implement modal here with actual filtered data
+    // This is a placeholder for actual implementation
+}
+
+function printPaymentCycles() {
+    if (!document.querySelector('[name="month"]').value) {
+        alert('Please select a month first to print payment cycles');
+        return;
+    }
+    
+    var printContents = document.querySelector('.card-body').innerHTML;
+    var originalContents = document.body.innerHTML;
+    
+    document.body.innerHTML = `
+        <html>
+            <head>
+                <title>Payment Cycles - {{ supplier.name }} - {{ selected_month }}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    .card { border: 1px solid #ddd; margin-bottom: 20px; }
+                    .card-header { background: #f8f9fa; padding: 10px; font-weight: bold; }
+                    .table { width: 100%; border-collapse: collapse; }
+                    .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    .table-success { background-color: #d4edda; }
+                    .text-center { text-align: center; }
+                    .fw-bold { font-weight: bold; }
+                    .stat-card { border: 1px solid #ddd; padding: 10px; margin: 10px; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <h2>Payment Cycles - {{ supplier.name }}</h2>
+                <p>Supplier ID: {{ supplier.supplier_id }} | Month: {{ selected_month }}</p>
+                ${printContents}
+            </body>
+        </html>
+    `;
+    
+    window.print();
+    document.body.innerHTML = originalContents;
+    location.reload();
+}
+</script>
 {% endblock %}

@@ -533,7 +533,38 @@ def supplier_view(supplier_id):
     total_withdrawn = sum(w.amount for w in wds)
     balance = total_amount - total_withdrawn
     
-    # Get available months for payment cycles dropdown
+    # Get selected month/year from request (default to current month)
+    selected_month = request.args.get('month', '')
+    
+    # Calculate payment cycles for the selected month (if any)
+    cycles = {}
+    monthly_collections = []
+    month_summary = {'total_amount': 0, 'total_liters': 0, 'total_withdrawn': 0, 'balance': 0}
+    
+    if selected_month:
+        try:
+            year, month = map(int, selected_month.split('-'))
+            cycles = calculate_payment_cycles(cols, year, month)
+            
+            # Get collections for this month
+            month_str = f"{year}-{month:02d}"
+            monthly_collections = [c for c in cols if c.date.startswith(month_str)]
+            
+            # Get withdrawals for this month
+            month_withdrawals = [w for w in wds if w.date.startswith(month_str)]
+            month_withdrawn = sum(w.amount for w in month_withdrawals)
+            
+            # Calculate month totals
+            month_summary = {
+                'total_amount': cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0,
+                'total_liters': cycles['cycle_1']['total_liters'] + cycles['cycle_2']['total_liters'] if cycles else 0,
+                'total_withdrawn': month_withdrawn,
+                'balance': (cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0) - month_withdrawn
+            }
+        except:
+            selected_month = ''
+    
+    # Get all available months for dropdown
     available_months = db.session.query(
         func.substr(Collection.date, 1, 7).label('month')
     ).filter_by(supplier_id=s.id)\
@@ -545,76 +576,17 @@ def supplier_view(supplier_id):
     
     return render_template('supplier_detail.html', 
                          supplier=s, 
-                         collections=cols, 
+                         collections=cols[:50],  # Show only recent 50 collections
                          withdrawals=wds,
                          total_liters=total_liters,
                          total_amount=total_amount,
                          total_withdrawn=total_withdrawn,
                          balance=balance,
-                         month_options=month_options)
-
-# ================== SUPPLIER PAYMENT CYCLES ==================
-@app.route('/supplier_payment_cycles/<supplier_id>')
-@login_required
-def supplier_payment_cycles(supplier_id):
-    s = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
-    
-    # Check access
-    if current_user.role == 'supplier' and (not current_user.supplier or current_user.supplier.id != s.id):
-        flash('Access denied', 'danger')
-        return redirect(url_for('my_account'))
-    
-    # Get all collections for this supplier
-    all_collections = Collection.query.filter_by(supplier_id=s.id)\
-                                    .order_by(Collection.date)\
-                                    .all()
-    
-    # Get current year and month
-    current_year = datetime.now(IST).year
-    current_month = datetime.now(IST).month
-    
-    # Get selected month/year from request
-    selected_month = request.args.get('month', f'{current_year}-{current_month:02d}')
-    
-    try:
-        year, month = map(int, selected_month.split('-'))
-    except:
-        year, month = current_year, current_month
-        selected_month = f'{year}-{month:02d}'
-    
-    # Calculate cycles for the selected month
-    cycles = calculate_payment_cycles(all_collections, year, month)
-    
-    # Get all available months for dropdown
-    available_months = db.session.query(
-        func.substr(Collection.date, 1, 7).label('month')
-    ).filter_by(supplier_id=s.id)\
-     .group_by(func.substr(Collection.date, 1, 7))\
-     .order_by(func.substr(Collection.date, 1, 7).desc())\
-     .all()
-    
-    # Format months for dropdown
-    month_options = [m.month for m in available_months]
-    
-    # Get withdrawals for this month to calculate balance
-    month_like = selected_month + '%'
-    withdrawals = Withdrawal.query.filter_by(supplier_id=s.id)\
-                                 .filter(Withdrawal.date.like(month_like))\
-                                 .all()
-    total_withdrawn = sum(w.amount for w in withdrawals)
-    
-    # Calculate total collection amount for the month
-    total_month_amount = cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount']
-    balance = total_month_amount - total_withdrawn
-    
-    return render_template('supplier_payment_cycles.html',
-                         supplier=s,
-                         cycles=cycles,
-                         selected_month=selected_month,
                          month_options=month_options,
-                         total_withdrawn=total_withdrawn,
-                         total_month_amount=total_month_amount,
-                         balance=balance)
+                         selected_month=selected_month,
+                         cycles=cycles,
+                         monthly_collections=monthly_collections,
+                         month_summary=month_summary)
 
 # ================== CUSTOMER MANAGEMENT (SALES) ==================
 @app.route('/customers', methods=['GET', 'POST'])

@@ -7,6 +7,7 @@ import os, csv, io, math, pytz
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+from calendar import monthrange
 
 load_dotenv()
 
@@ -37,6 +38,10 @@ def get_today_ist():
 def get_ist_datetime():
     """Get current datetime in IST"""
     return datetime.now(IST)
+
+def get_last_day_of_month(year, month):
+    """Get the last day of a month"""
+    return monthrange(year, month)[1]
 
 # ================== RATE CHARTS ==================
 BUFFALO_RATE_CHART = {
@@ -72,6 +77,62 @@ def find_rate(fat, milk_type='buffalo'):
         return COW_RATE_CHART.get(k)
     else:
         return BUFFALO_RATE_CHART.get(k)
+
+def calculate_payment_cycles(collections, year, month):
+    """Calculate payment cycles for a given month"""
+    # Filter collections for the specific month
+    month_str = f"{year}-{month:02d}"
+    monthly_collections = [c for c in collections if c.date.startswith(month_str)]
+    
+    # Initialize cycles
+    cycles = {
+        'cycle_1': {
+            'start': f"{year}-{month:02d}-01",
+            'end': f"{year}-{month:02d}-15",
+            'morning': {'liters': 0, 'amount': 0, 'count': 0},
+            'evening': {'liters': 0, 'amount': 0, 'count': 0},
+            'total_liters': 0,
+            'total_amount': 0
+        },
+        'cycle_2': {
+            'start': f"{year}-{month:02d}-16",
+            'end': f"{year}-{month:02d}-{get_last_day_of_month(year, month):02d}",
+            'morning': {'liters': 0, 'amount': 0, 'count': 0},
+            'evening': {'liters': 0, 'amount': 0, 'count': 0},
+            'total_liters': 0,
+            'total_amount': 0
+        }
+    }
+    
+    # Process each collection
+    for coll in monthly_collections:
+        try:
+            day = int(coll.date.split('-')[2])
+            
+            # Determine which cycle
+            if 1 <= day <= 15:
+                cycle = cycles['cycle_1']
+            else:
+                cycle = cycles['cycle_2']
+            
+            # Add to morning/evening totals
+            if coll.session == 'morning':
+                cycle['morning']['liters'] += coll.liters
+                cycle['morning']['amount'] += coll.amount
+                cycle['morning']['count'] += 1
+            else:  # evening
+                cycle['evening']['liters'] += coll.liters
+                cycle['evening']['amount'] += coll.amount
+                cycle['evening']['count'] += 1
+            
+            # Update cycle totals
+            cycle['total_liters'] += coll.liters
+            cycle['total_amount'] += coll.amount
+            
+        except (ValueError, IndexError):
+            continue
+    
+    return cycles
 
 # ================== MODELS ==================
 class Supplier(db.Model):
@@ -111,7 +172,7 @@ class Collection(db.Model):
     rate_per_liter = db.Column(db.Float, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     note = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)
 
     supplier = db.relationship('Supplier')
 
@@ -128,7 +189,7 @@ class Sale(db.Model):
     rate_per_liter = db.Column(db.Float, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     note = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)
 
     customer = db.relationship('Customer')
 
@@ -140,7 +201,7 @@ class Withdrawal(db.Model):
     date = db.Column(db.String(10), nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     note = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)
 
     supplier = db.relationship('Supplier')
 
@@ -152,7 +213,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='employee')
     mobile = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=get_ist_datetime)  # CHANGED
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)
     is_active = db.Column(db.Boolean, default=True)
     
     # Link to supplier or customer
@@ -224,10 +285,30 @@ def create_default_admin():
                 role='admin',
                 mobile=''
             )
-            admin.set_password('admin123')  # Change this immediately after first login!
+            admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
             print("Default admin created: admin / admin123")
+
+# ================== TEMPLATE CONTEXT PROCESSORS ==================
+@app.context_processor
+def utility_processor():
+    """Make utility functions available to all templates"""
+    def today_date():
+        return get_today_ist()
+    
+    def current_year():
+        return datetime.now(IST).year
+    
+    def current_month():
+        return datetime.now(IST).month
+    
+    return {
+        'today_date': today_date,
+        'current_year': current_year,
+        'current_month': current_month,
+        'now': get_ist_datetime
+    }
 
 # ================== AUTHENTICATION ROUTES ==================
 @app.route('/login', methods=['GET', 'POST'])
@@ -321,7 +402,7 @@ def index():
 @login_required
 def dashboard():
     """Original dashboard view"""
-    today = get_today_ist()  # CHANGED: date.today().isoformat()
+    today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
@@ -383,7 +464,7 @@ def my_account():
 @role_required('admin', 'employee')
 def add_collection_page():
     """Dedicated page for adding collections"""
-    today = get_today_ist()  # CHANGED: date.today().isoformat()
+    today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
@@ -452,14 +533,60 @@ def supplier_view(supplier_id):
     total_withdrawn = sum(w.amount for w in wds)
     balance = total_amount - total_withdrawn
     
+    # Get selected month/year from request (default to current month)
+    selected_month = request.args.get('month', '')
+    
+    # Calculate payment cycles for the selected month (if any)
+    cycles = {}
+    monthly_collections = []
+    month_summary = {'total_amount': 0, 'total_liters': 0, 'total_withdrawn': 0, 'balance': 0}
+    
+    if selected_month:
+        try:
+            year, month = map(int, selected_month.split('-'))
+            cycles = calculate_payment_cycles(cols, year, month)
+            
+            # Get collections for this month
+            month_str = f"{year}-{month:02d}"
+            monthly_collections = [c for c in cols if c.date.startswith(month_str)]
+            
+            # Get withdrawals for this month
+            month_withdrawals = [w for w in wds if w.date.startswith(month_str)]
+            month_withdrawn = sum(w.amount for w in month_withdrawals)
+            
+            # Calculate month totals
+            month_summary = {
+                'total_amount': cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0,
+                'total_liters': cycles['cycle_1']['total_liters'] + cycles['cycle_2']['total_liters'] if cycles else 0,
+                'total_withdrawn': month_withdrawn,
+                'balance': (cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0) - month_withdrawn
+            }
+        except:
+            selected_month = ''
+    
+    # Get all available months for dropdown
+    available_months = db.session.query(
+        func.substr(Collection.date, 1, 7).label('month')
+    ).filter_by(supplier_id=s.id)\
+     .group_by(func.substr(Collection.date, 1, 7))\
+     .order_by(func.substr(Collection.date, 1, 7).desc())\
+     .all()
+    
+    month_options = [m.month for m in available_months]
+    
     return render_template('supplier_detail.html', 
                          supplier=s, 
-                         collections=cols, 
+                         collections=cols[:50],  # Show only recent 50 collections
                          withdrawals=wds,
                          total_liters=total_liters,
                          total_amount=total_amount,
                          total_withdrawn=total_withdrawn,
-                         balance=balance)
+                         balance=balance,
+                         month_options=month_options,
+                         selected_month=selected_month,
+                         cycles=cycles,
+                         monthly_collections=monthly_collections,
+                         month_summary=month_summary)
 
 # ================== CUSTOMER MANAGEMENT (SALES) ==================
 @app.route('/customers', methods=['GET', 'POST'])
@@ -531,7 +658,7 @@ def add_collection():
     fat = float(data.get('fat') or 0)
     milk_type = data.get('milk_type', 'buffalo')
     session = data.get('session') or 'morning'
-    d = data.get('date') or get_today_ist()  # CHANGED: date.today().isoformat()
+    d = data.get('date') or get_today_ist()
     
     rate = find_rate(fat, milk_type)
     if rate is None:
@@ -561,7 +688,7 @@ def add_collection():
 @role_required('admin', 'employee')
 def quick_add_page():
     supplier_id = request.args.get('supplier_id')
-    today = get_today_ist()  # CHANGED: date.today().isoformat()
+    today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     return render_template('quick_add.html', supplier_id=supplier_id, today=today, suppliers=suppliers)
@@ -581,7 +708,7 @@ def quick_add():
     fat = float(request.form.get('fat_quick') or 0)
     milk_type = request.form.get('milk_type_quick', 'buffalo')
     session = request.form.get('session_quick') or 'morning'
-    d = request.form.get('date_quick') or get_today_ist()  # CHANGED
+    d = request.form.get('date_quick') or get_today_ist()
     
     rate = find_rate(fat, milk_type)
     if rate is None:
@@ -614,7 +741,7 @@ def sales():
     customers = sort_by_id(customers, 'cust_id')
     
     # Get today's sales
-    today = get_today_ist()  # CHANGED: date.today().isoformat()
+    today = get_today_ist()
     today_sales = Sale.query.filter_by(date=today).all()
     
     # Calculate statistics
@@ -645,7 +772,7 @@ def add_sale():
     fat = float(request.form.get('fat') or 0)
     milk_type = request.form.get('milk_type', 'buffalo')
     session = request.form.get('session', 'morning')
-    d = request.form.get('date') or get_today_ist()  # CHANGED
+    d = request.form.get('date') or get_today_ist()
     
     rate = find_rate(fat, milk_type)
     if rate is None:
@@ -674,7 +801,7 @@ def add_sale():
 @app.route('/daily')
 @login_required
 def daily():
-    req_date = request.args.get('date') or get_today_ist()  # CHANGED
+    req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
     
     query = Collection.query.filter_by(date=req_date)
@@ -701,7 +828,7 @@ def daily():
 @app.route('/daily_sales')
 @login_required
 def daily_sales():
-    req_date = request.args.get('date') or get_today_ist()  # CHANGED
+    req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
     
     query = Sale.query.filter_by(date=req_date)
@@ -794,7 +921,7 @@ def add_withdrawal():
         return redirect(url_for('monthly'))
     
     amt = int(float(request.form.get('amount_w') or 0))
-    d = request.form.get('date_w') or get_today_ist()  # CHANGED
+    d = request.form.get('date_w') or get_today_ist()
     note = request.form.get('note_w')
     
     w = Withdrawal(supplier_id=s.id, date=d, amount=amt, note=note)
@@ -820,7 +947,6 @@ def edit_withdrawal(wid):
     
     return render_template('edit_withdrawal.html', w=w)
 
-# ================== DELETE WITHDRAWAL ==================
 @app.route('/delete_withdrawal/<int:wid>', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -832,7 +958,6 @@ def delete_withdrawal(wid):
     flash("Withdrawal deleted", "success")
     return redirect(url_for('supplier_view', supplier_id=supplier_id))
 
-# ================== WITHDRAWALS PAGE ==================
 @app.route('/withdrawals')
 @login_required
 @role_required('admin', 'employee')
@@ -874,7 +999,7 @@ def withdrawals():
 @app.route('/monthly')
 @login_required
 def monthly():
-    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")  # CHANGED
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
     # Supplier collections
@@ -951,7 +1076,7 @@ def monthly():
 @app.route('/export_month_csv')
 @login_required
 def export_month_csv():
-    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")  # CHANGED
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
     rows = db.session.query(
@@ -983,7 +1108,7 @@ def export_month_csv():
 @app.route('/export_month_summary_csv')
 @login_required
 def export_month_summary_csv():
-    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")  # CHANGED
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
     rows = db.session.query(

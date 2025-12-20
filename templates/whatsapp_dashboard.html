@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Dashboard - Milk Booth{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">📱 WhatsApp Integration</h2>
+    
+    <!-- Status Card -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card {% if whatsapp_status %}border-success{% else %}border-danger{% endif %}">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-broadcast-tower"></i>
+                        WhatsApp Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if whatsapp_status %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>WhatsApp is Ready!</strong>
+                        <p class="mb-0 mt-2">You can send messages to suppliers.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <strong>WhatsApp Not Configured</strong>
+                        <p class="mb-0 mt-2">Please install pywhatkit and setup WhatsApp Web.</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3>{{ suppliers_with_mobile }}</h3>
+                                    <p class="text-muted">Suppliers with Mobile</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3>{{ suppliers_without_mobile }}</h3>
+                                    <p class="text-muted">Suppliers without Mobile</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('suppliers') }}" class="btn btn-primary btn-block">
+                                <i class="fas fa-users"></i> Manage Suppliers
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('send_bulk_daily_whatsapp') }}" class="btn btn-success btn-block" onclick="return confirm('Send daily summaries to ALL suppliers?')">
+                                <i class="fas fa-paper-plane"></i> Send Bulk Daily
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('whatsapp_logs') }}" class="btn btn-info btn-block">
+                                <i class="fas fa-history"></i> View Logs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test Section -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Test WhatsApp</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('whatsapp_dashboard') }}">
+                        <div class="form-row">
+                            <div class="col-md-8">
+                                <input type="text" name="test_phone" class="form-control" placeholder="Enter phone number (e.g., 9876543210)" required>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-warning btn-block">
+                                    <i class="fas fa-vial"></i> Send Test
+                                </button>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">Enter a phone number to test WhatsApp connection</small>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    {% if recent_logs %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_logs[:10] %}
+                                <tr>
+                                    <td>{{ log.timestamp }}</td>
+                                    <td>{{ log.phone|truncate(12) }}</td>
+                                    <td>
+                                        {% if log.status == 'sent' %}
+                                        <span class="badge badge-success">Sent</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">Failed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.message_preview }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Instructions Modal -->
+<div class="modal fade" id="instructionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">WhatsApp Setup Instructions</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h5>Step-by-Step Setup:</h5>
+                <ol>
+                    <li>Open Chrome browser on your server/computer</li>
+                    <li>Go to <a href="https://web.whatsapp.com" target="_blank">web.whatsapp.com</a></li>
+                    <li>Scan the QR code with your phone's WhatsApp</li>
+                    <li>Keep the Chrome tab open (don't close it)</li>
+                    <li>Minimize the browser if needed</li>
+                </ol>
+                
+                <div class="alert alert-info">
+                    <strong>Important:</strong> WhatsApp Web must stay open in Chrome for messages to be sent.
+                </div>
+                
+                <h5>Common Issues:</h5>
+                <ul>
+                    <li>If messages fail, refresh WhatsApp Web page</li>
+                    <li>Make sure internet connection is stable</li>
+                    <li>Phone must be connected to internet</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Show instructions on first visit
+    if(!localStorage.getItem('whatsapp_instructions_seen')) {
+        $('#instructionsModal').modal('show');
+        localStorage.setItem('whatsapp_instructions_seen', 'true');
+    }
+});
+</script>
+{% endblock %}

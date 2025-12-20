@@ -8,7 +8,11 @@ from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from calendar import monthrange
-from whatsapp_integration import WhatsAppAPI
+from whatsapp_handler import WhatsAppHandler, whatsapp_handler
+import threading
+import schedule
+import time
+from datetime import datetime
 
 load_dotenv()
 
@@ -562,7 +566,14 @@ def suppliers():
     
     all_suppliers = Supplier.query.all()
     all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
-    return render_template('suppliers.html', suppliers=all_suppliers)
+    
+    # Check WhatsApp status
+    whatsapp = WhatsAppHandler()
+    whatsapp_status = whatsapp.is_configured()
+    
+    return render_template('suppliers.html', 
+                         suppliers=all_suppliers,
+                         whatsapp_status=whatsapp_status)
 
 @app.route('/supplier/<supplier_id>')
 @login_required
@@ -620,9 +631,9 @@ def supplier_view(supplier_id):
     
     month_options = [m.month for m in available_months]
     
-    # Check WhatsApp configuration
-    whatsapp = WhatsAppAPI()
-    whatsapp_configured = whatsapp.is_configured()
+    # WhatsApp status
+    whatsapp = WhatsAppHandler()
+    whatsapp_status = whatsapp.is_configured()
     
     return render_template('supplier_detail.html', 
                          supplier=s, 
@@ -637,7 +648,368 @@ def supplier_view(supplier_id):
                          cycles=cycles,
                          monthly_collections=monthly_collections,
                          month_summary=month_summary,
-                         whatsapp_configured=whatsapp_configured)
+                         whatsapp_status=whatsapp_status)
+
+# ================== WHATSAPP ROUTES (Telugu Messages) ==================
+@app.route('/send_daily_summary_telugu/<supplier_id>')
+@login_required
+@role_required('admin', 'employee')
+def send_daily_summary_telugu(supplier_id):
+    """Send daily summary to supplier via WhatsApp in Telugu"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    if not supplier.mobile:
+        flash(f"No mobile number found for {supplier.name}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    # Get today's collections
+    today = get_today_ist()
+    collections_today = Collection.query.filter_by(
+        supplier_id=supplier.id, 
+        date=today
+    ).all()
+    
+    # Get today's withdrawals
+    withdrawals_today = Withdrawal.query.filter_by(
+        supplier_id=supplier.id,
+        date=today
+    ).all()
+    
+    # Calculate total balance
+    all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
+    all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
+    total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
+    
+    # Send WhatsApp message using pywhatkit in Telugu
+    whatsapp = WhatsAppHandler()
+    result = whatsapp.send_daily_summary(supplier, collections_today, withdrawals_today, total_balance)
+    
+    if result.get('success'):
+        scheduled_time = result.get('scheduled_at', 'soon')
+        flash(f"✅ తెలుగులో WhatsApp సారాంశం షెడ్యూల్ చేయబడింది {supplier.name} వద్ద {scheduled_time}", "success")
+        flash("ℹ️ WhatsApp Web Chrome లో ఓపెన్ చేసి ఉంచండి", "info")
+    else:
+        error_msg = result.get('error', 'Unknown error')
+        flash(f"❌ WhatsApp పంపడం విఫలమైంది: {error_msg}", "warning")
+    
+    return redirect(url_for('supplier_view', supplier_id=supplier_id))
+
+@app.route('/send_monthly_summary_telugu/<supplier_id>')
+@login_required
+@role_required('admin', 'employee')
+def send_monthly_summary_telugu(supplier_id):
+    """Send monthly summary to supplier via WhatsApp in Telugu"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    if not supplier.mobile:
+        flash(f"No mobile number found for {supplier.name}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    # Get selected month
+    selected_month = request.args.get('month', '')
+    if not selected_month:
+        # Default to current month
+        selected_month = datetime.now(IST).strftime("%Y-%m")
+    
+    # Get month's collections
+    month_str = selected_month + '%'
+    month_collections = Collection.query.filter_by(
+        supplier_id=supplier.id
+    ).filter(Collection.date.like(month_str)).all()
+    
+    # Get month's withdrawals
+    month_withdrawals = Withdrawal.query.filter_by(
+        supplier_id=supplier.id
+    ).filter(Withdrawal.date.like(month_str)).all()
+    
+    # Calculate month balance
+    month_balance = sum(c.amount for c in month_collections) - sum(w.amount for w in month_withdrawals)
+    
+    if not month_collections:
+        flash(f"No collections found for {selected_month}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    # Send WhatsApp message using pywhatkit in Telugu
+    whatsapp = WhatsAppHandler()
+    result = whatsapp.send_monthly_summary(supplier, month_collections, month_withdrawals, month_balance, selected_month)
+    
+    if result.get('success'):
+        scheduled_time = result.get('scheduled_at', 'soon')
+        flash(f"✅ తెలుగులో నెలవారీ WhatsApp సారాంశం షెడ్యూల్ చేయబడింది {supplier.name} వద్ద {scheduled_time}", "success")
+    else:
+        error_msg = result.get('error', 'Unknown error')
+        flash(f"❌ WhatsApp పంపడం విఫలమైంది: {error_msg}", "warning")
+    
+    return redirect(url_for('supplier_view', supplier_id=supplier_id, month=selected_month))
+
+@app.route('/send_bulk_telugu_summaries')
+@login_required
+@role_required('admin')
+def send_bulk_telugu_summaries():
+    """Send daily Telugu summaries to all suppliers with mobile numbers"""
+    today = get_today_ist()
+    suppliers = Supplier.query.filter(Supplier.mobile.isnot(None)).all()
+    
+    whatsapp = WhatsAppHandler()
+    
+    sent_count = 0
+    failed_count = 0
+    results = []
+    
+    for supplier in suppliers:
+        try:
+            collections_today = Collection.query.filter_by(
+                supplier_id=supplier.id, 
+                date=today
+            ).all()
+            
+            if not collections_today:
+                continue
+                
+            withdrawals_today = Withdrawal.query.filter_by(
+                supplier_id=supplier.id,
+                date=today
+            ).all()
+            
+            all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
+            all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
+            total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
+            
+            result = whatsapp.send_daily_summary(supplier, collections_today, withdrawals_today, total_balance)
+            
+            if result.get('success'):
+                sent_count += 1
+                results.append(f"✅ {supplier.name}: {result.get('scheduled_at', 'N/A')} వద్ద షెడ్యూల్ చేయబడింది")
+            else:
+                failed_count += 1
+                results.append(f"❌ {supplier.name}: {result.get('error', 'Unknown error')}")
+                
+            # Small delay between messages
+            time.sleep(1)
+                
+        except Exception as e:
+            failed_count += 1
+            results.append(f"❌ {supplier.name}: Error - {str(e)}")
+    
+    flash(f"📊 బల్క్ WhatsApp (తెలుగు): {sent_count} షెడ్యూల్ చేయబడ్డాయి, {failed_count} విఫలమైనవి", "info")
+    
+    if results:
+        session['bulk_results'] = results[:20]
+    
+    return redirect(url_for('suppliers'))
+
+# ================== WHATSAPP INTEGRATION ROUTES ==================
+
+@app.route('/whatsapp/send_daily/<supplier_id>')
+@login_required
+@role_required('admin', 'employee')
+def send_daily_whatsapp(supplier_id):
+    """Send daily summary via WhatsApp (Telugu)"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    if not supplier.mobile:
+        flash(f"No mobile number for {supplier.name}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    today = get_today_ist()
+    
+    # Get today's collections
+    collections_today = Collection.query.filter_by(
+        supplier_id=supplier.id,
+        date=today
+    ).all()
+    
+    # Get today's withdrawals
+    withdrawals_today = Withdrawal.query.filter_by(
+        supplier_id=supplier.id,
+        date=today
+    ).all()
+    
+    # Calculate total balance
+    all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
+    all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
+    total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
+    
+    if not collections_today:
+        flash(f"No collections today for {supplier.name}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    # Send WhatsApp message in Telugu
+    result = whatsapp_handler.send_daily_summary(
+        supplier, collections_today, withdrawals_today, total_balance
+    )
+    
+    if result.get('success'):
+        flash(f"✅ తెలుగులో దైనందిన WhatsApp సారాంశం పంపబడింది {supplier.name}కి", "success")
+        flash(f"📱 షెడ్యూల్ చేయబడింది: {result.get('scheduled_at')}", "info")
+    else:
+        flash(f"❌ WhatsApp పంపడం విఫలమైంది: {result.get('error')}", "danger")
+        if result.get('solution'):
+            flash(f"💡 సొల్యూషన్: {result.get('solution')}", "info")
+    
+    return redirect(url_for('supplier_view', supplier_id=supplier_id))
+
+
+@app.route('/whatsapp/send_monthly/<supplier_id>')
+@login_required
+@role_required('admin', 'employee')
+def send_monthly_whatsapp(supplier_id):
+    """Send monthly summary via WhatsApp (Telugu)"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    if not supplier.mobile:
+        flash(f"No mobile number for {supplier.name}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    # Get selected month
+    selected_month = request.args.get('month', '')
+    if not selected_month:
+        # Default to current month
+        selected_month = datetime.now(IST).strftime("%Y-%m")
+    
+    month_str = selected_month + '%'
+    
+    # Get month's data
+    month_collections = Collection.query.filter_by(
+        supplier_id=supplier.id
+    ).filter(Collection.date.like(month_str)).all()
+    
+    month_withdrawals = Withdrawal.query.filter_by(
+        supplier_id=supplier.id
+    ).filter(Withdrawal.date.like(month_str)).all()
+    
+    month_balance = sum(c.amount for c in month_collections) - sum(w.amount for w in month_withdrawals)
+    
+    if not month_collections:
+        flash(f"No collections found for {selected_month}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    # Send WhatsApp message in Telugu
+    result = whatsapp_handler.send_monthly_summary(
+        supplier, month_collections, month_withdrawals, month_balance, selected_month
+    )
+    
+    if result.get('success'):
+        flash(f"✅ తెలుగులో నెలవారీ WhatsApp సారాంశం పంపబడింది {supplier.name}కి", "success")
+        flash(f"📅 నెల: {selected_month} | మొత్తం: ₹{sum(c.amount for c in month_collections)}", "info")
+    else:
+        flash(f"❌ WhatsApp పంపడం విఫలమైంది: {result.get('error')}", "danger")
+    
+    return redirect(url_for('supplier_view', supplier_id=supplier_id, month=selected_month))
+
+
+@app.route('/whatsapp/send_bulk_daily')
+@login_required
+@role_required('admin')
+def send_bulk_daily_whatsapp():
+    """Send daily Telugu summaries to all suppliers with collections today"""
+    today = get_today_ist()
+    suppliers = Supplier.query.filter(
+        Supplier.mobile.isnot(None),
+        Supplier.mobile != ''
+    ).all()
+    
+    results = []
+    success_count = 0
+    fail_count = 0
+    
+    for supplier in suppliers:
+        # Check if supplier has collections today
+        collections_today = Collection.query.filter_by(
+            supplier_id=supplier.id,
+            date=today
+        ).all()
+        
+        if not collections_today:
+            results.append(f"{supplier.name}: నేడు సేకరణలు లేవు")
+            continue
+        
+        withdrawals_today = Withdrawal.query.filter_by(
+            supplier_id=supplier.id,
+            date=today
+        ).all()
+        
+        # Calculate balance
+        all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
+        all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
+        total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
+        
+        # Send message in Telugu
+        result = whatsapp_handler.send_daily_summary(
+            supplier, collections_today, withdrawals_today, total_balance
+        )
+        
+        if result.get('success'):
+            success_count += 1
+            results.append(f"✅ {supplier.name}: {result.get('scheduled_at')} వద్ద షెడ్యూల్ చేయబడింది")
+        else:
+            fail_count += 1
+            results.append(f"❌ {supplier.name}: {result.get('error')}")
+        
+        # Small delay between messages
+        time.sleep(2)
+    
+    # Store results in session for display
+    session['bulk_results'] = results[:20]
+    
+    flash(f"📊 బల్క్ WhatsApp (తెలుగు): {success_count} విజయవంతం, {fail_count} విఫలం", "info")
+    return redirect(url_for('suppliers'))
+
+
+@app.route('/whatsapp/test/<phone>')
+@login_required
+@role_required('admin')
+def test_whatsapp_route(phone):
+    """Test WhatsApp with a phone number (Telugu)"""
+    result = whatsapp_handler.test_connection(phone)
+    
+    if result.get('success'):
+        flash(f"✅ టెస్ట్ WhatsApp పంపబడింది {phone}కి", "success")
+        flash(f"⏰ షెడ్యూల్ చేయబడింది: {result.get('scheduled_at')}", "info")
+    else:
+        flash(f"❌ టెస్ట్ విఫలమైంది: {result.get('error')}", "danger")
+    
+    return redirect(url_for('whatsapp_dashboard'))
+
+
+@app.route('/whatsapp/dashboard')
+@login_required
+@role_required('admin', 'employee')
+def whatsapp_dashboard():
+    """WhatsApp dashboard"""
+    suppliers_with_mobile = Supplier.query.filter(
+        Supplier.mobile.isnot(None),
+        Supplier.mobile != ''
+    ).count()
+    
+    suppliers_without_mobile = Supplier.query.filter(
+        (Supplier.mobile.is_(None)) | (Supplier.mobile == '')
+    ).count()
+    
+    # Get recent logs
+    recent_logs = whatsapp_handler.get_recent_logs(3)
+    
+    # Check if WhatsApp is configured
+    whatsapp_status = whatsapp_handler.is_configured()
+    
+    return render_template('whatsapp_dashboard.html',
+                         suppliers_with_mobile=suppliers_with_mobile,
+                         suppliers_without_mobile=suppliers_without_mobile,
+                         recent_logs=recent_logs,
+                         whatsapp_status=whatsapp_status)
+
+
+@app.route('/whatsapp/logs')
+@login_required
+@role_required('admin')
+def whatsapp_logs():
+    """View WhatsApp logs"""
+    days = request.args.get('days', 7, type=int)
+    logs = whatsapp_handler.get_recent_logs(days)
+    
+    return render_template('whatsapp_logs.html',
+                         logs=logs,
+                         days=days)
 
 # ================== CUSTOMER MANAGEMENT ==================
 @app.route('/customers', methods=['GET', 'POST'])
@@ -1032,113 +1404,6 @@ def withdrawals():
                          monthly_balance=monthly_balance,
                          current_month=current_month)
 
-# ================== WHATSAPP INTEGRATION ==================
-@app.route('/send_daily_summary/<supplier_id>')
-@login_required
-@role_required('admin', 'employee')
-def send_daily_summary(supplier_id):
-    """Send daily summary to supplier via WhatsApp"""
-    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
-    
-    if not supplier.mobile:
-        flash(f"No mobile number found for {supplier.name}", "warning")
-        return redirect(url_for('supplier_view', supplier_id=supplier_id))
-    
-    today = get_today_ist()
-    collections_today = Collection.query.filter_by(
-        supplier_id=supplier.id, 
-        date=today
-    ).all()
-    
-    withdrawals_today = Withdrawal.query.filter_by(
-        supplier_id=supplier.id,
-        date=today
-    ).all()
-    
-    all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
-    all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
-    total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
-    
-    whatsapp = WhatsAppAPI()
-    
-    if not whatsapp.is_configured():
-        flash("WhatsApp is not configured. Please check .env file.", "danger")
-        return redirect(url_for('supplier_view', supplier_id=supplier_id))
-    
-    result = whatsapp.send_daily_summary(supplier, collections_today, withdrawals_today, total_balance)
-    
-    if result.get('success'):
-        flash(f"✅ Daily summary sent to {supplier.name} via WhatsApp", "success")
-    else:
-        flash(f"❌ Failed to send WhatsApp: {result.get('error', 'Unknown error')}", "warning")
-    
-    return redirect(url_for('supplier_view', supplier_id=supplier_id))
-
-@app.route('/send_bulk_summaries')
-@login_required
-@role_required('admin')
-def send_bulk_summaries():
-    """Send daily summaries to all suppliers with mobile numbers"""
-    today = get_today_ist()
-    suppliers = Supplier.query.filter(Supplier.mobile.isnot(None)).all()
-    
-    whatsapp = WhatsAppAPI()
-    
-    if not whatsapp.is_configured():
-        flash("WhatsApp is not configured. Please check .env file.", "danger")
-        return redirect(url_for('suppliers'))
-    
-    sent_count = 0
-    failed_count = 0
-    results = []
-    
-    for supplier in suppliers:
-        try:
-            collections_today = Collection.query.filter_by(
-                supplier_id=supplier.id, 
-                date=today
-            ).all()
-            
-            if not collections_today:
-                continue
-                
-            withdrawals_today = Withdrawal.query.filter_by(
-                supplier_id=supplier.id,
-                date=today
-            ).all()
-            
-            all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
-            all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
-            total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
-            
-            result = whatsapp.send_daily_summary(supplier, collections_today, withdrawals_today, total_balance)
-            
-            if result.get('success'):
-                sent_count += 1
-                results.append(f"✅ Sent to {supplier.name}")
-            else:
-                failed_count += 1
-                results.append(f"❌ Failed for {supplier.name}: {result.get('error', 'Unknown error')}")
-                
-        except Exception as e:
-            failed_count += 1
-            results.append(f"❌ Error for {supplier.name}: {str(e)}")
-    
-    flash(f"📊 Bulk WhatsApp: {sent_count} sent, {failed_count} failed", "info")
-    
-    if results:
-        session['bulk_results'] = results[:10]  # Store only first 10 results
-    
-    return redirect(url_for('suppliers'))
-
-@app.route('/bulk_results')
-@login_required
-@role_required('admin')
-def bulk_results():
-    """Show bulk WhatsApp results"""
-    results = session.get('bulk_results', [])
-    return render_template('bulk_results.html', results=results)
-
 # ================== MONTHLY REPORTS ==================
 @app.route('/monthly')
 @login_required
@@ -1282,6 +1547,40 @@ def export_month_summary_csv():
         as_attachment=True,
         download_name=f"summary_{month}.csv"
     )
+
+# ================== WHATSAPP SETUP ROUTES ==================
+@app.route('/whatsapp_status')
+@login_required
+@role_required('admin', 'employee')
+def whatsapp_status():
+    """Show WhatsApp setup status"""
+    whatsapp = WhatsAppHandler()
+    status = whatsapp.is_configured()
+    
+    return render_template('whatsapp_status.html', 
+                         whatsapp_status=status,
+                         whatsapp=whatsapp)
+
+@app.route('/send_test_whatsapp', methods=['POST'])
+@login_required
+@role_required('admin')
+def send_test_whatsapp():
+    """Send test WhatsApp message in Telugu"""
+    test_phone = request.form.get('test_phone', '').strip()
+    
+    if not test_phone:
+        flash("Enter a phone number to test", "warning")
+        return redirect(url_for('whatsapp_status'))
+    
+    whatsapp = WhatsAppHandler()
+    result = whatsapp.test_connection(test_phone)
+    
+    if result.get('success'):
+        flash(f"✅ టెస్ట్ సందేశం షెడ్యూల్ చేయబడింది {test_phone}కి {result.get('scheduled_at')} వద్ద", "success")
+    else:
+        flash(f"❌ టెస్ట్ విఫలమైంది: {result.get('error')}", "danger")
+    
+    return redirect(url_for('whatsapp_status'))
 
 # ================== INITIAL SETUP ==================
 @app.cli.command('init-db')

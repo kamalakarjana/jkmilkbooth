@@ -1,18 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from datetime import date, datetime
 import os, csv, io, math, pytz
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from calendar import monthrange
+from whatsapp_integration import WhatsAppAPI
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY","milkbooth-secret-key-2024")
+app.secret_key = os.environ.get("SECRET_KEY", "milkbooth-secret-key-2024")
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_path = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(basedir,'milkbooth.db')}"
 app.config['SQLALCHEMY_DATABASE_URI'] = db_path
@@ -58,7 +59,6 @@ BUFFALO_RATE_CHART = {
     10.0:77.40
 }
 
-# Cow milk rate chart from your attachment
 COW_RATE_CHART = {
     3.0: 25.30, 3.1: 25.53, 3.2: 25.76, 3.3: 25.99, 3.4: 26.22,
     3.5: 26.45, 3.6: 26.68, 3.7: 26.91, 3.8: 27.14, 3.9: 27.37,
@@ -80,11 +80,9 @@ def find_rate(fat, milk_type='buffalo'):
 
 def calculate_payment_cycles(collections, year, month):
     """Calculate payment cycles for a given month"""
-    # Filter collections for the specific month
     month_str = f"{year}-{month:02d}"
     monthly_collections = [c for c in collections if c.date.startswith(month_str)]
     
-    # Initialize cycles
     cycles = {
         'cycle_1': {
             'start': f"{year}-{month:02d}-01",
@@ -104,28 +102,24 @@ def calculate_payment_cycles(collections, year, month):
         }
     }
     
-    # Process each collection
     for coll in monthly_collections:
         try:
             day = int(coll.date.split('-')[2])
             
-            # Determine which cycle
             if 1 <= day <= 15:
                 cycle = cycles['cycle_1']
             else:
                 cycle = cycles['cycle_2']
             
-            # Add to morning/evening totals
             if coll.session == 'morning':
                 cycle['morning']['liters'] += coll.liters
                 cycle['morning']['amount'] += coll.amount
                 cycle['morning']['count'] += 1
-            else:  # evening
+            else:
                 cycle['evening']['liters'] += coll.liters
                 cycle['evening']['amount'] += coll.amount
                 cycle['evening']['count'] += 1
             
-            # Update cycle totals
             cycle['total_liters'] += coll.liters
             cycle['total_amount'] += coll.amount
             
@@ -136,7 +130,6 @@ def calculate_payment_cycles(collections, year, month):
 
 # ================== MODELS ==================
 class Supplier(db.Model):
-    """People who supply milk TO us"""
     __tablename__ = 'suppliers'
     id = db.Column(db.Integer, primary_key=True)
     supplier_id = db.Column(db.String(40), unique=True, nullable=False)
@@ -148,7 +141,6 @@ class Supplier(db.Model):
         return f"<Supplier {self.supplier_id} {self.name}>"
 
 class Customer(db.Model):
-    """People we sell milk TO (Sales)"""
     __tablename__ = 'customers'
     id = db.Column(db.Integer, primary_key=True)
     cust_id = db.Column(db.String(40), unique=True, nullable=False)
@@ -160,7 +152,6 @@ class Customer(db.Model):
         return f"<Customer {self.cust_id} {self.name}>"
 
 class Collection(db.Model):
-    """Milk collections FROM suppliers"""
     __tablename__ = 'collections'
     id = db.Column(db.Integer, primary_key=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False)
@@ -177,7 +168,6 @@ class Collection(db.Model):
     supplier = db.relationship('Supplier')
 
 class Sale(db.Model):
-    """Milk sales TO customers"""
     __tablename__ = 'sales'
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
@@ -194,7 +184,6 @@ class Sale(db.Model):
     customer = db.relationship('Customer')
 
 class Withdrawal(db.Model):
-    """Payments made TO suppliers"""
     __tablename__ = 'withdrawals'
     id = db.Column(db.Integer, primary_key=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False)
@@ -216,7 +205,6 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=get_ist_datetime)
     is_active = db.Column(db.Boolean, default=True)
     
-    # Link to supplier or customer
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)
     
@@ -229,7 +217,6 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
-    # Flask-Login required methods
     def get_id(self):
         return str(self.id)
     
@@ -251,16 +238,13 @@ def load_user(user_id):
 
 # ================== HELPER FUNCTIONS ==================
 def sort_by_id(items, id_field='supplier_id'):
-    """Sort by ID as numbers"""
     if not items:
         return []
-    # Handle both objects and dictionaries
     if isinstance(items[0], dict):
         return sorted(items, key=lambda x: int(x.get(id_field, 0)) if str(x.get(id_field, '0')).isdigit() else 999999)
     else:
         return sorted(items, key=lambda x: int(getattr(x, id_field)) if getattr(x, id_field).isdigit() else 999999)
 
-# Role-based access control
 def role_required(*roles):
     def decorator(f):
         @wraps(f)
@@ -275,7 +259,6 @@ def role_required(*roles):
     return decorator
 
 def create_default_admin():
-    """Create default admin user if not exists"""
     with app.app_context():
         admin = User.query.filter_by(username='admin').first()
         if not admin:
@@ -293,7 +276,6 @@ def create_default_admin():
 # ================== TEMPLATE CONTEXT PROCESSORS ==================
 @app.context_processor
 def utility_processor():
-    """Make utility functions available to all templates"""
     def today_date():
         return get_today_ist()
     
@@ -322,6 +304,9 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            if not user.is_active:
+                flash('Account is deactivated. Please contact administrator.', 'danger')
+                return redirect(url_for('login'))
             login_user(user)
             flash(f'Welcome back, {user.username}!', 'success')
             next_page = request.args.get('next')
@@ -356,7 +341,6 @@ def register():
         user = User(username=username, email=email, role=role, mobile=mobile)
         user.set_password(password)
         
-        # Link to supplier or customer based on role
         if role == 'supplier':
             supplier_id = request.form.get('supplier_id')
             if supplier_id:
@@ -391,22 +375,88 @@ def manage_users():
     users = User.query.all()
     return render_template('manage_users.html', users=users)
 
+# ================== PASSWORD MANAGEMENT ==================
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'danger')
+            return redirect(request.referrer or url_for('my_account'))
+        
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'danger')
+            return redirect(request.referrer or url_for('my_account'))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters', 'danger')
+            return redirect(request.referrer or url_for('my_account'))
+        
+        current_user.set_password(new_password)
+        db.session.commit()
+        
+        flash('Password changed successfully!', 'success')
+        
+        if current_user.role == 'supplier':
+            return redirect(url_for('my_account'))
+        elif current_user.role == 'customer':
+            return redirect(url_for('my_account'))
+        else:
+            return redirect(url_for('dashboard'))
+    
+    return render_template('change_password.html')
+
+@app.route('/admin_change_password/<int:user_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def admin_change_password(user_id):
+    user = User.query.get_or_404(user_id)
+    new_password = request.form.get('new_password')
+    
+    if not new_password or len(new_password) < 6:
+        flash('Password must be at least 6 characters', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    user.set_password(new_password)
+    db.session.commit()
+    
+    flash(f'Password reset for {user.username}', 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/toggle_user_status/<int:user_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def toggle_user_status(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    if user.id == current_user.id:
+        flash('You cannot deactivate your own account', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    user.is_active = not user.is_active
+    db.session.commit()
+    
+    status = "activated" if user.is_active else "deactivated"
+    flash(f'User {user.username} {status}', 'success')
+    return redirect(url_for('manage_users'))
+
 # ================== MAIN ROUTES ==================
 @app.route('/')
 @login_required
 def index():
-    """Main dashboard - Redirect to add collection page as default"""
     return redirect(url_for('add_collection_page'))
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Original dashboard view"""
     today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
-    # Get today's collections from suppliers
     today_collections = Collection.query.filter_by(date=today).all()
     total_liters = sum(c.liters for c in today_collections)
     total_amount = sum(c.amount for c in today_collections)
@@ -423,7 +473,6 @@ def dashboard():
 @login_required
 def my_account():
     if current_user.role == 'supplier' and current_user.supplier:
-        # Supplier portal
         supplier = current_user.supplier
         cols = Collection.query.filter_by(supplier_id=supplier.id)\
                               .order_by(Collection.date.desc())\
@@ -432,14 +481,21 @@ def my_account():
         total_liters = sum(c.liters for c in cols)
         total_amount = sum(c.amount for c in cols)
         
+        wds = Withdrawal.query.filter_by(supplier_id=supplier.id)\
+                             .order_by(Withdrawal.date.desc())\
+                             .limit(50).all()
+        total_withdrawn = sum(w.amount for w in wds)
+        balance = total_amount - total_withdrawn
+        
         return render_template('supplier_account.html',
                              supplier=supplier,
                              collections=cols,
                              total_liters=total_liters,
-                             total_amount=total_amount)
+                             total_amount=total_amount,
+                             total_withdrawn=total_withdrawn,
+                             balance=balance)
     
     elif current_user.role == 'customer' and current_user.customer:
-        # Customer portal (for sales)
         customer = current_user.customer
         sales = Sale.query.filter_by(customer_id=customer.id)\
                          .order_by(Sale.date.desc())\
@@ -458,17 +514,14 @@ def my_account():
         flash('No supplier or customer account linked to your user', 'danger')
         return redirect(url_for('index'))
 
-# ================== NEW: ADD COLLECTION PAGE ==================
 @app.route('/add_collection_page')
 @login_required
 @role_required('admin', 'employee')
 def add_collection_page():
-    """Dedicated page for adding collections"""
     today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
-    # Get today's collections for stats
     today_collections = Collection.query.filter_by(date=today).all()
     total_liters = sum(c.liters for c in today_collections)
     total_amount = sum(c.amount for c in today_collections)
@@ -516,7 +569,6 @@ def suppliers():
 def supplier_view(supplier_id):
     s = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
     
-    # Check access - only admin/employee or the supplier themselves
     if current_user.role == 'supplier' and (not current_user.supplier or current_user.supplier.id != s.id):
         flash('Access denied', 'danger')
         return redirect(url_for('my_account'))
@@ -533,10 +585,8 @@ def supplier_view(supplier_id):
     total_withdrawn = sum(w.amount for w in wds)
     balance = total_amount - total_withdrawn
     
-    # Get selected month/year from request (default to current month)
     selected_month = request.args.get('month', '')
     
-    # Calculate payment cycles for the selected month (if any)
     cycles = {}
     monthly_collections = []
     month_summary = {'total_amount': 0, 'total_liters': 0, 'total_withdrawn': 0, 'balance': 0}
@@ -546,15 +596,12 @@ def supplier_view(supplier_id):
             year, month = map(int, selected_month.split('-'))
             cycles = calculate_payment_cycles(cols, year, month)
             
-            # Get collections for this month
             month_str = f"{year}-{month:02d}"
             monthly_collections = [c for c in cols if c.date.startswith(month_str)]
             
-            # Get withdrawals for this month
             month_withdrawals = [w for w in wds if w.date.startswith(month_str)]
             month_withdrawn = sum(w.amount for w in month_withdrawals)
             
-            # Calculate month totals
             month_summary = {
                 'total_amount': cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0,
                 'total_liters': cycles['cycle_1']['total_liters'] + cycles['cycle_2']['total_liters'] if cycles else 0,
@@ -564,7 +611,6 @@ def supplier_view(supplier_id):
         except:
             selected_month = ''
     
-    # Get all available months for dropdown
     available_months = db.session.query(
         func.substr(Collection.date, 1, 7).label('month')
     ).filter_by(supplier_id=s.id)\
@@ -574,9 +620,13 @@ def supplier_view(supplier_id):
     
     month_options = [m.month for m in available_months]
     
+    # Check WhatsApp configuration
+    whatsapp = WhatsAppAPI()
+    whatsapp_configured = whatsapp.is_configured()
+    
     return render_template('supplier_detail.html', 
                          supplier=s, 
-                         collections=cols[:50],  # Show only recent 50 collections
+                         collections=cols[:50],
                          withdrawals=wds,
                          total_liters=total_liters,
                          total_amount=total_amount,
@@ -586,9 +636,10 @@ def supplier_view(supplier_id):
                          selected_month=selected_month,
                          cycles=cycles,
                          monthly_collections=monthly_collections,
-                         month_summary=month_summary)
+                         month_summary=month_summary,
+                         whatsapp_configured=whatsapp_configured)
 
-# ================== CUSTOMER MANAGEMENT (SALES) ==================
+# ================== CUSTOMER MANAGEMENT ==================
 @app.route('/customers', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'employee')
@@ -623,7 +674,6 @@ def customers():
 def customer_view(cust_id):
     c = Customer.query.filter_by(cust_id=cust_id).first_or_404()
     
-    # Check access - only admin/employee or the customer themselves
     if current_user.role == 'customer' and (not current_user.customer or current_user.customer.id != c.id):
         flash('Access denied', 'danger')
         return redirect(url_for('my_account'))
@@ -641,7 +691,7 @@ def customer_view(cust_id):
                          total_liters=total_liters,
                          total_amount=total_amount)
 
-# ================== COLLECTIONS (FROM SUPPLIERS) ==================
+# ================== COLLECTIONS ==================
 @app.route('/add_collection', methods=['POST'])
 @login_required
 @role_required('admin', 'employee')
@@ -732,7 +782,7 @@ def quick_add():
     flash(f"Quick collection added from {s.name} - ₹{amt}", "success")
     return redirect(url_for('add_collection_page'))
 
-# ================== SALES (TO CUSTOMERS) ==================
+# ================== SALES ==================
 @app.route('/sales')
 @login_required
 @role_required('admin', 'employee')
@@ -740,11 +790,9 @@ def sales():
     customers = Customer.query.all()
     customers = sort_by_id(customers, 'cust_id')
     
-    # Get today's sales
     today = get_today_ist()
     today_sales = Sale.query.filter_by(date=today).all()
     
-    # Calculate statistics
     total_liters = sum(s.liters for s in today_sales)
     total_amount = sum(s.amount for s in today_sales)
     avg_fat = sum(s.fat for s in today_sales) / len(today_sales) if today_sales else 0
@@ -797,7 +845,7 @@ def add_sale():
     flash(f"Sale recorded to {c.name} - ₹{amt}", "success")
     return redirect(url_for('sales'))
 
-# ================== DAILY COLLECTIONS ==================
+# ================== DAILY REPORTS ==================
 @app.route('/daily')
 @login_required
 def daily():
@@ -811,7 +859,6 @@ def daily():
     
     rows = query.order_by(Collection.session, Collection.supplier_id).all()
     
-    # Calculate statistics
     total_liters = sum(r.liters for r in rows)
     total_amount = sum(r.amount for r in rows)
     avg_fat = sum(r.fat for r in rows) / len(rows) if rows else 0
@@ -824,7 +871,6 @@ def daily():
                          total_amount=total_amount,
                          avg_fat=avg_fat)
 
-# ================== DAILY SALES ==================
 @app.route('/daily_sales')
 @login_required
 def daily_sales():
@@ -838,7 +884,6 @@ def daily_sales():
     
     rows = query.order_by(Sale.session, Sale.customer_id).all()
     
-    # Calculate statistics
     total_liters = sum(r.liters for r in rows)
     total_amount = sum(r.amount for r in rows)
     avg_fat = sum(r.fat for r in rows) / len(rows) if rows else 0
@@ -851,7 +896,7 @@ def daily_sales():
                          total_amount=total_amount,
                          avg_fat=avg_fat)
 
-# ================== EDIT/DELETE COLLECTIONS ==================
+# ================== EDIT/DELETE ==================
 @app.route('/edit_collection/<int:cid>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
@@ -896,7 +941,6 @@ def delete_collection(cid):
     flash("Collection deleted", "success")
     return redirect(url_for('daily', date=d))
 
-# ================== DELETE SALE ==================
 @app.route('/delete_sale/<int:sid>', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -962,29 +1006,22 @@ def delete_withdrawal(wid):
 @login_required
 @role_required('admin', 'employee')
 def withdrawals():
-    """View all withdrawals"""
     today = get_today_ist()
     
-    # Get all withdrawals (most recent first)
     withdrawals_list = Withdrawal.query.order_by(Withdrawal.date.desc(), Withdrawal.created_at.desc()).limit(100).all()
     
-    # Get all suppliers for the dropdown
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
     
-    # Calculate current month totals
     current_month = datetime.now(IST).strftime("%Y-%m")
     like = current_month + '%'
     
-    # Total withdrawn this month
     monthly_withdrawals = Withdrawal.query.filter(Withdrawal.date.like(like)).all()
     total_withdrawn = sum(w.amount for w in monthly_withdrawals)
     
-    # Calculate monthly collections
     monthly_collections = Collection.query.filter(Collection.date.like(like)).all()
     monthly_collection_amount = sum(c.amount for c in monthly_collections)
     
-    # Net balance for the month
     monthly_balance = monthly_collection_amount - total_withdrawn
     
     return render_template('withdrawals.html',
@@ -995,6 +1032,113 @@ def withdrawals():
                          monthly_balance=monthly_balance,
                          current_month=current_month)
 
+# ================== WHATSAPP INTEGRATION ==================
+@app.route('/send_daily_summary/<supplier_id>')
+@login_required
+@role_required('admin', 'employee')
+def send_daily_summary(supplier_id):
+    """Send daily summary to supplier via WhatsApp"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    if not supplier.mobile:
+        flash(f"No mobile number found for {supplier.name}", "warning")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    today = get_today_ist()
+    collections_today = Collection.query.filter_by(
+        supplier_id=supplier.id, 
+        date=today
+    ).all()
+    
+    withdrawals_today = Withdrawal.query.filter_by(
+        supplier_id=supplier.id,
+        date=today
+    ).all()
+    
+    all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
+    all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
+    total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
+    
+    whatsapp = WhatsAppAPI()
+    
+    if not whatsapp.is_configured():
+        flash("WhatsApp is not configured. Please check .env file.", "danger")
+        return redirect(url_for('supplier_view', supplier_id=supplier_id))
+    
+    result = whatsapp.send_daily_summary(supplier, collections_today, withdrawals_today, total_balance)
+    
+    if result.get('success'):
+        flash(f"✅ Daily summary sent to {supplier.name} via WhatsApp", "success")
+    else:
+        flash(f"❌ Failed to send WhatsApp: {result.get('error', 'Unknown error')}", "warning")
+    
+    return redirect(url_for('supplier_view', supplier_id=supplier_id))
+
+@app.route('/send_bulk_summaries')
+@login_required
+@role_required('admin')
+def send_bulk_summaries():
+    """Send daily summaries to all suppliers with mobile numbers"""
+    today = get_today_ist()
+    suppliers = Supplier.query.filter(Supplier.mobile.isnot(None)).all()
+    
+    whatsapp = WhatsAppAPI()
+    
+    if not whatsapp.is_configured():
+        flash("WhatsApp is not configured. Please check .env file.", "danger")
+        return redirect(url_for('suppliers'))
+    
+    sent_count = 0
+    failed_count = 0
+    results = []
+    
+    for supplier in suppliers:
+        try:
+            collections_today = Collection.query.filter_by(
+                supplier_id=supplier.id, 
+                date=today
+            ).all()
+            
+            if not collections_today:
+                continue
+                
+            withdrawals_today = Withdrawal.query.filter_by(
+                supplier_id=supplier.id,
+                date=today
+            ).all()
+            
+            all_collections = Collection.query.filter_by(supplier_id=supplier.id).all()
+            all_withdrawals = Withdrawal.query.filter_by(supplier_id=supplier.id).all()
+            total_balance = sum(c.amount for c in all_collections) - sum(w.amount for w in all_withdrawals)
+            
+            result = whatsapp.send_daily_summary(supplier, collections_today, withdrawals_today, total_balance)
+            
+            if result.get('success'):
+                sent_count += 1
+                results.append(f"✅ Sent to {supplier.name}")
+            else:
+                failed_count += 1
+                results.append(f"❌ Failed for {supplier.name}: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            failed_count += 1
+            results.append(f"❌ Error for {supplier.name}: {str(e)}")
+    
+    flash(f"📊 Bulk WhatsApp: {sent_count} sent, {failed_count} failed", "info")
+    
+    if results:
+        session['bulk_results'] = results[:10]  # Store only first 10 results
+    
+    return redirect(url_for('suppliers'))
+
+@app.route('/bulk_results')
+@login_required
+@role_required('admin')
+def bulk_results():
+    """Show bulk WhatsApp results"""
+    results = session.get('bulk_results', [])
+    return render_template('bulk_results.html', results=results)
+
 # ================== MONTHLY REPORTS ==================
 @app.route('/monthly')
 @login_required
@@ -1002,7 +1146,6 @@ def monthly():
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
-    # Supplier collections
     supplier_results = db.session.query(
         Supplier.supplier_id, Supplier.name, Supplier.mobile,
         func.sum(Collection.liters).label('total_liters'),
@@ -1011,7 +1154,6 @@ def monthly():
      .filter(Collection.date.like(like))\
      .group_by(Supplier.id).all()
     
-    # Withdrawals - Fixed join condition
     wrows = db.session.query(
         Supplier.supplier_id, func.sum(Withdrawal.amount).label('withdrawn')
     ).join(Withdrawal, Supplier.id == Withdrawal.supplier_id)\
@@ -1036,7 +1178,6 @@ def monthly():
     
     supplier_data = sort_by_id(supplier_data, 'supplier_id')
     
-    # Customer sales
     customer_results = db.session.query(
         Customer.cust_id, Customer.name, Customer.mobile,
         func.sum(Sale.liters).label('total_liters'),
@@ -1057,7 +1198,6 @@ def monthly():
     
     customer_data = sort_by_id(customer_data, 'cust_id')
     
-    # Calculate totals
     monthly_total_liters = sum(d['total_liters'] for d in supplier_data)
     monthly_total_amount = sum(d['total_amount'] for d in supplier_data)
     monthly_total_withdrawn = sum(d['withdrawn'] for d in supplier_data)

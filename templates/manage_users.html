@@ -7,35 +7,38 @@
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-list"></i> All Users
+        <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-users"></i> All Users</span>
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-user-plus"></i> Add New User
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Username</th>
                         <th>Email</th>
                         <th>Role</th>
                         <th>Mobile</th>
-                        <th>Created</th>
                         <th>Linked To</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td>{{ user.id }}</td>
-                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.username }}</td>
                         <td>{{ user.email }}</td>
                         <td>
-                            <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'employee' %}bg-primary{% else %}bg-success{% endif %}">
+                            <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'employee' %}bg-warning{% elif user.role == 'supplier' %}bg-success{% else %}bg-info{% endif %}">
                                 {{ user.role|title }}
                             </span>
                         </td>
                         <td>{{ user.mobile or '-' }}</td>
-                        <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
                         <td>
                             {% if user.supplier %}
                             Supplier: {{ user.supplier.supplier_id }}
@@ -44,6 +47,33 @@
                             {% else %}
                             -
                             {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if user.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <!-- Password Reset Form -->
+                                <form method="post" action="{{ url_for('admin_change_password', user_id=user.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('Reset password for {{ user.username }}?')">
+                                    <input type="password" name="new_password" placeholder="New password" required 
+                                           class="form-control form-control-sm d-inline-block" style="width: 120px;">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-key"></i> Reset
+                                    </button>
+                                </form>
+                                
+                                {% if user.id != current_user.id %}
+                                <form method="post" action="{{ url_for('toggle_user_status', user_id=user.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('Toggle active status for {{ user.username }}?')">
+                                    <button type="submit" class="btn {% if user.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        <i class="fas {% if user.is_active %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
@@ -57,14 +87,5 @@
             </table>
         </div>
     </div>
-</div>
-
-<div class="mt-3">
-    <a href="{{ url_for('register') }}" class="btn btn-primary">
-        <i class="fas fa-user-plus"></i> Add New User
-    </a>
-    <a href="{{ url_for('index') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
 </div>
 {% endblock %}

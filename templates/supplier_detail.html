@@ -3,7 +3,10 @@
 {% block title %}Supplier - {{ supplier.name }}{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="fas fa-truck-loading"></i> Supplier Details: {{ supplier.supplier_id }}</h2>
+<h2 class="mb-4">
+    <i class="fas fa-truck-loading"></i>
+    Supplier Details: {{ supplier.supplier_id }}
+</h2>
 
 <!-- Quick Summary Cards -->
 <div class="row mb-4">
@@ -37,692 +40,178 @@
     </div>
 </div>
 
-<!-- Main Tabs Navigation - UPDATED COLORS -->
-<ul class="nav nav-tabs mb-4" id="supplierTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active bg-info text-white" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button">
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <button class="nav-link active bg-info text-white" data-bs-toggle="tab" data-bs-target="#info">
             <i class="fas fa-info-circle"></i> Basic Info
         </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link bg-success text-white" id="cycles-tab" data-bs-toggle="tab" data-bs-target="#cycles" type="button">
-            <i class="fas fa-calendar-alt"></i> Collections & Payment Cycles
+    <li class="nav-item">
+        <button class="nav-link bg-success text-white" data-bs-toggle="tab" data-bs-target="#cycles">
+            <i class="fas fa-calendar-alt"></i> Collections
         </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link bg-warning text-dark" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button">
+    <li class="nav-item">
+        <button class="nav-link bg-warning text-dark" data-bs-toggle="tab" data-bs-target="#withdrawals">
             <i class="fas fa-money-bill-wave"></i> Withdrawals
         </button>
     </li>
-    {% if selected_month %}
-    <li class="nav-item" role="presentation">
-        <button class="nav-link bg-danger text-white" id="downloads-tab" data-bs-toggle="tab" data-bs-target="#downloads" type="button">
-            <i class="fas fa-download"></i> Downloads
-        </button>
-    </li>
-    {% endif %}
 </ul>
 
-<!-- Tab Content -->
-<div class="tab-content" id="supplierTabsContent">
-    
-    <!-- Tab 1: Basic Information -->
-    <div class="tab-pane fade show active" id="info" role="tabpanel">
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-info text-white">Supplier Information</div>
-                    <div class="card-body">
-                        <table class="table table-borderless">
-                            <tr>
-                                <th width="120">ID:</th>
-                                <td>{{ supplier.supplier_id }}</td>
-                            </tr>
-                            <tr>
-                                <th>Name:</th>
-                                <td>{{ supplier.name }}</td>
-                            </tr>
-                            <tr>
-                                <th>Mobile:</th>
-                                <td>{{ supplier.mobile or '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Address:</th>
-                                <td>{{ supplier.address or '-' }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-info text-white">Financial Summary</div>
-                    <div class="card-body">
-                        <div class="row text-center">
-                            <div class="col-6 mb-3">
-                                <div class="text-success fw-bold fs-4">₹ {{ total_amount }}</div>
-                                <div class="text-muted small">Total Amount</div>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <div class="text-primary fw-bold fs-4">{{ "%.2f"|format(total_liters) }} L</div>
-                                <div class="text-muted small">Total Liters</div>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-warning fw-bold fs-4">₹ {{ total_withdrawn }}</div>
-                                <div class="text-muted small">Total Withdrawn</div>
-                            </div>
-                            <div class="col-6">
-                                <div class="{% if balance > 0 %}text-success{% else %}text-secondary{% endif %} fw-bold fs-4">₹ {{ balance }}</div>
-                                <div class="text-muted small">Current Balance</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="tab-content">
 
-    <!-- Tab 2: Combined Collections & Payment Cycles -->
-    <div class="tab-pane fade" id="cycles" role="tabpanel">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <i class="fas fa-calendar-alt"></i> Collections & Payment Cycles Analysis
-            </div>
-            <div class="card-body">
-                <!-- Month Selection -->
-                <form method="get" class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Select Month</label>
-                        <select name="month" class="form-select">
-                            <option value="">-- Select Month --</option>
-                            {% for month_option in month_options %}
-                            <option value="{{ month_option }}" {% if month_option == selected_month %}selected{% endif %}>
-                                {{ month_option }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="fas fa-search"></i> Show
-                        </button>
-                    </div>
-                </form>
-
-                {% if selected_month %}
-                <!-- Monthly Summary Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="compact-card bg-success text-white">
-                            <div class="compact-title">Month Total</div>
-                            <div class="compact-value">₹ {{ month_summary.total_amount }}</div>
-                            <div class="compact-sub">{{ "%.2f"|format(month_summary.total_liters) }} L</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="compact-card bg-primary text-white">
-                            <div class="compact-title">Cycle 1 Total</div>
-                            <div class="compact-value">₹ {{ cycles.cycle_1.total_amount }}</div>
-                            <div class="compact-sub">{{ "%.2f"|format(cycles.cycle_1.total_liters) }} L</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="compact-card bg-success text-white">
-                            <div class="compact-title">Cycle 2 Total</div>
-                            <div class="compact-value">₹ {{ cycles.cycle_2.total_amount }}</div>
-                            <div class="compact-sub">{{ "%.2f"|format(cycles.cycle_2.total_liters) }} L</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="compact-card bg-info text-white">
-                            <div class="compact-title">Balance</div>
-                            <div class="compact-value">₹ {{ month_summary.balance }}</div>
-                            <div class="compact-sub">After withdrawals</div>
-                        </div>
-                    </div>
+<!-- BASIC INFO TAB -->
+<div class="tab-pane fade show active" id="info">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex justify-content-between">
+                    <span>Supplier Information</span>
+                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editSupplierModal">
+                        <i class="fas fa-edit"></i> Edit Info
+                    </button>
                 </div>
-
-                <!-- Cycle 1 Compact View -->
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-calendar-day"></i> Cycle 1: 1st - 15th of {{ selected_month }}</span>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-warning" onclick="showSessionDetails('cycle1', 'morning')">
-                                <i class="fas fa-sun"></i> Morning: ₹ {{ cycles.cycle_1.morning.amount }}
-                            </button>
-                            <button class="btn btn-info" onclick="showSessionDetails('cycle1', 'evening')">
-                                <i class="fas fa-moon"></i> Evening: ₹ {{ cycles.cycle_1.evening.amount }}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body p-2">
-                        <div class="row text-center">
-                            <div class="col-6 border-end">
-                                <div class="p-2">
-                                    <div class="text-warning fw-bold fs-5">₹ {{ cycles.cycle_1.morning.amount }}</div>
-                                    <div class="small text-muted">Morning ({{ cycles.cycle_1.morning.count }} collections)</div>
-                                    <div class="small">{{ "%.2f"|format(cycles.cycle_1.morning.liters) }} L</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2">
-                                    <div class="text-info fw-bold fs-5">₹ {{ cycles.cycle_1.evening.amount }}</div>
-                                    <div class="small text-muted">Evening ({{ cycles.cycle_1.evening.count }} collections)</div>
-                                    <div class="small">{{ "%.2f"|format(cycles.cycle_1.evening.liters) }} L</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cycle 2 Compact View -->
-                <div class="card mb-3">
-                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-calendar-day"></i> Cycle 2: 16th - {{ cycles.cycle_2.end.split('-')[2] }}th of {{ selected_month }}</span>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-warning" onclick="showSessionDetails('cycle2', 'morning')">
-                                <i class="fas fa-sun"></i> Morning: ₹ {{ cycles.cycle_2.morning.amount }}
-                            </button>
-                            <button class="btn btn-info" onclick="showSessionDetails('cycle2', 'evening')">
-                                <i class="fas fa-moon"></i> Evening: ₹ {{ cycles.cycle_2.evening.amount }}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body p-2">
-                        <div class="row text-center">
-                            <div class="col-6 border-end">
-                                <div class="p-2">
-                                    <div class="text-warning fw-bold fs-5">₹ {{ cycles.cycle_2.morning.amount }}</div>
-                                    <div class="small text-muted">Morning ({{ cycles.cycle_2.morning.count }} collections)</div>
-                                    <div class="small">{{ "%.2f"|format(cycles.cycle_2.morning.liters) }} L</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-2">
-                                    <div class="text-info fw-bold fs-5">₹ {{ cycles.cycle_2.evening.amount }}</div>
-                                    <div class="small text-muted">Evening ({{ cycles.cycle_2.evening.count }} collections)</div>
-                                    <div class="small">{{ "%.2f"|format(cycles.cycle_2.evening.liters) }} L</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Collections Table Section - REVERSED ORDER -->
-                <div class="card mt-4">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-history"></i> Collections for {{ selected_month }} ({{ monthly_collections|length }} entries)</span>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-light" onclick="filterCollectionsTable('all', 'morning')">
-                                <i class="fas fa-sun text-warning"></i> Morning
-                            </button>
-                            <button class="btn btn-light" onclick="filterCollectionsTable('all', 'evening')">
-                                <i class="fas fa-moon text-info"></i> Evening
-                            </button>
-                            <button class="btn btn-light" onclick="filterCollectionsTable('all', 'all')">
-                                <i class="fas fa-list"></i> All
-                            </button>
-                            <button class="btn btn-light" onclick="toggleSortOrder()" id="sort-toggle">
-                                <i class="fas fa-sort-amount-down"></i> Newest First
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table table-sm table-hover" id="monthly-collections-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Session</th>
-                                        <th>Liters</th>
-                                        <th>Fat %</th>
-                                        <th>Amount</th>
-                                        <th>Cycle</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="collections-tbody">
-                                    {% for c in monthly_collections|reverse %}
-                                    <tr class="collection-row" data-date="{{ c.date }}" data-cycle="{% if c.date.split('-')[2]|int <= 15 %}cycle1{% else %}cycle2{% endif %}" data-session="{{ c.session }}">
-                                        <td>{{ c.date }}</td>
-                                        <td>
-                                            <span class="badge {% if c.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
-                                                {{ c.session|title }}
-                                            </span>
-                                        </td>
-                                        <td>{{ "%.2f"|format(c.liters) }}</td>
-                                        <td>{{ "%.1f"|format(c.fat) }}%</td>
-                                        <td class="fw-bold">₹ {{ c.amount }}</td>
-                                        <td>
-                                            <span class="badge {% if c.date.split('-')[2]|int <= 15 %}bg-primary{% else %}bg-success{% endif %}">
-                                                {% if c.date.split('-')[2]|int <= 15 %}Cycle 1{% else %}Cycle 2{% endif %}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% else %}
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4 text-muted">
-                                            No collections found
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                                <tfoot>
-                                    <tr class="table-light">
-                                        <td colspan="4" class="text-end fw-bold">Month Total:</td>
-                                        <td class="fw-bold text-success">₹ {{ month_summary.total_amount }}</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Stats -->
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-warning text-white">Session Totals</div>
-                            <div class="card-body">
-                                <div class="row text-center">
-                                    <div class="col-6">
-                                        <div class="text-warning fw-bold fs-4">
-                                            <i class="fas fa-sun"></i> ₹ {{ cycles.cycle_1.morning.amount + cycles.cycle_2.morning.amount }}
-                                        </div>
-                                        <div class="small text-muted">Morning Total</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="text-info fw-bold fs-4">
-                                            <i class="fas fa-moon"></i> ₹ {{ cycles.cycle_1.evening.amount + cycles.cycle_2.evening.amount }}
-                                        </div>
-                                        <div class="small text-muted">Evening Total</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-info text-white">Collection Summary</div>
-                            <div class="card-body">
-                                <table class="table table-sm">
-                                    <tr>
-                                        <td>Total Collections:</td>
-                                        <td class="fw-bold">{{ monthly_collections|length }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Month Liters:</td>
-                                        <td class="fw-bold">{{ "%.2f"|format(month_summary.total_liters) }} L</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Month Withdrawn:</td>
-                                        <td class="fw-bold text-warning">₹ {{ month_summary.total_withdrawn }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Remaining Balance:</td>
-                                        <td class="fw-bold {% if month_summary.balance > 0 %}text-success{% else %}text-secondary{% endif %}">
-                                            ₹ {{ month_summary.balance }}
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">Select a Month</h4>
-                    <p class="text-muted">Choose a month from the dropdown to view collections and payment cycles</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab 3: Withdrawals -->
-    <div class="tab-pane fade" id="withdrawals" role="tabpanel">
-        <div class="card">
-            <div class="card-header bg-warning text-dark"><i class="fas fa-money-bill-wave"></i> Withdrawals</div>
-            <div class="card-body">
-                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-sm table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Note</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for w in withdrawals|reverse %}
-                            <tr>
-                                <td>{{ w.date }}</td>
-                                <td class="fw-bold">₹ {{ w.amount }}</td>
-                                <td>{{ w.note or '-' }}</td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="3" class="text-center py-4 text-muted">
-                                    No withdrawals found
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>ID</th>
+                            <td>{{ supplier.supplier_id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Name</th>
+                            <td>{{ supplier.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Mobile</th>
+                            <td>{{ supplier.mobile or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email</th>
+                            <td>{{ supplier.email or 'Not provided' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Address</th>
+                            <td>{{ supplier.address or '-' }}</td>
+                        </tr>
                     </table>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Tab 4: Downloads (Only shown when month selected) -->
-    {% if selected_month %}
-    <div class="tab-pane fade" id="downloads" role="tabpanel">
-        <div class="card">
-            <div class="card-header bg-danger text-white">
-                <i class="fas fa-download"></i> Download Reports
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card border-primary mb-3">
-                            <div class="card-header bg-primary text-white">
-                                <i class="fas fa-file-csv"></i> CSV Downloads
-                            </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-outline-primary text-start" onclick="downloadCycleCSV('cycle1')">
-                                        <i class="fas fa-download"></i> Cycle 1 CSV (1st-15th)
-                                    </button>
-                                    <button class="btn btn-outline-primary text-start" onclick="downloadCycleCSV('cycle2')">
-                                        <i class="fas fa-download"></i> Cycle 2 CSV (16th-end)
-                                    </button>
-                                    <button class="btn btn-outline-warning text-start" onclick="downloadSessionCSV('morning')">
-                                        <i class="fas fa-sun"></i> Morning Session CSV
-                                    </button>
-                                    <button class="btn btn-outline-info text-start" onclick="downloadSessionCSV('evening')">
-                                        <i class="fas fa-moon"></i> Evening Session CSV
-                                    </button>
-                                    <button class="btn btn-outline-success text-start" onclick="downloadCSV()">
-                                        <i class="fas fa-file-alt"></i> Complete Report CSV
-                                    </button>
-                                </div>
-                            </div>
+        <!-- FINANCIAL SUMMARY -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">Financial Summary</div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="fw-bold fs-4 text-success">₹ {{ total_amount }}</div>
+                            <small>Total Amount</small>
                         </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card border-danger mb-3">
-                            <div class="card-header bg-danger text-white">
-                                <i class="fas fa-file-pdf"></i> PDF Downloads
-                            </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-outline-danger text-start" onclick="downloadCyclePDF('cycle1')">
-                                        <i class="fas fa-file-pdf"></i> Cycle 1 PDF Report
-                                    </button>
-                                    <button class="btn btn-outline-danger text-start" onclick="downloadCyclePDF('cycle2')">
-                                        <i class="fas fa-file-pdf"></i> Cycle 2 PDF Report
-                                    </button>
-                                    <button class="btn btn-outline-danger text-start" onclick="downloadFullReportPDF()">
-                                        <i class="fas fa-file-pdf"></i> Full PDF Report
-                                    </button>
-                                    <button class="btn btn-outline-warning text-start" onclick="printPaymentCycles()">
-                                        <i class="fas fa-print"></i> Print Report
-                                    </button>
-                                </div>
-                            </div>
+                        <div class="col-6 mb-3">
+                            <div class="fw-bold fs-4 text-primary">{{ "%.2f"|format(total_liters) }} L</div>
+                            <small>Total Liters</small>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Quick Summary for Downloads -->
-                <div class="card border-info">
-                    <div class="card-header bg-info text-white">
-                        <i class="fas fa-chart-bar"></i> Report Summary
-                    </div>
-                    <div class="card-body">
-                        <div class="row text-center">
-                            <div class="col-4">
-                                <div class="fw-bold text-primary">{{ monthly_collections|length }}</div>
-                                <div class="small text-muted">Total Collections</div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-warning">₹ {{ total_withdrawn }}</div>
+                            <small>Total Withdrawn</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 {% if balance > 0 %}text-success{% else %}text-secondary{% endif %}">
+                                ₹ {{ balance }}
                             </div>
-                            <div class="col-4">
-                                <div class="fw-bold text-success">₹ {{ month_summary.total_amount }}</div>
-                                <div class="small text-muted">Month Amount</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="fw-bold text-warning">{{ "%.2f"|format(month_summary.total_liters) }} L</div>
-                                <div class="small text-muted">Month Liters</div>
-                            </div>
+                            <small>Balance</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 
-<!-- Action Buttons -->
+<!-- WITHDRAWALS TAB -->
+<div class="tab-pane fade" id="withdrawals">
+    <div class="card">
+        <div class="card-header bg-warning">
+            <i class="fas fa-money-bill-wave"></i> Withdrawals
+        </div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for w in withdrawals|reverse %}
+                    <tr>
+                        <td>{{ w.date }}</td>
+                        <td class="fw-bold">₹ {{ w.amount }}</td>
+                        <td>{{ w.note or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No withdrawals</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- BACK BUTTON -->
 <div class="mt-4">
     <a href="{{ url_for('suppliers') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Back to Suppliers
     </a>
 </div>
 
-<style>
-/* Compact Cards */
-.compact-card {
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    margin-bottom: 15px;
-}
-.compact-title {
-    font-size: 0.9rem;
-    opacity: 0.9;
-    margin-bottom: 5px;
-}
-.compact-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    margin: 10px 0;
-}
-.compact-sub {
-    font-size: 0.85rem;
-    opacity: 0.8;
-}
+<!-- EDIT SUPPLIER MODAL -->
+<div class="modal fade" id="editSupplierModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('edit_supplier', supplier_id=supplier.supplier_id) }}">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit"></i> Edit Supplier
+                    </h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
 
-/* Stat Cards */
-.stat-card {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 15px;
-    border: 1px solid #e9ecef;
-}
-.stat-card i {
-    font-size: 1.8rem;
-    margin-bottom: 10px;
-    display: block;
-}
-.stat-card .number {
-    font-size: 1.3rem;
-    font-weight: bold;
-    margin: 8px 0;
-}
-.stat-card .label {
-    font-size: 0.85rem;
-    color: #6c757d;
-}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Name</label>
+                        <input type="text" name="name" class="form-control" value="{{ supplier.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Mobile</label>
+                        <input type="text" name="mobile" class="form-control" value="{{ supplier.mobile }}">
+                    </div>
+                    <div class="mb-3">
+                        <label>Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ supplier.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label>Address</label>
+                        <textarea name="address" class="form-control">{{ supplier.address }}</textarea>
+                    </div>
+                </div>
 
-/* Tab Styles - UPDATED COLORS */
-.nav-tabs .nav-link {
-    padding: 10px 20px;
-    font-weight: 500;
-    border: 1px solid transparent;
-    margin-right: 5px;
-    border-radius: 5px 5px 0 0;
-    transition: all 0.3s;
-}
-.nav-tabs .nav-link:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
-}
-.nav-tabs .nav-link.active {
-    border-bottom: 3px solid #fff;
-    transform: translateY(0);
-}
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-warning">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-/* Table scroll */
-.table-responsive {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-}
-
-/* Highlight colors */
-.highlight-morning {
-    background-color: rgba(255, 193, 7, 0.1) !important;
-}
-.highlight-evening {
-    background-color: rgba(23, 162, 184, 0.1) !important;
-}
-.highlight-cycle1 {
-    background-color: rgba(13, 110, 253, 0.05) !important;
-}
-.highlight-cycle2 {
-    background-color: rgba(25, 135, 84, 0.05) !important;
-}
-
-/* Color scheme for tabs */
-.bg-info { background-color: #0dcaf0 !important; }
-.bg-success { background-color: #198754 !important; }
-.bg-warning { background-color: #ffc107 !important; }
-.bg-danger { background-color: #dc3545 !important; }
-.bg-primary { background-color: #0d6efd !important; }
-</style>
-
-<script>
-// Simple JavaScript functions
-function showSessionDetails(cycle, session) {
-    filterCollectionsTable(cycle, session);
-    showNotification(`Showing ${session} collections for ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'}`, 'info');
-}
-
-function filterCollectionsTable(cycleFilter, sessionFilter) {
-    const rows = document.querySelectorAll('#monthly-collections-table .collection-row');
-    rows.forEach(row => {
-        const rowCycle = row.getAttribute('data-cycle');
-        const rowSession = row.getAttribute('data-session');
-        
-        let shouldShow = true;
-        
-        if (cycleFilter !== 'all' && rowCycle !== cycleFilter) {
-            shouldShow = false;
-        }
-        if (sessionFilter !== 'all' && rowSession !== sessionFilter) {
-            shouldShow = false;
-        }
-        
-        if (shouldShow) {
-            row.style.display = '';
-            // Clear all highlights first
-            row.classList.remove('highlight-morning', 'highlight-evening', 'highlight-cycle1', 'highlight-cycle2');
-            
-            // Apply session highlights
-            if (sessionFilter === 'morning' || rowSession === 'morning') {
-                row.classList.add('highlight-morning');
-            } else if (sessionFilter === 'evening' || rowSession === 'evening') {
-                row.classList.add('highlight-evening');
-            }
-            
-            // Apply cycle highlights
-            if (cycleFilter === 'cycle1' || rowCycle === 'cycle1') {
-                row.classList.add('highlight-cycle1');
-            } else if (cycleFilter === 'cycle2' || rowCycle === 'cycle2') {
-                row.classList.add('highlight-cycle2');
-            }
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-// Sort toggle functionality
-let sortAscending = false;
-function toggleSortOrder() {
-    sortAscending = !sortAscending;
-    const toggleBtn = document.getElementById('sort-toggle');
-    const tbody = document.getElementById('collections-tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    
-    // Sort rows by date
-    rows.sort((a, b) => {
-        const dateA = new Date(a.getAttribute('data-date'));
-        const dateB = new Date(b.getAttribute('data-date'));
-        return sortAscending ? dateA - dateB : dateB - dateA;
-    });
-    
-    // Reappend rows in new order
-    rows.forEach(row => tbody.appendChild(row));
-    
-    // Update button text and icon
-    if (sortAscending) {
-        toggleBtn.innerHTML = '<i class="fas fa-sort-amount-up"></i> Oldest First';
-        showNotification('Sorting: Oldest First', 'info');
-    } else {
-        toggleBtn.innerHTML = '<i class="fas fa-sort-amount-down"></i> Newest First';
-        showNotification('Sorting: Newest First', 'info');
-    }
-}
-
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    notification.innerHTML = `${message}<button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>`;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
-
-// Download functions (simplified placeholders)
-function downloadCycleCSV(cycle) {
-    showNotification(`Downloading ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'} CSV...`, 'info');
-    // Add your download logic here
-}
-
-function downloadSessionCSV(session) {
-    showNotification(`Downloading ${session} session CSV...`, 'info');
-    // Add your download logic here
-}
-
-function downloadCSV() {
-    showNotification('Downloading complete report CSV...', 'info');
-    // Add your download logic here
-}
-
-function downloadCyclePDF(cycle) {
-    showNotification(`Downloading ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'} PDF...`, 'info');
-    // Add your download logic here
-}
-
-function downloadFullReportPDF() {
-    showNotification('Downloading full PDF report...', 'info');
-    // Add your download logic here
-}
-
-function printPaymentCycles() {
-    showNotification('Opening print dialog...', 'info');
-    setTimeout(() => window.print(), 500);
-}
-
-// Initialize with newest first
-document.addEventListener('DOMContentLoaded', function() {
-    // Collections are already reversed in the template using |reverse filter
-    // Withdrawals are also reversed in the template
-});
-</script>
 {% endblock %}

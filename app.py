@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from datetime import date, datetime
 import os, csv, io, math, pytz
 from dotenv import load_dotenv
@@ -12,7 +12,11 @@ from whatsapp_handler import WhatsAppHandler, whatsapp_handler
 import threading
 import schedule
 import time
-from datetime import datetime
+import warnings
+from sqlalchemy.exc import SAWarning
+
+# Suppress SQLAlchemy 2.0 warnings
+warnings.filterwarnings('ignore', category=SAWarning)
 
 load_dotenv()
 
@@ -30,8 +34,11 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Flask-Migrate for schema changes
-from flask_migrate import Migrate
-migrate = Migrate(app, db)
+try:
+    from flask_migrate import Migrate
+    migrate = Migrate(app, db)
+except:
+    pass  # Migrate might fail due to existing migrations
 
 # ================== TIMEZONE CONFIGURATION ==================
 IST = pytz.timezone('Asia/Kolkata')
@@ -239,7 +246,8 @@ class User(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    """Load user by ID for Flask-Login"""
+    return db.session.get(User, int(user_id))
 
 # ================== HELPER FUNCTIONS ==================
 def sort_by_id(items, id_field='supplier_id'):
@@ -296,6 +304,28 @@ def utility_processor():
         'current_month': current_month,
         'now': get_ist_datetime
     }
+
+# ================== DATABASE FIX MIDDLEWARE ==================
+@app.before_request
+def check_database():
+    """Check and fix database schema issues before handling requests"""
+    try:
+        # Try a simple query to check if suppliers table has email column
+        test_query = db.session.execute(text("SELECT supplier_id, name, mobile, email FROM suppliers LIMIT 1"))
+        test_query.fetchall()
+    except Exception as e:
+        error_str = str(e)
+        if "no such column: suppliers.email" in error_str:
+            try:
+                # Add the email column
+                db.session.execute(text("ALTER TABLE suppliers ADD COLUMN email VARCHAR(120)"))
+                db.session.commit()
+                print("✓ Fixed database: Added email column to suppliers table")
+            except Exception as fix_error:
+                print(f"✗ Could not fix database: {fix_error}")
+        # Ignore SQLAlchemy textual SQL warnings
+        elif "Textual SQL expression" in error_str:
+            pass
 
 # ================== AUTHENTICATION ROUTES ==================
 @app.route('/login', methods=['GET', 'POST'])
@@ -559,8 +589,13 @@ def suppliers():
             flash("Supplier ID already exists", "danger")
             return redirect(url_for('suppliers'))
         
-        s = Supplier(supplier_id=supplier_id, name=name, mobile=mobile, 
-                    email=email, address=address)  # Include email
+        s = Supplier(
+            supplier_id=supplier_id, 
+            name=name, 
+            mobile=mobile, 
+            email=email, 
+            address=address
+        )
         db.session.add(s)
         db.session.commit()
         
@@ -669,7 +704,6 @@ def supplier_view(supplier_id):
                          whatsapp_status=whatsapp_status)
 
 # ================== WHATSAPP INTEGRATION ROUTES ==================
-
 @app.route('/send_daily_whatsapp/<supplier_id>')
 @login_required
 @role_required('admin', 'employee')
@@ -710,16 +744,22 @@ def send_daily_whatsapp(supplier_id):
     )
     
     if result.get('success'):
-        flash(f"✅ తెలుగులో దైనందిన WhatsApp సారాంశం పంపబడింది {supplier.name}కి", "success")
+        flash(f"✅ Daily WhatsApp summary sent to {supplier.name}", "success")
         if result.get('scheduled_at'):
-            flash(f"📱 షెడ్యూల్ చేయబడింది: {result.get('scheduled_at')}", "info")
+            flash(f"📱 Scheduled at: {result.get('scheduled_at')}", "info")
     else:
-        flash(f"❌ WhatsApp పంపడం విఫలమైంది: {result.get('error')}", "danger")
+        error_msg = result.get('error', 'Unknown error')
+        flash(f"❌ WhatsApp failed: {error_msg}", "danger")
+        
+        # Show solution if available
         if result.get('solution'):
-            flash(f"💡 సొల్యూషన్: {result.get('solution')}", "info")
+            flash(f"💡 {result.get('solution')}", "info")
+        
+        # If it's a configuration error, suggest setup
+        if "not configured" in error_msg.lower() or "phone number id" in error_msg.lower():
+            flash(f"🔧 <a href='{url_for('whatsapp_status')}' class='alert-link'>Click here to configure WhatsApp</a>", "warning")
     
     return redirect(url_for('supplier_view', supplier_id=supplier_id))
-
 
 @app.route('/send_monthly_whatsapp/<supplier_id>')
 @login_required
@@ -761,13 +801,15 @@ def send_monthly_whatsapp(supplier_id):
     )
     
     if result.get('success'):
-        flash(f"✅ తెలుగులో నెలవారీ WhatsApp సారాంశం పంపబడింది {supplier.name}కి", "success")
-        flash(f"📅 నెల: {selected_month} | మొత్తం: ₹{sum(c.amount for c in month_collections)}", "info")
+        flash(f"✅ Monthly WhatsApp summary sent to {supplier.name}", "success")
+        flash(f"📅 Month: {selected_month} | Total: ₹{sum(c.amount for c in month_collections)}", "info")
     else:
-        flash(f"❌ WhatsApp పంపడం విఫలమైంది: {result.get('error')}", "danger")
+        error_msg = result.get('error', 'Unknown error')
+        flash(f"❌ WhatsApp failed: {error_msg}", "danger")
+        if result.get('solution'):
+            flash(f"💡 {result.get('solution')}", "info")
     
     return redirect(url_for('supplier_view', supplier_id=supplier_id, month=selected_month))
-
 
 @app.route('/send_bulk_daily_whatsapp')
 @login_required
@@ -792,7 +834,7 @@ def send_bulk_daily_whatsapp():
         ).all()
         
         if not collections_today:
-            results.append(f"{supplier.name}: నేడు సేకరణలు లేవు")
+            results.append(f"{supplier.name}: No collections today")
             continue
         
         withdrawals_today = Withdrawal.query.filter_by(
@@ -812,10 +854,10 @@ def send_bulk_daily_whatsapp():
         
         if result.get('success'):
             success_count += 1
-            results.append(f"✅ {supplier.name}: {result.get('scheduled_at', 'N/A')} వద్ద షెడ్యూల్ చేయబడింది")
+            results.append(f"✅ {supplier.name}: Sent successfully")
         else:
             fail_count += 1
-            results.append(f"❌ {supplier.name}: {result.get('error')}")
+            results.append(f"❌ {supplier.name}: {result.get('error', 'Unknown error')}")
         
         # Small delay between messages
         time.sleep(2)
@@ -823,9 +865,8 @@ def send_bulk_daily_whatsapp():
     # Store results in session for display
     session['bulk_results'] = results[:20]
     
-    flash(f"📊 బల్క్ WhatsApp (తెలుగు): {success_count} విజయవంతం, {fail_count} విఫలం", "info")
+    flash(f"📊 Bulk WhatsApp: {success_count} successful, {fail_count} failed", "info")
     return redirect(url_for('suppliers'))
-
 
 @app.route('/test_whatsapp/<phone>')
 @login_required
@@ -835,14 +876,13 @@ def test_whatsapp_route(phone):
     result = whatsapp_handler.test_connection(phone)
     
     if result.get('success'):
-        flash(f"✅ టెస్ట్ WhatsApp పంపబడింది {phone}కి", "success")
+        flash(f"✅ Test WhatsApp sent to {phone}", "success")
         if result.get('scheduled_at'):
-            flash(f"⏰ షెడ్యూల్ చేయబడింది: {result.get('scheduled_at')}", "info")
+            flash(f"⏰ Scheduled at: {result.get('scheduled_at')}", "info")
     else:
-        flash(f"❌ టెస్ట్ విఫలమైంది: {result.get('error')}", "danger")
+        flash(f"❌ Test failed: {result.get('error')}", "danger")
     
     return redirect(url_for('whatsapp_dashboard'))
-
 
 @app.route('/whatsapp/dashboard')
 @login_required
@@ -870,7 +910,6 @@ def whatsapp_dashboard():
                          recent_logs=recent_logs,
                          whatsapp_status=whatsapp_status)
 
-
 @app.route('/whatsapp/logs')
 @login_required
 @role_required('admin')
@@ -882,6 +921,50 @@ def whatsapp_logs():
     return render_template('whatsapp_logs.html',
                          logs=logs,
                          days=days)
+
+@app.route('/whatsapp/test', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def test_whatsapp():
+    """Test WhatsApp page"""
+    if request.method == 'POST':
+        phone = request.form.get('phone')
+        message_type = request.form.get('message_type', 'test')
+        
+        if message_type == 'test':
+            result = whatsapp_handler.test_connection(phone)
+        elif message_type == 'collection':
+            # Create a dummy collection for testing
+            dummy_supplier = type('obj', (object,), {
+                'name': 'Test Supplier',
+                'supplier_id': 'TEST001',
+                'mobile': phone
+            })
+            
+            dummy_collection = type('obj', (object,), {
+                'date': get_today_ist(),
+                'session': 'morning',
+                'liters': 5.0,
+                'fat': 6.5,
+                'milk_type': 'buffalo',
+                'rate_per_liter': 50.31,
+                'amount': 251
+            })
+            
+            result = whatsapp_handler.send_collection_notification(dummy_supplier, dummy_collection)
+        else:
+            result = whatsapp_handler.test_connection(phone)
+        
+        if result.get('success'):
+            flash(f"✅ Test message sent to {phone}", "success")
+        else:
+            flash(f"❌ Failed: {result.get('error')}", "danger")
+            if result.get('solution'):
+                flash(f"💡 {result.get('solution')}", "info")
+        
+        return redirect(url_for('test_whatsapp'))
+    
+    return render_template('whatsapp_test.html')
 
 # ================== CUSTOMER MANAGEMENT ==================
 @app.route('/customers', methods=['GET', 'POST'])
@@ -980,13 +1063,13 @@ def add_collection():
         try:
             result = whatsapp_handler.send_collection_notification(s, entry)
             if result.get('success'):
-                flash(f"Collection added from {s.name} - ₹{amt} ✅ WhatsApp notification sent", "success")
+                flash(f"✅ Collection added from {s.name} - ₹{amt} (WhatsApp sent)", "success")
             else:
-                flash(f"Collection added from {s.name} - ₹{amt} ⚠️ WhatsApp failed: {result.get('error', 'Unknown error')}", "warning")
+                flash(f"✅ Collection added from {s.name} - ₹{amt} ⚠️ (WhatsApp failed: {result.get('error', 'Unknown error')})", "warning")
         except Exception as e:
-            flash(f"Collection added from {s.name} - ₹{amt} ⚠️ WhatsApp error: {str(e)}", "warning")
+            flash(f"✅ Collection added from {s.name} - ₹{amt} ⚠️ (WhatsApp error)", "warning")
     else:
-        flash(f"Collection added from {s.name} - ₹{amt} (No WhatsApp - mobile number missing)", "success")
+        flash(f"✅ Collection added from {s.name} - ₹{amt} (No WhatsApp - mobile missing)", "success")
     
     return redirect(url_for('add_collection_page'))
 
@@ -1042,13 +1125,13 @@ def quick_add():
         try:
             result = whatsapp_handler.send_collection_notification(s, entry)
             if result.get('success'):
-                flash(f"Quick collection added from {s.name} - ₹{amt} ✅ WhatsApp sent", "success")
+                flash(f"✅ Quick collection added from {s.name} - ₹{amt} (WhatsApp sent)", "success")
             else:
-                flash(f"Quick collection added from {s.name} - ₹{amt} ⚠️ WhatsApp failed", "warning")
+                flash(f"✅ Quick collection added from {s.name} - ₹{amt} ⚠️ (WhatsApp failed)", "warning")
         except Exception as e:
-            flash(f"Quick collection added from {s.name} - ₹{amt} ⚠️ WhatsApp error", "warning")
+            flash(f"✅ Quick collection added from {s.name} - ₹{amt} ⚠️ (WhatsApp error)", "warning")
     else:
-        flash(f"Quick collection added from {s.name} - ₹{amt}", "success")
+        flash(f"✅ Quick collection added from {s.name} - ₹{amt}", "success")
     
     return redirect(url_for('add_collection_page'))
 
@@ -1202,13 +1285,13 @@ def edit_collection(cid):
             try:
                 result = whatsapp_handler.send_collection_notification(supplier, entry)
                 if result.get('success'):
-                    flash("Collection updated successfully ✅ WhatsApp notification sent", "success")
+                    flash("✅ Collection updated (WhatsApp sent)", "success")
                 else:
-                    flash("Collection updated successfully ⚠️ WhatsApp failed", "warning")
+                    flash("✅ Collection updated ⚠️ (WhatsApp failed)", "warning")
             except Exception as e:
-                flash("Collection updated successfully ⚠️ WhatsApp error", "warning")
+                flash("✅ Collection updated ⚠️ (WhatsApp error)", "warning")
         else:
-            flash("Collection updated successfully", "success")
+            flash("✅ Collection updated", "success")
         
         return redirect(url_for('daily', date=entry.date))
     
@@ -1259,29 +1342,26 @@ def add_withdrawal():
     # Send WhatsApp notification for withdrawal
     if s.mobile:
         try:
-            # Create message for withdrawal in Telugu
-            date_obj = datetime.strptime(d, '%Y-%m-%d')
-            formatted_date = date_obj.strftime('%d-%m-%Y')
-            
-            message = f"""💸 డబ్బు డ్రా వివరాలు 💸
+            # Create message for withdrawal
+            message = f"""💸 Withdrawal Details 💸
 
-👤 సరఫరాదారు: {s.name}
+👤 Supplier: {s.name}
 🆔 ID: {s.supplier_id}
-📅 తేదీ: {formatted_date}
-💰 మొత్తం: ₹{amt}
-📝 నోట్: {note or 'N/A'}
+📅 Date: {d}
+💰 Amount: ₹{amt}
+📝 Note: {note or 'N/A'}
 
-ధన్యవాదాలు! 🙏"""
+Thank you! 🙏"""
             
             result = whatsapp_handler.send_message(s.mobile, message)
             if result.get('success'):
-                flash(f"Withdrawal of ₹{amt} recorded for {s.name} ✅ WhatsApp sent", "success")
+                flash(f"✅ Withdrawal of ₹{amt} recorded for {s.name} (WhatsApp sent)", "success")
             else:
-                flash(f"Withdrawal of ₹{amt} recorded for {s.name} ⚠️ WhatsApp failed", "warning")
+                flash(f"✅ Withdrawal of ₹{amt} recorded for {s.name} ⚠️ (WhatsApp failed)", "warning")
         except Exception as e:
-            flash(f"Withdrawal of ₹{amt} recorded for {s.name} ⚠️ WhatsApp error: {str(e)}", "warning")
+            flash(f"✅ Withdrawal of ₹{amt} recorded for {s.name} ⚠️ (WhatsApp error)", "warning")
     else:
-        flash(f"Withdrawal of ₹{amt} recorded for {s.name}", "success")
+        flash(f"✅ Withdrawal of ₹{amt} recorded for {s.name}", "success")
     
     return redirect(url_for('monthly', month=d[:7]))
 
@@ -1350,7 +1430,7 @@ def monthly():
     like = month + '%'
     
     supplier_results = db.session.query(
-        Supplier.supplier_id, Supplier.name, Supplier.mobile, Supplier.email,  # Include email
+        Supplier.supplier_id, Supplier.name, Supplier.mobile, Supplier.email,
         func.sum(Collection.liters).label('total_liters'),
         func.sum(Collection.amount).label('total_amount')
     ).join(Collection, Supplier.id == Collection.supplier_id)\
@@ -1373,7 +1453,7 @@ def monthly():
             "supplier_id": r.supplier_id, 
             "name": r.name, 
             "mobile": r.mobile,
-            "email": r.email,  # Include email
+            "email": r.email,
             "total_liters": float(r.total_liters or 0), 
             "total_amount": int(r.total_amount or 0),
             "withdrawn": int(withdrawn), 
@@ -1456,7 +1536,7 @@ def export_month_summary_csv():
     like = month + '%'
     
     rows = db.session.query(
-        Supplier.supplier_id, Supplier.name, Supplier.email,  # Include email
+        Supplier.supplier_id, Supplier.name, Supplier.email,
         func.sum(Collection.amount).label('total_amount'),
         func.sum(Collection.liters).label('total_liters'),
         func.coalesce(func.sum(Withdrawal.amount), 0).label('withdrawn')
@@ -1493,15 +1573,13 @@ def export_month_summary_csv():
 @role_required('admin', 'employee')
 def whatsapp_status():
     """Show WhatsApp setup status"""
-    whatsapp = whatsapp_handler
-    status = whatsapp.is_configured()
+    whatsapp_status = whatsapp_handler.is_configured()
     
     # Test with your phone number
     test_phone = "+15551477761"
     
     return render_template('whatsapp_status.html', 
-                         whatsapp_status=status,
-                         whatsapp=whatsapp,
+                         whatsapp_status=whatsapp_status,
                          test_phone=test_phone)
 
 @app.route('/send_test_whatsapp', methods=['POST'])
@@ -1518,11 +1596,13 @@ def send_test_whatsapp():
     result = whatsapp_handler.test_connection(test_phone)
     
     if result.get('success'):
-        flash(f"✅ టెస్ట్ సందేశం షెడ్యూల్ చేయబడింది {test_phone}కి", "success")
+        flash(f"✅ Test message sent to {test_phone}", "success")
         if result.get('scheduled_at'):
-            flash(f"⏰ షెడ్యూల్ చేయబడింది: {result.get('scheduled_at')}", "info")
+            flash(f"⏰ Scheduled at: {result.get('scheduled_at')}", "info")
     else:
-        flash(f"❌ టెస్ట్ విఫలమైంది: {result.get('error')}", "danger")
+        flash(f"❌ Test failed: {result.get('error')}", "danger")
+        if result.get('solution'):
+            flash(f"💡 Solution: {result.get('solution')}", "info")
     
     return redirect(url_for('whatsapp_status'))
 
@@ -1536,10 +1616,17 @@ def init_db():
 
 # Create database tables and admin user on startup
 with app.app_context():
-    db.create_all()
-    create_default_admin()
+    try:
+        db.create_all()
+        create_default_admin()
+        print("✓ Database tables created")
+    except Exception as e:
+        print(f"⚠️ Note: {e}")
 
 # ================== MAIN ==================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"✓ Starting MilkBooth Server on port {port}")
+    print(f"✓ WhatsApp configured: {whatsapp_handler.is_configured()}")
+    print(f"✓ Your test number: +1 555 147 7761")
     app.run(host='0.0.0.0', port=port, debug=True)

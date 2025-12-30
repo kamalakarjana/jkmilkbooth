@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Status{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-cog"></i> WhatsApp Configuration Status</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Configuration Check</h5>
+                </div>
+                <div class="card-body">
+                    {% if whatsapp_status %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> WhatsApp is properly configured
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> WhatsApp is not configured
+                    </div>
+                    {% endif %}
+                    
+                    <h6>Current Configuration:</h6>
+                    <ul>
+                        <li>Access Token: {{ "Set" if whatsapp_status else "Not set" }}</li>
+                        <li>Phone Number ID: {{ "Set" if whatsapp_status else "Not set" }}</li>
+                        <li>Template: jaspers_market_plain_text_v1</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Test Connection</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('send_test_whatsapp') }}">
+                        <div class="mb-3">
+                            <label class="form-label">Test Phone Number</label>
+                            <input type="text" class="form-control" name="test_phone" 
+                                   value="{{ test_phone }}" required>
+                            <small class="form-text text-muted">
+                                Must be added to WhatsApp Business test numbers
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fab fa-whatsapp"></i> Send Test Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-question-circle"></i> Troubleshooting</h5>
+        </div>
+        <div class="card-body">
+            <h6>Common Issues:</h6>
+            <ol>
+                <li>
+                    <strong>Message sent but not received:</strong>
+                    <p>Your phone number must be added to WhatsApp Business test numbers.</p>
+                    <p>Go to: <strong>Meta Business Suite → WhatsApp → API → Test Phone Numbers</strong></p>
+                    <p>Add: <code>+919000488963</code> and save</p>
+                </li>
+                <li>
+                    <strong>Invalid phone number:</strong>
+                    <p>Use the format: <code>919000488963</code> (without + sign)</p>
+                </li>
+                <li>
+                    <strong>Template not approved:</strong>
+                    <p>The template "jaspers_market_plain_text_v1" must be approved in WhatsApp Business</p>
+                </li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

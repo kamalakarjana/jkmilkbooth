@@ -4,5 +4,8 @@ Flask-Migrate==4.0.4
 Flask-Login==0.6.3
 python-dotenv==1.0.0
 Werkzeug==2.3.7
-phonenumbers==8.13.27
+pywhatkit==5.4
+schedule==1.2.0
+pytz==2023.3
+phonenumbers==9.0.21
 requests==2.31.0

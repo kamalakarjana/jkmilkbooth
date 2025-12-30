@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Test{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-vial"></i> WhatsApp Test</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Send Test Message</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('test_whatsapp') }}">
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" name="phone" 
+                                   placeholder="919000488963" required>
+                            <small class="form-text text-muted">
+                                Use Indian format: 919000488963 (without +)
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Message Type</label>
+                            <select class="form-select" name="message_type">
+                                <option value="test">Test Template Message</option>
+                                <option value="collection">Collection Notification</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">
+                            <i class="fab fa-whatsapp"></i> Send Test
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Test Numbers</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Pre-configured test numbers:</h6>
+                    <ul>
+                        <li><strong>Default Test:</strong> +1 555 147 7761</li>
+                        <li><strong>Your Number:</strong> +91 9000 488963</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h6>Quick Test:</h6>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('test_whatsapp_route', phone='919000488963') }}" 
+                           class="btn btn-outline-primary">
+                            Test to +91 9000 488963
+                        </a>
+                        <a href="{{ url_for('test_whatsapp_route', phone='15551477761') }}" 
+                           class="btn btn-outline-secondary">
+                            Test to Default Number
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Testing Tips</h5>
+        </div>
+        <div class="card-body">
+            <ol>
+                <li>Ensure your phone has WhatsApp installed and is connected to internet</li>
+                <li>Check that +919000488963 is added to WhatsApp Business test numbers</li>
+                <li>Wait 1-2 minutes after adding number to test list</li>
+                <li>If using template, ensure it's approved in WhatsApp Business</li>
+                <li>Check server logs for detailed error messages</li>
+            </ol>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Note:</strong> WhatsApp Business API only allows sending to:
+                <ul class="mt-2">
+                    <li>Pre-approved test numbers (during development)</li>
+                    <li>Opted-in customers (in production)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

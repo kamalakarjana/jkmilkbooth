@@ -5,31 +5,51 @@
 {% block content %}
 <h2 class="mb-4"><i class="fas fa-truck-loading"></i> Suppliers Management</h2>
 
+<!-- WhatsApp Status Banner -->
+{% if whatsapp_status %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle"></i> <strong>WhatsApp is configured and ready!</strong> 
+    Suppliers with mobile numbers will receive automatic notifications.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% else %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle"></i> <strong>WhatsApp is not configured.</strong> 
+    <a href="{{ url_for('whatsapp_status') }}" class="alert-link">Set up WhatsApp</a> to send automatic notifications to suppliers.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <div class="card mb-4">
-    <div class="card-header">
+    <div class="card-header bg-primary text-white">
         <i class="fas fa-plus"></i> Add New Supplier
     </div>
     <div class="card-body">
         <form method="post" action="{{ url_for('suppliers') }}">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <input type="text" name="supplier_id" class="form-control" placeholder="Supplier ID" required>
+                <div class="col-md-2">
+                    <label class="form-label">Supplier ID *</label>
+                    <input type="text" name="supplier_id" class="form-control" placeholder="S001" required>
                 </div>
                 <div class="col-md-3">
-                    <input type="text" name="name" class="form-control" placeholder="Name" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label for="email" class="form-label">Email (Optional)</label>
-                    <input type="email" class="form-control" id="email" name="email" placeholder="supplier@example.com">
+                    <label class="form-label">Name *</label>
+                    <input type="text" name="name" class="form-control" placeholder="Full Name" required>
                 </div>
                 <div class="col-md-3">
-                    <input type="text" name="mobile" class="form-control" placeholder="Mobile">
+                    <label class="form-label">Mobile *</label>
+                    <input type="text" name="mobile" class="form-control" placeholder="9876543210" required>
+                    <small class="text-muted">For WhatsApp notifications</small>
                 </div>
-                <div class="col-md-3">
-                    <input type="text" name="address" class="form-control" placeholder="Address">
+                <div class="col-md-4">
+                    <label class="form-label">Email (Optional)</label>
+                    <input type="email" name="email" class="form-control" placeholder="supplier@example.com">
                 </div>
-                <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-primary">
+                <div class="col-md-8">
+                    <label class="form-label">Address</label>
+                    <input type="text" name="address" class="form-control" placeholder="Full address">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-save"></i> Add Supplier
                     </button>
                 </div>
@@ -38,18 +58,85 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <i class="fas fa-list"></i> All Suppliers ({{ suppliers|length }})
+<!-- WhatsApp Bulk Actions -->
+{% if whatsapp_status %}
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <i class="fab fa-whatsapp"></i> WhatsApp Actions
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <a href="{{ url_for('send_bulk_daily_whatsapp') }}" class="btn btn-success w-100">
+                    <i class="fab fa-whatsapp"></i> Send Bulk Daily Summaries
+                </a>
+                <small class="text-muted">Send today's summary to all suppliers</small>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('whatsapp_dashboard') }}" class="btn btn-info w-100">
+                    <i class="fas fa-tachometer-alt"></i> WhatsApp Dashboard
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('whatsapp_logs') }}" class="btn btn-secondary w-100">
+                    <i class="fas fa-history"></i> View WhatsApp Logs
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Bulk Results (if any) -->
+{% if session.get('bulk_results') %}
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <i class="fab fa-whatsapp"></i> Bulk WhatsApp Results
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
+            <table class="table table-sm">
+                <tbody>
+                    {% for result in session.get('bulk_results') %}
+                    <tr>
+                        <td>
+                            {% if '✅' in result or 'success' in result|lower %}
+                            <span class="text-success">{{ result }}</span>
+                            {% elif '❌' in result or 'failed' in result|lower %}
+                            <span class="text-danger">{{ result }}</span>
+                            {% else %}
+                            {{ result }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% set _ = session.pop('bulk_results', None) %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-list"></i> All Suppliers ({{ suppliers|length }})
+        </div>
+        <div>
+            <span class="badge bg-success">{{ suppliers|selectattr('mobile')|list|length }} with mobile</span>
+            <span class="badge bg-warning">{{ suppliers|rejectattr('mobile')|list|length }} without mobile</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-light">
                     <tr>
                         <th>ID</th>
                         <th>Name</th>
                         <th>Mobile</th>
+                        <th>Email</th>
                         <th>Address</th>
                         <th>Actions</th>
                     </tr>
@@ -59,19 +146,35 @@
                     <tr>
                         <td><strong>{{ s.supplier_id }}</strong></td>
                         <td>{{ s.name }}</td>
-                        <td>{{ s.mobile or '-' }}</td>
-                        <td>{{ s.address or '-' }}</td>
                         <td>
-                            <a href="{{ url_for('supplier_view', supplier_id=s.supplier_id) }}" 
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i> View
-                            </a>
+                            {% if s.mobile %}
+                            <i class="fas fa-check-circle text-success"></i> {{ s.mobile }}
+                            {% else %}
+                            <span class="text-danger">No mobile</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ s.email or '-' }}</td>
+                        <td>{{ s.address|truncate(30) or '-' }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('supplier_view', supplier_id=s.supplier_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                {% if s.mobile and whatsapp_status %}
+                                <a href="{{ url_for('send_daily_whatsapp', supplier_id=s.supplier_id) }}" 
+                                   class="btn btn-sm btn-outline-success">
+                                    <i class="fab fa-whatsapp"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
-                            No suppliers found
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="fas fa-users fa-2x mb-2"></i><br>
+                            No suppliers found. Add your first supplier above.
                         </td>
                     </tr>
                     {% endfor %}

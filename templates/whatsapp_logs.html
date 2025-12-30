@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Logs{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-clipboard-list"></i> WhatsApp Logs</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>{{ days }}</h3>
+                    <p>Days of Logs</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('whatsapp_logs') }}" class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Show logs for past:</label>
+                            <select name="days" class="form-select" onchange="this.form.submit()">
+                                <option value="1" {% if days==1 %}selected{% endif %}>1 Day</option>
+                                <option value="7" {% if days==7 %}selected{% endif %}>7 Days</option>
+                                <option value="30" {% if days==30 %}selected{% endif %}>30 Days</option>
+                                <option value="90" {% if days==90 %}selected{% endif %}>90 Days</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Recent WhatsApp Activities</h5>
+        </div>
+        <div class="card-body">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Message</th>
+                            <th>Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.timestamp }}</td>
+                            <td>{{ log.message }}</td>
+                            <td>
+                                {% if log.level == 'INFO' %}
+                                <span class="badge bg-info">INFO</span>
+                                {% elif log.level == 'ERROR' %}
+                                <span class="badge bg-danger">ERROR</span>
+                                {% elif log.level == 'WARNING' %}
+                                <span class="badge bg-warning">WARNING</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ log.level }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No WhatsApp logs found for the selected period</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

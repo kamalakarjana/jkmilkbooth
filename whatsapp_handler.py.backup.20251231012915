@@ -1,0 +1,336 @@
+# whatsapp_handler.py
+import os
+import json
+import requests
+import logging
+from datetime import datetime
+import pytz
+import time
+import re
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('whatsapp_logs/whatsapp.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class WhatsAppHandler:
+    def __init__(self):
+        self.token = os.environ.get("WHATSAPP_TOKEN", "EAAKcatsX9ZCYBQR0nlo7b3lQkuMWT8LWT8gj9F4WK1NSZAdoJuY8oN1RopxqIq4372sPRmFMnpUkc0XaIoSrOF2YNOVkd3cxVWuCSSWjZADe7K5amxc8kyH89N5ijGJN3bwiQJfHwcNSbK6DVpLYMAFgpbOV9bvxDB41VWlVTYYo3p7Xl1NMRUNOfZAl5wABkgZDZD")
+        self.phone_number_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        self.api_version = "v18.0"
+        self.base_url = f"https://graph.facebook.com/{self.api_version}"
+        self.ist = pytz.timezone('Asia/Kolkata')
+        
+        # Check if we have a valid Phone ID (not the placeholder)
+        if self.phone_number_id == "123456789012345":
+            self.phone_number_id = ""
+            logger.warning("⚠️ WhatsApp Phone ID is using placeholder. Set proper WHATSAPP_PHONE_ID in .env file")
+        
+    def is_configured(self) -> bool:
+        """Check if WhatsApp is configured"""
+        if not self.token or not self.phone_number_id:
+            return False
+        
+        # Check if token looks valid (starts with EAA and is long enough)
+        if not (self.token.startswith('EAA') and len(self.token) > 100):
+            return False
+            
+        # Check if phone_number_id looks valid (numeric and reasonable length)
+        if not (self.phone_number_id.isdigit() and 10 <= len(self.phone_number_id) <= 20):
+            return False
+            
+        return True
+    
+    def format_phone_number(self, phone_number: str) -> str:
+        """Format phone number to international format"""
+        try:
+            # Remove any non-digit characters
+            phone_number = ''.join(filter(str.isdigit, phone_number))
+            
+            if not phone_number:
+                return ""
+            
+            # If it's your test number, return as-is
+            if '15551477761' in phone_number:
+                return '+15551477761'
+            
+            # For Indian numbers
+            if phone_number.startswith('0'):
+                phone_number = phone_number[1:]
+            
+            if not phone_number.startswith('+'):
+                if not phone_number.startswith('91') and len(phone_number) == 10:
+                    phone_number = '91' + phone_number
+                phone_number = '+' + phone_number
+            
+            return phone_number
+        except Exception as e:
+            logger.error(f"Error formatting phone number {phone_number}: {e}")
+            return phone_number
+    
+    def send_message(self, to_number: str, message: str) -> dict:
+        """
+        Send WhatsApp message using Facebook Graph API
+        """
+        if not self.is_configured():
+            return {
+                "success": False,
+                "error": "WhatsApp not configured. Set WHATSAPP_TOKEN and WHATSAPP_PHONE_ID in environment variables.",
+                "solution": "1. Get your Phone Number ID from WhatsApp Business API\n2. Update .env file"
+            }
+        
+        try:
+            # Format phone number
+            to_number = self.format_phone_number(to_number)
+            
+            if not to_number:
+                return {
+                    "success": False,
+                    "error": "Invalid phone number"
+                }
+            
+            headers = {
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json"
+            }
+            
+            # Send simple text message
+            data = {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": to_number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": message
+                }
+            }
+            
+            url = f"{self.base_url}/{self.phone_number_id}/messages"
+            
+            logger.info(f"Attempting to send WhatsApp to {to_number}")
+            
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            response_data = response.json()
+            
+            if response.status_code == 200:
+                logger.info(f"✓ Message sent successfully to {to_number}")
+                return {
+                    "success": True,
+                    "message_id": response_data.get("messages", [{}])[0].get("id"),
+                    "to": to_number,
+                    "scheduled_at": datetime.now(self.ist).strftime('%H:%M:%S')
+                }
+            else:
+                error_msg = response_data.get('error', {}).get('message', 'Unknown error')
+                error_code = response_data.get('error', {}).get('code', 'N/A')
+                logger.error(f"✗ Failed to send to {to_number}: {response.status_code} - {error_msg}")
+                
+                # Provide helpful solutions based on error
+                solution = ""
+                if error_code == 131031:
+                    solution = "Recipient phone number not registered on WhatsApp"
+                elif error_code == 132000:
+                    solution = "Message template required for this recipient"
+                elif response.status_code == 400:
+                    if "does not exist" in error_msg or "cannot be loaded" in error_msg:
+                        solution = f"Phone Number ID '{self.phone_number_id}' is invalid. Get correct ID from WhatsApp Business API."
+                    else:
+                        solution = "Bad request. Check your phone number format and message content."
+                elif response.status_code == 401:
+                    solution = "Invalid or expired token. Renew your WhatsApp token in Facebook Developer Console."
+                elif response.status_code == 404:
+                    solution = "Phone number ID not found. Check WHATSAPP_PHONE_ID in .env file."
+                
+                return {
+                    "success": False,
+                    "error": f"API Error {response.status_code}: {error_msg}",
+                    "error_code": error_code,
+                    "solution": solution,
+                    "details": response_data
+                }
+                
+        except requests.exceptions.Timeout:
+            error_msg = "Request timeout - server took too long to respond"
+            logger.error(f"✗ Timeout sending to {to_number}: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "solution": "Check your internet connection and try again"
+            }
+        except requests.exceptions.ConnectionError:
+            error_msg = "Connection error - cannot reach WhatsApp servers"
+            logger.error(f"✗ Connection error to {to_number}: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "solution": "Check your internet connection"
+            }
+        except Exception as e:
+            logger.error(f"✗ Exception sending WhatsApp to {to_number}: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def send_collection_notification(self, supplier, collection) -> dict:
+        """Send collection notification to supplier in Telugu"""
+        if not supplier.mobile:
+            return {
+                "success": False,
+                "error": "Supplier has no mobile number"
+            }
+        
+        try:
+            date_obj = datetime.strptime(collection.date, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%d-%m-%Y')
+        except:
+            formatted_date = collection.date
+        
+        # Telugu message
+        message = f"""🫶 పాలు సేకరణ వివరాలు 🫶
+
+👤 సరఫరాదారు: {supplier.name}
+🆔 ID: {supplier.supplier_id}
+📅 తేదీ: {formatted_date}
+🌅 సెషన్: {'ఉదయం' if collection.session == 'morning' else 'సాయంత్రం'}
+🥛 లీటర్లు: {collection.liters}
+📊 కొవ్వు: {collection.fat}
+🐄 పాలు రకం: {'ఎద్దు' if collection.milk_type == 'buffalo' else 'ఆవు'}
+💰 రేటు: ₹{collection.rate_per_liter}/లీటరు
+💵 మొత్తం: ₹{collection.amount}
+
+ధన్యవాదాలు! 🙏"""
+        
+        return self.send_message(supplier.mobile, message)
+    
+    def send_daily_summary(self, supplier, collections_today, withdrawals_today, total_balance) -> dict:
+        """Send daily summary to supplier"""
+        if not supplier.mobile:
+            return {
+                "success": False,
+                "error": "Supplier has no mobile number"
+            }
+        
+        total_collection = sum(c.amount for c in collections_today)
+        total_withdrawal = sum(w.amount for w in withdrawals_today)
+        today = datetime.now(self.ist).strftime('%d-%m-%Y')
+        
+        # Telugu message
+        message = f"""📊 నేటి సారాంశం ({today})
+
+👤 సరఫరాదారు: {supplier.name}
+🆔 ID: {supplier.supplier_id}
+
+📈 ఈ రోజు సేకరణ:
+   • మొత్తం సేకరణలు: {len(collections_today)}
+   • మొత్తం లీటర్లు: {sum(c.liters for c in collections_today):.1f}
+   • మొత్తం మొత్తం: ₹{total_collection}
+
+💸 ఈ రోజు డ్రాలు: ₹{total_withdrawal}
+
+💰 మొత్తం బ్యాలెన్స్: ₹{total_balance}
+
+ధన్యవాదాలు! 🙏"""
+        
+        return self.send_message(supplier.mobile, message)
+    
+    def send_monthly_summary(self, supplier, month_collections, month_withdrawals, month_balance, selected_month) -> dict:
+        """Send monthly summary to supplier"""
+        if not supplier.mobile:
+            return {
+                "success": False,
+                "error": "Supplier has no mobile number"
+            }
+        
+        total_collection = sum(c.amount for c in month_collections)
+        total_withdrawal = sum(w.amount for w in month_withdrawals)
+        
+        # Format month for display
+        try:
+            year, month = selected_month.split('-')
+            month_name = datetime(int(year), int(month), 1).strftime('%B %Y')
+        except:
+            month_name = selected_month
+        
+        # Telugu message
+        message = f"""📅 నెలవారీ సారాంశం ({month_name})
+
+👤 సరఫరాదారు: {supplier.name}
+🆔 ID: {supplier.supplier_id}
+
+📈 ఈ నెల సేకరణ:
+   • మొత్తం సేకరణలు: {len(month_collections)}
+   • మొత్తం లీటర్లు: {sum(c.liters for c in month_collections):.1f}
+   • మొత్తం మొత్తం: ₹{total_collection}
+
+💸 ఈ నెల డ్రాలు: ₹{total_withdrawal}
+
+💰 నెల బ్యాలెన్స్: ₹{month_balance}
+
+ధన్యవాదాలు! 🙏"""
+        
+        return self.send_message(supplier.mobile, message)
+    
+    def test_connection(self, phone_number: str) -> dict:
+        """Test WhatsApp connection"""
+        if not self.is_configured():
+            return {
+                "success": False,
+                "error": "WhatsApp not configured",
+                "solution": f"Set WHATSAPP_PHONE_ID in .env file\nCurrent token: {self.token[:20]}...\nCurrent Phone ID: {self.phone_number_id or 'Not set'}"
+            }
+        
+        message = f"""✅ MilkBooth WhatsApp Integration Test ✅
+
+📱 To: {phone_number}
+🕐 Time: {datetime.now(self.ist).strftime('%d-%m-%Y %H:%M:%S')}
+
+This is a test message from MilkBooth system.
+
+If you receive this, WhatsApp integration is working correctly! 🎉
+
+Thank you for using MilkBooth!"""
+        
+        return self.send_message(phone_number, message)
+    
+    def get_recent_logs(self, days: int = 7) -> list:
+        """Get recent WhatsApp logs"""
+        log_file = 'whatsapp_logs/whatsapp.log'
+        logs = []
+        
+        try:
+            if os.path.exists(log_file):
+                with open(log_file, 'r') as f:
+                    logs = f.readlines()
+                # Return last N lines
+                return logs[-min(len(logs), days * 50):]
+            else:
+                return ["No logs found. Log file doesn't exist yet."]
+        except Exception as e:
+            return [f"Error reading logs: {str(e)}"]
+    
+    def get_configuration_help(self) -> dict:
+        """Get help for configuring WhatsApp"""
+        return {
+            "token_set": bool(self.token),
+            "phone_id_set": bool(self.phone_number_id),
+            "token_valid": self.token.startswith('EAA') if self.token else False,
+            "phone_id_valid": self.phone_number_id.isdigit() if self.phone_number_id else False,
+            "current_phone_id": self.phone_number_id,
+            "help_steps": [
+                "1. Go to Facebook Developer Console",
+                "2. Create/Open your WhatsApp Business App",
+                "3. Get your Phone Number ID from Business Settings",
+                "4. Update .env file with: WHATSAPP_PHONE_ID=your_actual_phone_number_id"
+            ]
+        }
+
+# Global instance
+whatsapp_handler = WhatsAppHandler()

@@ -25,6 +25,16 @@
       background-color: #2c3e50;
       color: white;
     }
+    .no-collection {
+      color: #999;
+      font-style: italic;
+    }
+    .collection-row {
+      transition: background-color 0.2s;
+    }
+    .collection-row:hover {
+      background-color: #f8f9fa;
+    }
   </style>
 </head>
 <body class="p-3">
@@ -59,7 +69,7 @@
     <div class="col-md-3">
       <div class="stat-card">
         <i class="fas fa-list text-info mb-2"></i>
-        <div class="number">{{ rows|length }}</div>
+        <div class="number">{{ rows|selectattr('id')|list|length }}</div>
         <div class="text-muted">Collections</div>
       </div>
     </div>
@@ -79,15 +89,15 @@
       <div class="btn-group float-end">
         <a href="{{ url_for('daily', date=date, session='all') }}" 
            class="btn btn-outline-primary {% if session_filter == 'all' %}active{% endif %}">
-          All Sessions
+          All Suppliers
         </a>
         <a href="{{ url_for('daily', date=date, session='morning') }}" 
            class="btn btn-outline-primary {% if session_filter == 'morning' %}active{% endif %}">
-          <i class="fas fa-sun"></i> Morning
+          <i class="fas fa-sun"></i> Morning Only
         </a>
         <a href="{{ url_for('daily', date=date, session='evening') }}" 
            class="btn btn-outline-primary {% if session_filter == 'evening' %}active{% endif %}">
-          <i class="fas fa-moon"></i> Evening
+          <i class="fas fa-moon"></i> Evening Only
         </a>
       </div>
     </div>
@@ -111,7 +121,8 @@
     <table class="table table-hover table-striped">
       <thead>
         <tr>
-          <th>Supplier</th>
+          <th>Supplier ID</th>
+          <th>Name</th>
           <th>Type</th>
           <th>Session</th>
           <th>Liters</th>
@@ -125,27 +136,60 @@
       </thead>
       <tbody>
         {% for r in rows %}
-        <tr>
+        <tr class="collection-row {% if not r.id %}no-collection{% endif %}">
           <td>
-            <strong>{{ r.supplier.supplier_id }}</strong><br>
-            <small>{{ r.supplier.name[:20] }}{% if r.supplier.name|length > 20 %}...{% endif %}</small>
+            <strong>{{ r.supplier.supplier_id }}</strong>
           </td>
+          <td>{{ r.supplier.name }}</td>
           <td>
+            {% if r.milk_type %}
             <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
               {{ r.milk_type|title }}
             </span>
+            {% else %}
+            <span class="badge bg-secondary">No Data</span>
+            {% endif %}
           </td>
           <td>
+            {% if r.session %}
             <span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
               {{ r.session|title }}
             </span>
+            {% else %}
+            <span class="text-muted">-</span>
+            {% endif %}
           </td>
-          <td>{{ "%.2f"|format(r.liters) }}</td>
-          <td>{{ "%.1f"|format(r.fat) }}</td>
-          <td><strong>₹ {{ r.amount }}</strong></td>
-          {% if current_user.role in ['admin', 'employee'] %}
-          <td>{{ "%.2f"|format(r.rate_per_liter) }}</td>
           <td>
+            {% if r.liters > 0 %}
+            {{ "%.2f"|format(r.liters) }}
+            {% else %}
+            <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.fat > 0 %}
+            {{ "%.1f"|format(r.fat) }}
+            {% else %}
+            <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.amount > 0 %}
+            <strong>₹ {{ r.amount }}</strong>
+            {% else %}
+            <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          {% if current_user.role in ['admin', 'employee'] %}
+          <td>
+            {% if r.rate_per_liter > 0 %}
+            {{ "%.2f"|format(r.rate_per_liter) }}
+            {% else %}
+            <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.id %}
             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}">
               <i class="fas fa-edit"></i>
             </a>
@@ -155,18 +199,21 @@
                 <i class="fas fa-trash"></i>
               </button>
             </form>
+            {% else %}
+            <a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" 
+               class="btn btn-sm btn-success">
+              <i class="fas fa-plus"></i> Add
+            </a>
+            {% endif %}
           </td>
           {% endif %}
         </tr>
         {% else %}
         <tr>
-          <td colspan="{% if current_user.role in ['admin', 'employee'] %}9{% else %}6{% endif %}" class="text-center py-4">
+          <td colspan="{% if current_user.role in ['admin', 'employee'] %}10{% else %}7{% endif %}" class="text-center py-4">
             <div class="text-muted">
               <i class="fas fa-inbox fa-2x mb-3"></i>
-              <p>No collections found for {{ date }}</p>
-              {% if session_filter != 'all' %}
-              <p>Try selecting "All Sessions"</p>
-              {% endif %}
+              <p>No suppliers found</p>
             </div>
           </td>
         </tr>

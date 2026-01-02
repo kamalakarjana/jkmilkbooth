@@ -29,11 +29,23 @@
       color: #999;
       font-style: italic;
     }
-    .collection-row {
-      transition: background-color 0.2s;
+    /* Sort button styling */
+    .sortable-header {
+      cursor: pointer;
+      position: relative;
     }
-    .collection-row:hover {
-      background-color: #f8f9fa;
+    .sortable-header:hover {
+      background-color: #34495e !important;
+    }
+    .sort-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .supplier-id {
+      font-weight: bold;
+      color: #2c3e50;
     }
   </style>
 </head>
@@ -116,31 +128,43 @@
     </a>
   </div>
   
-  <!-- Collections Table -->
+  <!-- Collections Table (No # column) -->
   <div class="table-responsive">
-    <table class="table table-hover table-striped">
+    <table class="table table-hover table-striped" id="daily-collections">
       <thead>
         <tr>
-          <th>Supplier ID</th>
-          <th>Name</th>
+          <th class="sortable-header" onclick="sortTable('supplier-id', 'smart-numeric')">
+            Supplier ID <i class="fas fa-sort sort-icon"></i>
+          </th>
+          <th class="sortable-header" onclick="sortTable('supplier-name', 'text')">
+            Name <i class="fas fa-sort sort-icon"></i>
+          </th>
           <th>Type</th>
           <th>Session</th>
-          <th>Liters</th>
-          <th>Fat %</th>
-          <th>Amount</th>
+          <th class="sortable-header" onclick="sortTable('liters', 'number')">
+            Liters <i class="fas fa-sort sort-icon"></i>
+          </th>
+          <th class="sortable-header" onclick="sortTable('fat', 'number')">
+            Fat % <i class="fas fa-sort sort-icon"></i>
+          </th>
+          <th class="sortable-header" onclick="sortTable('amount', 'number')">
+            Amount <i class="fas fa-sort sort-icon"></i>
+          </th>
           {% if current_user.role in ['admin', 'employee'] %}
-          <th>Rate/L</th>
+          <th class="sortable-header" onclick="sortTable('rate', 'number')">
+            Rate/L <i class="fas fa-sort sort-icon"></i>
+          </th>
           <th>Actions</th>
           {% endif %}
         </tr>
       </thead>
-      <tbody>
+      <tbody id="table-body">
         {% for r in rows %}
-        <tr class="collection-row {% if not r.id %}no-collection{% endif %}">
-          <td>
+        <tr class="{% if not r.id %}no-collection{% endif %}">
+          <td class="supplier-id" data-supplier-id="{{ r.supplier.supplier_id }}" data-sort-type="smart-numeric">
             <strong>{{ r.supplier.supplier_id }}</strong>
           </td>
-          <td>{{ r.supplier.name }}</td>
+          <td data-sort-type="text">{{ r.supplier.name }}</td>
           <td>
             {% if r.milk_type %}
             <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
@@ -159,21 +183,21 @@
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td>
+          <td data-sort-value="{{ r.liters }}" data-sort-type="number">
             {% if r.liters > 0 %}
             {{ "%.2f"|format(r.liters) }}
             {% else %}
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td>
+          <td data-sort-value="{{ r.fat }}" data-sort-type="number">
             {% if r.fat > 0 %}
             {{ "%.1f"|format(r.fat) }}
             {% else %}
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td>
+          <td data-sort-value="{{ r.amount }}" data-sort-type="number">
             {% if r.amount > 0 %}
             <strong>₹ {{ r.amount }}</strong>
             {% else %}
@@ -181,7 +205,7 @@
             {% endif %}
           </td>
           {% if current_user.role in ['admin', 'employee'] %}
-          <td>
+          <td data-sort-value="{{ r.rate_per_liter }}" data-sort-type="number">
             {% if r.rate_per_liter > 0 %}
             {{ "%.2f"|format(r.rate_per_liter) }}
             {% else %}
@@ -210,7 +234,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="{% if current_user.role in ['admin', 'employee'] %}10{% else %}7{% endif %}" class="text-center py-4">
+          <td colspan="{% if current_user.role in ['admin', 'employee'] %}9{% else %}7{% endif %}" class="text-center py-4">
             <div class="text-muted">
               <i class="fas fa-inbox fa-2x mb-3"></i>
               <p>No suppliers found</p>
@@ -233,5 +257,136 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Smart numeric sorting function that handles mixed IDs (like 1, 2, 10, C001, T1)
+function smartNumericSort(a, b) {
+  // Try to parse as numbers first
+  const aNum = parseFloat(a);
+  const bNum = parseFloat(b);
+  
+  // If both are valid numbers, sort numerically
+  if (!isNaN(aNum) && !isNaN(bNum)) {
+    return aNum - bNum;
+  }
+  
+  // If one is a number and the other isn't, numbers come first
+  if (!isNaN(aNum) && isNaN(bNum)) {
+    return -1; // a (number) comes before b (non-number)
+  }
+  if (isNaN(aNum) && !isNaN(bNum)) {
+    return 1; // b (number) comes before a (non-number)
+  }
+  
+  // Both are non-numbers, sort alphabetically
+  return a.toString().localeCompare(b.toString());
+}
+
+// Sort table on page load by Supplier ID (smart numeric)
+document.addEventListener('DOMContentLoaded', function() {
+  // Initially sort by Supplier ID using smart numeric sorting
+  sortTableBody('supplier-id', 'smart-numeric');
+  
+  // Add active state to the Supplier ID header
+  const headers = document.querySelectorAll('.sortable-header');
+  headers.forEach(header => {
+    if (header.textContent.includes('Supplier ID')) {
+      header.classList.add('active');
+      // Update sort icon
+      const icon = header.querySelector('.sort-icon');
+      if (icon) {
+        icon.className = 'fas fa-sort-down sort-icon';
+      }
+    }
+  });
+});
+
+function getCellValue(row, columnType) {
+  if (columnType === 'supplier-id') {
+    return row.querySelector('.supplier-id').getAttribute('data-supplier-id') || '';
+  } else if (columnType === 'supplier-name') {
+    const cell = row.querySelector('td:nth-child(2)');
+    return cell ? cell.textContent.trim() : '';
+  } else if (columnType === 'liters') {
+    const cell = row.querySelector('td:nth-child(5)');
+    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+  } else if (columnType === 'fat') {
+    const cell = row.querySelector('td:nth-child(6)');
+    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+  } else if (columnType === 'amount') {
+    const cell = row.querySelector('td:nth-child(7)');
+    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+  } else if (columnType === 'rate') {
+    const cell = row.querySelector('td:nth-child(8)');
+    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+  }
+  return '';
+}
+
+function sortTableBody(columnType, sortType) {
+  const tbody = document.getElementById('table-body');
+  const rows = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
+  
+  // Determine sort direction
+  const header = document.querySelector(`.sortable-header[onclick*="${columnType}"]`);
+  const isCurrentlyActive = header.classList.contains('active');
+  let isAscending = true;
+  
+  if (isCurrentlyActive) {
+    // Toggle direction if already active
+    const currentDirection = header.getAttribute('data-sort-dir') || 'asc';
+    isAscending = currentDirection === 'asc' ? false : true;
+    header.setAttribute('data-sort-dir', isAscending ? 'asc' : 'desc');
+  } else {
+    // Remove active state from all headers
+    document.querySelectorAll('.sortable-header').forEach(h => {
+      h.classList.remove('active');
+      h.removeAttribute('data-sort-dir');
+      const icon = h.querySelector('.sort-icon');
+      if (icon) {
+        icon.className = 'fas fa-sort sort-icon';
+      }
+    });
+    
+    // Set active state for clicked header
+    header.classList.add('active');
+    header.setAttribute('data-sort-dir', 'asc');
+  }
+  
+  // Update sort icon
+  const icon = header.querySelector('.sort-icon');
+  if (icon) {
+    icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon';
+  }
+  
+  // Sort rows
+  rows.sort((rowA, rowB) => {
+    const valueA = getCellValue(rowA, columnType);
+    const valueB = getCellValue(rowB, columnType);
+    
+    let comparison = 0;
+    
+    if (sortType === 'smart-numeric') {
+      comparison = smartNumericSort(valueA, valueB);
+    } else if (sortType === 'number') {
+      comparison = (parseFloat(valueA) || 0) - (parseFloat(valueB) || 0);
+    } else if (sortType === 'text') {
+      comparison = valueA.toString().localeCompare(valueB.toString());
+    }
+    
+    // Reverse if descending
+    return isAscending ? comparison : -comparison;
+  });
+  
+  // Reorder rows in tbody
+  tbody.innerHTML = '';
+  rows.forEach(row => {
+    tbody.appendChild(row);
+  });
+}
+
+function sortTable(columnType, sortType) {
+  sortTableBody(columnType, sortType);
+}
+</script>
 </body>
 </html>

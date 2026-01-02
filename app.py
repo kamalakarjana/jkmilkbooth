@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from datetime import date, datetime
 import os, csv, io, math, pytz
 from dotenv import load_dotenv
@@ -511,6 +511,53 @@ def suppliers():
     all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
     return render_template('suppliers.html', suppliers=all_suppliers)
 
+# ================== NEW: EDIT SUPPLIER ==================
+@app.route('/edit_supplier/<supplier_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('admin', 'employee')
+def edit_supplier(supplier_id):
+    """Edit existing supplier details"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    if request.method == 'POST':
+        # Get form data
+        name = request.form.get('name').strip()
+        mobile = request.form.get('mobile').strip()
+        address = request.form.get('address').strip()
+        
+        # Update supplier
+        supplier.name = name
+        supplier.mobile = mobile
+        supplier.address = address
+        
+        db.session.commit()
+        
+        flash(f"Supplier {supplier_id} updated successfully", "success")
+        return redirect(url_for('suppliers'))
+    
+    return render_template('edit_supplier.html', supplier=supplier)
+
+# ================== NEW: DELETE SUPPLIER ==================
+@app.route('/delete_supplier/<supplier_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def delete_supplier(supplier_id):
+    """Delete a supplier (only if no collections exist)"""
+    supplier = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    # Check if supplier has collections
+    collections = Collection.query.filter_by(supplier_id=supplier.id).first()
+    if collections:
+        flash(f"Cannot delete supplier {supplier_id}. They have collection records.", "danger")
+        return redirect(url_for('suppliers'))
+    
+    # Delete supplier
+    db.session.delete(supplier)
+    db.session.commit()
+    
+    flash(f"Supplier {supplier_id} deleted successfully", "success")
+    return redirect(url_for('suppliers'))
+
 @app.route('/supplier/<supplier_id>')
 @login_required
 def supplier_view(supplier_id):
@@ -804,17 +851,58 @@ def daily():
     req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
     
-    query = Collection.query.filter_by(date=req_date)
+    # FIXED: Use outer join to show all suppliers with their collections
+    query = db.session.query(
+        Supplier.supplier_id,
+        Supplier.name,
+        Collection.date,
+        Collection.session,
+        Collection.liters,
+        Collection.fat,
+        Collection.milk_type,
+        Collection.rate_per_liter,
+        Collection.amount,
+        Collection.id
+    ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date == req_date))
     
     if session_filter != 'all':
-        query = query.filter_by(session=session_filter)
+        query = query.filter(or_(Collection.session == session_filter, Collection.session == None))
     
-    rows = query.order_by(Collection.session, Collection.supplier_id).all()
+    results = query.order_by(Supplier.supplier_id).all()
     
-    # Calculate statistics
-    total_liters = sum(r.liters for r in rows)
-    total_amount = sum(r.amount for r in rows)
-    avg_fat = sum(r.fat for r in rows) / len(rows) if rows else 0
+    # Process results to show all suppliers
+    rows = []
+    for r in results:
+        if r.date:  # Has collection
+            rows.append({
+                'supplier': {'supplier_id': r.supplier_id, 'name': r.name},
+                'date': r.date,
+                'session': r.session,
+                'liters': r.liters,
+                'fat': r.fat,
+                'milk_type': r.milk_type,
+                'rate_per_liter': r.rate_per_liter,
+                'amount': r.amount,
+                'id': r.id
+            })
+        else:  # No collection for this date
+            rows.append({
+                'supplier': {'supplier_id': r.supplier_id, 'name': r.name},
+                'date': req_date,
+                'session': '',
+                'liters': 0,
+                'fat': 0,
+                'milk_type': '',
+                'rate_per_liter': 0,
+                'amount': 0,
+                'id': None
+            })
+    
+    # Calculate statistics only for actual collections
+    actual_collections = Collection.query.filter_by(date=req_date).all()
+    total_liters = sum(r.liters for r in actual_collections)
+    total_amount = sum(r.amount for r in actual_collections)
+    avg_fat = sum(r.fat for r in actual_collections) / len(actual_collections) if actual_collections else 0
     
     return render_template('daily.html', 
                          rows=rows, 
@@ -854,34 +942,39 @@ def daily_sales():
 # ================== EDIT/DELETE COLLECTIONS ==================
 @app.route('/edit_collection/<int:cid>', methods=['GET', 'POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'employee')
 def edit_collection(cid):
     entry = Collection.query.get_or_404(cid)
+    original_date = entry.date  # Store original date for redirect
     
     if request.method == 'POST':
+        # Get form data
         liters = float(request.form.get('liters') or 0)
         fat = float(request.form.get('fat') or 0)
         milk_type = request.form.get('milk_type', entry.milk_type)
         session = request.form.get('session') or entry.session
         date_str = request.form.get('date') or entry.date
+        note = request.form.get('note', '')
         
+        # Calculate new rate and amount
         rate = find_rate(fat, milk_type)
         if rate is None:
             flash("Rate not found for this fat value", "danger")
             return redirect(url_for('edit_collection', cid=cid))
         
+        # Update the EXISTING entry (not creating new one)
         entry.liters = liters
-        entry.fat = round(fat,1)
+        entry.fat = round(fat, 1)
         entry.milk_type = milk_type
         entry.session = session
         entry.date = date_str
         entry.rate_per_liter = rate
         entry.amount = math.floor(liters * rate)
-        entry.note = request.form.get('note')
+        entry.note = note
         
         db.session.commit()
         flash("Collection updated successfully", "success")
-        return redirect(url_for('daily', date=entry.date))
+        return redirect(url_for('daily', date=date_str))
     
     return render_template('edit_collection.html', entry=entry)
 
@@ -1002,20 +1095,20 @@ def monthly():
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
-    # Supplier collections
+    # FIXED: Use outer join to show ALL suppliers even without collections
     supplier_results = db.session.query(
-        Supplier.supplier_id, Supplier.name, Supplier.mobile,
-        func.sum(Collection.liters).label('total_liters'),
-        func.sum(Collection.amount).label('total_amount')
-    ).join(Collection, Supplier.id == Collection.supplier_id)\
-     .filter(Collection.date.like(like))\
+        Supplier.supplier_id, 
+        Supplier.name, 
+        Supplier.mobile,
+        func.coalesce(func.sum(Collection.liters), 0).label('total_liters'),
+        func.coalesce(func.sum(Collection.amount), 0).label('total_amount')
+    ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
      .group_by(Supplier.id).all()
     
-    # Withdrawals - Fixed join condition
+    # Withdrawals
     wrows = db.session.query(
-        Supplier.supplier_id, func.sum(Withdrawal.amount).label('withdrawn')
-    ).join(Withdrawal, Supplier.id == Withdrawal.supplier_id)\
-     .filter(Withdrawal.date.like(like))\
+        Supplier.supplier_id, func.coalesce(func.sum(Withdrawal.amount), 0).label('withdrawn')
+    ).outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
      .group_by(Supplier.id).all()
     
     withdraw_map = {r.supplier_id: r.withdrawn for r in wrows}
@@ -1041,8 +1134,7 @@ def monthly():
         Customer.cust_id, Customer.name, Customer.mobile,
         func.sum(Sale.liters).label('total_liters'),
         func.sum(Sale.amount).label('total_amount')
-    ).join(Sale, Customer.id == Sale.customer_id)\
-     .filter(Sale.date.like(like))\
+    ).outerjoin(Sale, (Customer.id == Sale.customer_id) & (Sale.date.like(like)))\
      .group_by(Customer.id).all()
     
     customer_data = []
@@ -1113,12 +1205,11 @@ def export_month_summary_csv():
     
     rows = db.session.query(
         Supplier.supplier_id, Supplier.name,
-        func.sum(Collection.amount).label('total_amount'),
-        func.sum(Collection.liters).label('total_liters'),
+        func.coalesce(func.sum(Collection.amount), 0).label('total_amount'),
+        func.coalesce(func.sum(Collection.liters), 0).label('total_liters'),
         func.coalesce(func.sum(Withdrawal.amount), 0).label('withdrawn')
-    ).join(Collection, Supplier.id == Collection.supplier_id)\
+    ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
      .outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
-     .filter(Collection.date.like(like))\
      .group_by(Supplier.id).all()
     
     buf = io.StringIO()
@@ -1142,6 +1233,23 @@ def export_month_summary_csv():
         as_attachment=True,
         download_name=f"summary_{month}.csv"
     )
+
+# ================== DATABASE MIGRATION COMMANDS ==================
+@app.cli.command('migrate-db')
+def migrate_db():
+    """Migrate database schema"""
+    with app.app_context():
+        db.create_all()
+        print("Database tables created/updated")
+
+@app.cli.command('reset-db')
+def reset_db():
+    """Reset database (DANGEROUS - use with caution)"""
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+        create_default_admin()
+        print("Database reset and default admin created")
 
 # ================== INITIAL SETUP ==================
 @app.cli.command('init-db')

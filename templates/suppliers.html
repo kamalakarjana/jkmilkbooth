@@ -62,6 +62,10 @@
                                class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-eye"></i> View
                             </a>
+                            <a href="{{ url_for('edit_supplier', supplier_id=s.supplier_id) }}" 
+                               class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
                         </td>
                     </tr>
                     {% else %}

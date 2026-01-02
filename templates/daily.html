@@ -29,11 +29,11 @@
       color: #999;
       font-style: italic;
     }
-    .seq-number {
-      font-weight: bold;
-      color: #2c3e50;
-      text-align: center;
-      min-width: 40px;
+    .collection-row {
+      transition: background-color 0.2s;
+    }
+    .collection-row:hover {
+      background-color: #f8f9fa;
     }
   </style>
 </head>
@@ -116,12 +116,11 @@
     </a>
   </div>
   
-  <!-- Collections Table with Sequential Numbers -->
+  <!-- Collections Table -->
   <div class="table-responsive">
     <table class="table table-hover table-striped">
       <thead>
         <tr>
-          <th width="50">#</th>
           <th>Supplier ID</th>
           <th>Name</th>
           <th>Type</th>
@@ -137,8 +136,7 @@
       </thead>
       <tbody>
         {% for r in rows %}
-        <tr class="{% if not r.id %}no-collection{% endif %}">
-          <td class="seq-number">{{ r.seq }}</td>
+        <tr class="collection-row {% if not r.id %}no-collection{% endif %}">
           <td>
             <strong>{{ r.supplier.supplier_id }}</strong>
           </td>
@@ -212,7 +210,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="{% if current_user.role in ['admin', 'employee'] %}11{% else %}8{% endif %}" class="text-center py-4">
+          <td colspan="{% if current_user.role in ['admin', 'employee'] %}10{% else %}7{% endif %}" class="text-center py-4">
             <div class="text-muted">
               <i class="fas fa-inbox fa-2x mb-3"></i>
               <p>No suppliers found</p>

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Database migration script for Milk Booth Management System
+Run: python migrate.py
 """
 
 import os
@@ -33,6 +34,18 @@ def run_migrations():
                 print("✓ Admin user already exists")
             
             print("\n✅ Database migration completed successfully!")
+            
+            # Show database stats
+            suppliers_count = Supplier.query.count()
+            customers_count = Customer.query.count()
+            collections_count = Collection.query.count()
+            sales_count = Sale.query.count()
+            
+            print(f"\nDatabase Statistics:")
+            print(f"  Suppliers: {suppliers_count}")
+            print(f"  Customers: {customers_count}")
+            print(f"  Collections: {collections_count}")
+            print(f"  Sales: {sales_count}")
             
         except Exception as e:
             print(f"❌ Error during migration: {str(e)}")

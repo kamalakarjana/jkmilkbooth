@@ -44,12 +44,6 @@
       color: #dc3545 !important;
       font-weight: bold;
     }
-    .seq-number {
-      font-weight: bold;
-      color: #2c3e50;
-      text-align: center;
-      width: 40px;
-    }
   </style>
 </head>
 <body class="p-3">
@@ -117,13 +111,12 @@
     </div>
   </form>
 
-  <!-- Suppliers Section with Sequential Numbers -->
+  <!-- Suppliers Section -->
   <h4 class="mt-4" id="suppliers"><i class="fas fa-truck-loading text-primary"></i> Suppliers Summary</h4>
   <div class="table-responsive mb-4">
     <table class="table table-hover">
       <thead>
         <tr>
-          <th width="50">#</th>
           <th>Supplier ID</th>
           <th>Name</th>
           <th>Mobile</th>
@@ -137,7 +130,6 @@
       <tbody>
         {% for row in supplier_data %}
           <tr>
-            <td class="seq-number">{{ row.seq }}</td>
             <td>{{ row.supplier_id }}</td>
             <td><a href="{{ url_for('supplier_view', supplier_id=row.supplier_id) }}">{{ row.name }}</a></td>
             <td>{{ row.mobile or '-' }}</td>
@@ -159,7 +151,7 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="9" class="text-center py-4">
+            <td colspan="8" class="text-center py-4">
               <div class="text-muted">
                 <i class="fas fa-inbox fa-2x mb-3"></i>
                 <p>No supplier data found for {{ month }}</p>
@@ -170,7 +162,7 @@
       </tbody>
       <tfoot class="table-dark">
         <tr>
-          <th colspan="4">TOTALS</th>
+          <th colspan="3">TOTALS</th>
           <th>{{ "%.2f"|format(monthly_total_liters) }}</th>
           <th>₹ {{ monthly_total_amount }}</th>
           <th class="text-danger">- ₹ {{ monthly_total_withdrawn }}</th>
@@ -181,13 +173,12 @@
     </table>
   </div>
 
-  <!-- Customers Section with Sequential Numbers -->
+  <!-- Customers Section -->
   <h4 class="mt-4" id="customers"><i class="fas fa-shopping-cart text-success"></i> Sales Customers Summary</h4>
   <div class="table-responsive mb-4">
     <table class="table table-hover">
       <thead>
         <tr>
-          <th width="50">#</th>
           <th>Customer ID</th>
           <th>Name</th>
           <th>Mobile</th>
@@ -198,7 +189,6 @@
       <tbody>
         {% for row in customer_data %}
           <tr>
-            <td class="seq-number">{{ row.seq }}</td>
             <td>{{ row.cust_id }}</td>
             <td><a href="{{ url_for('customer_view', cust_id=row.cust_id) }}">{{ row.name }}</a></td>
             <td>{{ row.mobile or '-' }}</td>
@@ -207,7 +197,7 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="6" class="text-center py-4">
+            <td colspan="5" class="text-center py-4">
               <div class="text-muted">
                 <i class="fas fa-inbox fa-2x mb-3"></i>
                 <p>No sales data found for {{ month }}</p>
@@ -218,7 +208,7 @@
       </tbody>
       <tfoot class="table-dark">
         <tr>
-          <th colspan="4">TOTALS</th>
+          <th colspan="3">TOTALS</th>
           <th>
             {% set total_sales_liters = customer_data|sum(attribute='total_liters') %}
             {{ "%.2f"|format(total_sales_liters) }}
@@ -229,6 +219,58 @@
     </table>
   </div>
 
+  <!-- Financial Summary -->
+  <div class="card mb-4">
+    <div class="card-header bg-info text-white">
+      <i class="fas fa-chart-bar"></i> Financial Summary for {{ month }}
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Supplier Transactions</h5>
+          <table class="table table-bordered">
+            <tr>
+              <td><strong>Total Collections</strong></td>
+              <td class="text-end">₹ {{ monthly_total_amount }}</td>
+            </tr>
+            <tr>
+              <td><strong>Total Withdrawals</strong></td>
+              <td class="text-end text-danger">- ₹ {{ monthly_total_withdrawn }}</td>
+            </tr>
+            <tr class="table-success">
+              <td><strong>Net Payable to Suppliers</strong></td>
+              <td class="text-end text-success fw-bold">₹ {{ monthly_total_amount - monthly_total_withdrawn }}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="col-md-6">
+          <h5>Sales & Profit Analysis</h5>
+          <table class="table table-bordered">
+            <tr>
+              <td><strong>Total Sales Income</strong></td>
+              <td class="text-end">₹ {{ monthly_total_sales }}</td>
+            </tr>
+            <tr>
+              <td><strong>Total Supplier Cost</strong></td>
+              <td class="text-end">₹ {{ monthly_total_amount - monthly_total_withdrawn }}</td>
+            </tr>
+            <tr>
+              <td><strong>Gross Profit/Loss</strong></td>
+              <td class="text-end {% if monthly_total_sales > (monthly_total_amount - monthly_total_withdrawn) %}text-profit{% else %}text-loss{% endif %}">
+                ₹ {{ monthly_total_sales - (monthly_total_amount - monthly_total_withdrawn) }}
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="alert alert-warning mt-3">
+        <i class="fas fa-exclamation-circle"></i>
+        <strong>Note:</strong> Withdrawals are payments made to suppliers during the month. 
+        The "Balance" column shows the remaining amount to be paid after deducting withdrawals.
+      </div>
+    </div>
+  </div>
+
   <!-- Quick Withdrawal Form -->
   <div class="card">
     <div class="card-header bg-warning text-dark">
@@ -237,7 +279,7 @@
     <div class="card-body">
       <form method="post" action="{{ url_for('add_withdrawal') }}" class="row g-2 mb-4">
         <div class="col-md-3">
-          <input name="supplier_id_w" class="form-control" placeholder="Supplier ID e.g. 1" required>
+          <input name="supplier_id_w" class="form-control" placeholder="Supplier ID e.g. S001" required>
         </div>
         <div class="col-md-2">
           <input name="date_w" type="date" class="form-control" value="{{ month + '-01' }}">
@@ -321,6 +363,27 @@ function quickWithdrawal(supplierId, supplierName, maxAmount) {
         form.submit();
     }
 }
+
+// Auto-fill today's date in withdrawal form
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.querySelector('input[name="date_w"]');
+    if (dateInput) {
+        // If date is empty or set to month-01, update to today
+        if (!dateInput.value || dateInput.value.endsWith('-01')) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${year}-${month}-${day}`;
+        }
+    }
+    
+    // Make stat cards clickable to scroll to suppliers section
+    const statCards = document.querySelectorAll('.stat-card[onclick]');
+    statCards.forEach(card => {
+        card.style.cursor = 'pointer';
+    });
+});
 </script>
 </body>
 </html>

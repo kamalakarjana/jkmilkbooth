@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from sqlalchemy import func, or_, cast, Integer
+from sqlalchemy import func, or_
 from datetime import date, datetime
 import os, csv, io, math, pytz
 from dotenv import load_dotenv
@@ -143,7 +143,6 @@ class Supplier(db.Model):
     name = db.Column(db.String(120), nullable=False)
     mobile = db.Column(db.String(20), nullable=True)
     address = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=get_ist_datetime)
     
     def __repr__(self):
         return f"<Supplier {self.supplier_id} {self.name}>"
@@ -156,7 +155,6 @@ class Customer(db.Model):
     name = db.Column(db.String(120), nullable=False)
     mobile = db.Column(db.String(20), nullable=True)
     address = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=get_ist_datetime)
     
     def __repr__(self):
         return f"<Customer {self.cust_id} {self.name}>"
@@ -253,44 +251,14 @@ def load_user(user_id):
 
 # ================== HELPER FUNCTIONS ==================
 def sort_by_id(items, id_field='supplier_id'):
-    """Sort by ID as numbers - FIXED to handle numeric sorting"""
+    """Sort by ID as numbers"""
     if not items:
         return []
-    
-    # Helper function to extract numeric part from ID
-    def extract_numeric_id(item, field):
-        if isinstance(item, dict):
-            id_str = item.get(field, '0')
-        else:
-            id_str = getattr(item, field, '0')
-        
-        # Try to extract numeric part (e.g., "1", "10", "S001" -> 1, 10, 1)
-        import re
-        numbers = re.findall(r'\d+', str(id_str))
-        if numbers:
-            return int(numbers[0])
-        else:
-            # If no numbers found, try to convert entire string to int
-            try:
-                return int(id_str) if id_str else 999999
-            except:
-                # For non-numeric IDs, sort alphabetically
-                return 999999
-    
-    return sorted(items, key=lambda x: extract_numeric_id(x, id_field))
-
-def get_sequential_order(items, id_field='supplier_id'):
-    """Assign sequential order numbers to items based on their ID"""
-    sorted_items = sort_by_id(items, id_field)
-    
+    # Handle both objects and dictionaries
     if isinstance(items[0], dict):
-        for idx, item in enumerate(sorted_items, 1):
-            item['seq'] = idx
+        return sorted(items, key=lambda x: int(x.get(id_field, 0)) if str(x.get(id_field, '0')).isdigit() else 999999)
     else:
-        for idx, item in enumerate(sorted_items, 1):
-            setattr(item, 'seq', idx)
-    
-    return sorted_items
+        return sorted(items, key=lambda x: int(getattr(x, id_field)) if getattr(x, id_field).isdigit() else 999999)
 
 # Role-based access control
 def role_required(*roles):
@@ -346,13 +314,7 @@ def utility_processor():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        # Redirect based on role
-        if current_user.role == 'supplier':
-            return redirect(url_for('supplier_account'))
-        elif current_user.role == 'customer':
-            return redirect(url_for('customer_account'))
-        else:
-            return redirect(url_for('index'))
+        return redirect(url_for('index'))
     
     if request.method == 'POST':
         username = request.form.get('username')
@@ -360,21 +322,10 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            if not user.is_active:
-                flash('Your account is deactivated. Please contact administrator.', 'danger')
-                return redirect(url_for('login'))
-            
             login_user(user)
             flash(f'Welcome back, {user.username}!', 'success')
-            
-            # Redirect based on role
-            if user.role == 'supplier':
-                return redirect(url_for('supplier_account'))
-            elif user.role == 'customer':
-                return redirect(url_for('customer_account'))
-            else:
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('index'))
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('index'))
         else:
             flash('Invalid username or password', 'danger')
     
@@ -386,117 +337,6 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
-
-# ================== SUPPLIER ACCOUNT PORTAL ==================
-@app.route('/supplier/account')
-@login_required
-def supplier_account():
-    """Supplier's own account portal - can only see their own data"""
-    if current_user.role != 'supplier':
-        flash('Access denied. Supplier portal only.', 'danger')
-        return redirect(url_for('index'))
-    
-    if not current_user.supplier:
-        flash('No supplier account linked to your user', 'danger')
-        return redirect(url_for('index'))
-    
-    supplier = current_user.supplier
-    
-    # Get collections for this supplier only
-    cols = Collection.query.filter_by(supplier_id=supplier.id)\
-                          .order_by(Collection.date.desc())\
-                          .limit(100).all()
-    
-    # Get withdrawals for this supplier only
-    wds = Withdrawal.query.filter_by(supplier_id=supplier.id)\
-                         .order_by(Withdrawal.date.desc())\
-                         .limit(50).all()
-    
-    # Calculate totals
-    total_liters = sum(c.liters for c in cols)
-    total_amount = sum(c.amount for c in cols)
-    total_withdrawn = sum(w.amount for w in wds)
-    balance = total_amount - total_withdrawn
-    
-    # Get selected month/year from request
-    selected_month = request.args.get('month', '')
-    cycles = {}
-    monthly_collections = []
-    month_summary = {'total_amount': 0, 'total_liters': 0, 'total_withdrawn': 0, 'balance': 0}
-    
-    if selected_month:
-        try:
-            year, month = map(int, selected_month.split('-'))
-            cycles = calculate_payment_cycles(cols, year, month)
-            
-            # Get collections for this month
-            month_str = f"{year}-{month:02d}"
-            monthly_collections = [c for c in cols if c.date.startswith(month_str)]
-            
-            # Get withdrawals for this month
-            month_withdrawals = [w for w in wds if w.date.startswith(month_str)]
-            month_withdrawn = sum(w.amount for w in month_withdrawals)
-            
-            # Calculate month totals
-            month_summary = {
-                'total_amount': cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0,
-                'total_liters': cycles['cycle_1']['total_liters'] + cycles['cycle_2']['total_liters'] if cycles else 0,
-                'total_withdrawn': month_withdrawn,
-                'balance': (cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0) - month_withdrawn
-            }
-        except:
-            selected_month = ''
-    
-    # Get all available months for dropdown
-    available_months = db.session.query(
-        func.substr(Collection.date, 1, 7).label('month')
-    ).filter_by(supplier_id=supplier.id)\
-     .group_by(func.substr(Collection.date, 1, 7))\
-     .order_by(func.substr(Collection.date, 1, 7).desc())\
-     .all()
-    
-    month_options = [m.month for m in available_months]
-    
-    return render_template('supplier_portal.html', 
-                         supplier=supplier, 
-                         collections=cols[:30],  # Show only recent 30
-                         withdrawals=wds,
-                         total_liters=total_liters,
-                         total_amount=total_amount,
-                         total_withdrawn=total_withdrawn,
-                         balance=balance,
-                         month_options=month_options,
-                         selected_month=selected_month,
-                         cycles=cycles,
-                         monthly_collections=monthly_collections,
-                         month_summary=month_summary)
-
-# ================== CUSTOMER ACCOUNT PORTAL ==================
-@app.route('/customer/account')
-@login_required
-def customer_account():
-    """Customer's own account portal - can only see their own data"""
-    if current_user.role != 'customer':
-        flash('Access denied. Customer portal only.', 'danger')
-        return redirect(url_for('index'))
-    
-    if not current_user.customer:
-        flash('No customer account linked to your user', 'danger')
-        return redirect(url_for('index'))
-    
-    customer = current_user.customer
-    sales = Sale.query.filter_by(customer_id=customer.id)\
-                     .order_by(Sale.date.desc())\
-                     .limit(100).all()
-    
-    total_liters = sum(s.liters for s in sales)
-    total_amount = sum(s.amount for s in sales)
-    
-    return render_template('customer_portal.html',
-                         customer=customer,
-                         sales=sales,
-                         total_liters=total_liters,
-                         total_amount=total_amount)
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
@@ -555,25 +395,16 @@ def manage_users():
 @app.route('/')
 @login_required
 def index():
-    """Main dashboard - Redirect based on role"""
-    if current_user.role == 'supplier':
-        return redirect(url_for('supplier_account'))
-    elif current_user.role == 'customer':
-        return redirect(url_for('customer_account'))
-    else:
-        return redirect(url_for('add_collection_page'))
+    """Main dashboard - Redirect to add collection page as default"""
+    return redirect(url_for('add_collection_page'))
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Original dashboard view for admin/employee only"""
-    if current_user.role in ['supplier', 'customer']:
-        flash('Access denied', 'danger')
-        return redirect(url_for('index'))
-    
+    """Original dashboard view"""
     today = get_today_ist()
     suppliers = Supplier.query.all()
-    suppliers = get_sequential_order(suppliers, 'supplier_id')
+    suppliers = sort_by_id(suppliers, 'supplier_id')
     
     # Get today's collections from suppliers
     today_collections = Collection.query.filter_by(date=today).all()
@@ -588,6 +419,45 @@ def dashboard():
                          total_amount=total_amount,
                          avg_fat=avg_fat)
 
+@app.route('/my_account')
+@login_required
+def my_account():
+    if current_user.role == 'supplier' and current_user.supplier:
+        # Supplier portal
+        supplier = current_user.supplier
+        cols = Collection.query.filter_by(supplier_id=supplier.id)\
+                              .order_by(Collection.date.desc())\
+                              .limit(50).all()
+        
+        total_liters = sum(c.liters for c in cols)
+        total_amount = sum(c.amount for c in cols)
+        
+        return render_template('supplier_account.html',
+                             supplier=supplier,
+                             collections=cols,
+                             total_liters=total_liters,
+                             total_amount=total_amount)
+    
+    elif current_user.role == 'customer' and current_user.customer:
+        # Customer portal (for sales)
+        customer = current_user.customer
+        sales = Sale.query.filter_by(customer_id=customer.id)\
+                         .order_by(Sale.date.desc())\
+                         .limit(50).all()
+        
+        total_liters = sum(s.liters for s in sales)
+        total_amount = sum(s.amount for s in sales)
+        
+        return render_template('customer_account.html',
+                             customer=customer,
+                             sales=sales,
+                             total_liters=total_liters,
+                             total_amount=total_amount)
+    
+    else:
+        flash('No supplier or customer account linked to your user', 'danger')
+        return redirect(url_for('index'))
+
 # ================== NEW: ADD COLLECTION PAGE ==================
 @app.route('/add_collection_page')
 @login_required
@@ -596,7 +466,7 @@ def add_collection_page():
     """Dedicated page for adding collections"""
     today = get_today_ist()
     suppliers = Supplier.query.all()
-    suppliers = get_sequential_order(suppliers, 'supplier_id')
+    suppliers = sort_by_id(suppliers, 'supplier_id')
     
     # Get today's collections for stats
     today_collections = Collection.query.filter_by(date=today).all()
@@ -626,11 +496,6 @@ def suppliers():
             flash("Supplier ID and name are required", "danger")
             return redirect(url_for('suppliers'))
         
-        # Check if supplier ID is numeric
-        if not supplier_id.isdigit():
-            flash("Supplier ID must be a number", "danger")
-            return redirect(url_for('suppliers'))
-        
         if Supplier.query.filter_by(supplier_id=supplier_id).first():
             flash("Supplier ID already exists", "danger")
             return redirect(url_for('suppliers'))
@@ -643,10 +508,10 @@ def suppliers():
         return redirect(url_for('suppliers'))
     
     all_suppliers = Supplier.query.all()
-    all_suppliers = get_sequential_order(all_suppliers, 'supplier_id')
+    all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
     return render_template('suppliers.html', suppliers=all_suppliers)
 
-# ================== EDIT SUPPLIER ==================
+# ================== NEW: EDIT SUPPLIER ==================
 @app.route('/edit_supplier/<supplier_id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'employee')
@@ -672,7 +537,7 @@ def edit_supplier(supplier_id):
     
     return render_template('edit_supplier.html', supplier=supplier)
 
-# ================== DELETE SUPPLIER ==================
+# ================== NEW: DELETE SUPPLIER ==================
 @app.route('/delete_supplier/<supplier_id>', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -686,12 +551,6 @@ def delete_supplier(supplier_id):
         flash(f"Cannot delete supplier {supplier_id}. They have collection records.", "danger")
         return redirect(url_for('suppliers'))
     
-    # Also check if there are users linked to this supplier
-    linked_users = User.query.filter_by(supplier_id=supplier.id).all()
-    for user in linked_users:
-        user.supplier_id = None
-        db.session.delete(user)
-    
     # Delete supplier
     db.session.delete(supplier)
     db.session.commit()
@@ -701,10 +560,13 @@ def delete_supplier(supplier_id):
 
 @app.route('/supplier/<supplier_id>')
 @login_required
-@role_required('admin', 'employee')
 def supplier_view(supplier_id):
-    """View supplier details (admin/employee only)"""
     s = Supplier.query.filter_by(supplier_id=supplier_id).first_or_404()
+    
+    # Check access - only admin/employee or the supplier themselves
+    if current_user.role == 'supplier' and (not current_user.supplier or current_user.supplier.id != s.id):
+        flash('Access denied', 'danger')
+        return redirect(url_for('my_account'))
     
     cols = Collection.query.filter_by(supplier_id=s.id)\
                           .order_by(Collection.date.desc())\
@@ -788,11 +650,6 @@ def customers():
             flash("Customer ID and name are required", "danger")
             return redirect(url_for('customers'))
         
-        # Check if customer ID is numeric
-        if not cust_id.isdigit():
-            flash("Customer ID must be a number", "danger")
-            return redirect(url_for('customers'))
-        
         if Customer.query.filter_by(cust_id=cust_id).first():
             flash("Customer ID already exists", "danger")
             return redirect(url_for('customers'))
@@ -805,14 +662,18 @@ def customers():
         return redirect(url_for('customers'))
     
     all_customers = Customer.query.all()
-    all_customers = get_sequential_order(all_customers, 'cust_id')
+    all_customers = sort_by_id(all_customers, 'cust_id')
     return render_template('customers.html', customers=all_customers)
 
 @app.route('/customer/<cust_id>')
 @login_required
-@role_required('admin', 'employee')
 def customer_view(cust_id):
     c = Customer.query.filter_by(cust_id=cust_id).first_or_404()
+    
+    # Check access - only admin/employee or the customer themselves
+    if current_user.role == 'customer' and (not current_user.customer or current_user.customer.id != c.id):
+        flash('Access denied', 'danger')
+        return redirect(url_for('my_account'))
     
     sales = Sale.query.filter_by(customer_id=c.id)\
                      .order_by(Sale.date.desc())\
@@ -876,7 +737,7 @@ def quick_add_page():
     supplier_id = request.args.get('supplier_id')
     today = get_today_ist()
     suppliers = Supplier.query.all()
-    suppliers = get_sequential_order(suppliers, 'supplier_id')
+    suppliers = sort_by_id(suppliers, 'supplier_id')
     return render_template('quick_add.html', supplier_id=supplier_id, today=today, suppliers=suppliers)
 
 @app.route('/quick_add', methods=['POST'])
@@ -908,7 +769,6 @@ def quick_add():
         session=session, 
         liters=liters,
         fat=round(fat,1), 
- 
         milk_type=milk_type,
         rate_per_liter=rate, 
         amount=amt
@@ -925,7 +785,7 @@ def quick_add():
 @role_required('admin', 'employee')
 def sales():
     customers = Customer.query.all()
-    customers = get_sequential_order(customers, 'cust_id')
+    customers = sort_by_id(customers, 'cust_id')
     
     # Get today's sales
     today = get_today_ist()
@@ -984,49 +844,50 @@ def add_sale():
     flash(f"Sale recorded to {c.name} - ₹{amt}", "success")
     return redirect(url_for('sales'))
 
-# ================== DAILY COLLECTIONS WITH SEQUENTIAL ORDERING ==================
+# ================== DAILY COLLECTIONS ==================
 @app.route('/daily')
 @login_required
-@role_required('admin', 'employee')
 def daily():
     req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
     
-    # Get all suppliers with their collections for the date
-    suppliers = Supplier.query.all()
-    suppliers = get_sequential_order(suppliers, 'supplier_id')
+    # FIXED: Use outer join to show all suppliers with their collections
+    query = db.session.query(
+        Supplier.supplier_id,
+        Supplier.name,
+        Collection.date,
+        Collection.session,
+        Collection.liters,
+        Collection.fat,
+        Collection.milk_type,
+        Collection.rate_per_liter,
+        Collection.amount,
+        Collection.id
+    ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date == req_date))
     
-    # Get collections for the date
-    collections = Collection.query.filter_by(date=req_date).all()
     if session_filter != 'all':
-        collections = [c for c in collections if c.session == session_filter]
+        query = query.filter(or_(Collection.session == session_filter, Collection.session == None))
     
-    # Create a dictionary of collections by supplier ID for easy lookup
-    collections_by_supplier = {}
-    for coll in collections:
-        collections_by_supplier[coll.supplier.supplier_id] = coll
+    results = query.order_by(Supplier.supplier_id).all()
     
-    # Prepare rows with sequential ordering
+    # Process results to show all suppliers
     rows = []
-    for supplier in suppliers:
-        coll = collections_by_supplier.get(supplier.supplier_id)
-        if coll:
+    for r in results:
+        if r.date:  # Has collection
             rows.append({
-                'seq': supplier.seq,
-                'supplier': supplier,
-                'date': coll.date,
-                'session': coll.session,
-                'liters': coll.liters,
-                'fat': coll.fat,
-                'milk_type': coll.milk_type,
-                'rate_per_liter': coll.rate_per_liter,
-                'amount': coll.amount,
-                'id': coll.id
+                'supplier': {'supplier_id': r.supplier_id, 'name': r.name},
+                'date': r.date,
+                'session': r.session,
+                'liters': r.liters,
+                'fat': r.fat,
+                'milk_type': r.milk_type,
+                'rate_per_liter': r.rate_per_liter,
+                'amount': r.amount,
+                'id': r.id
             })
-        else:
+        else:  # No collection for this date
             rows.append({
-                'seq': supplier.seq,
-                'supplier': supplier,
+                'supplier': {'supplier_id': r.supplier_id, 'name': r.name},
                 'date': req_date,
                 'session': '',
                 'liters': 0,
@@ -1039,9 +900,6 @@ def daily():
     
     # Calculate statistics only for actual collections
     actual_collections = Collection.query.filter_by(date=req_date).all()
-    if session_filter != 'all':
-        actual_collections = [c for c in actual_collections if c.session == session_filter]
-    
     total_liters = sum(r.liters for r in actual_collections)
     total_amount = sum(r.amount for r in actual_collections)
     avg_fat = sum(r.fat for r in actual_collections) / len(actual_collections) if actual_collections else 0
@@ -1057,7 +915,6 @@ def daily():
 # ================== DAILY SALES ==================
 @app.route('/daily_sales')
 @login_required
-@role_required('admin', 'employee')
 def daily_sales():
     req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
@@ -1088,31 +945,36 @@ def daily_sales():
 @role_required('admin', 'employee')
 def edit_collection(cid):
     entry = Collection.query.get_or_404(cid)
+    original_date = entry.date  # Store original date for redirect
     
     if request.method == 'POST':
+        # Get form data
         liters = float(request.form.get('liters') or 0)
         fat = float(request.form.get('fat') or 0)
         milk_type = request.form.get('milk_type', entry.milk_type)
         session = request.form.get('session') or entry.session
         date_str = request.form.get('date') or entry.date
+        note = request.form.get('note', '')
         
+        # Calculate new rate and amount
         rate = find_rate(fat, milk_type)
         if rate is None:
             flash("Rate not found for this fat value", "danger")
             return redirect(url_for('edit_collection', cid=cid))
         
+        # Update the EXISTING entry (not creating new one)
         entry.liters = liters
-        entry.fat = round(fat,1)
+        entry.fat = round(fat, 1)
         entry.milk_type = milk_type
         entry.session = session
         entry.date = date_str
         entry.rate_per_liter = rate
         entry.amount = math.floor(liters * rate)
-        entry.note = request.form.get('note')
+        entry.note = note
         
         db.session.commit()
         flash("Collection updated successfully", "success")
-        return redirect(url_for('daily', date=entry.date))
+        return redirect(url_for('daily', date=date_str))
     
     return render_template('edit_collection.html', entry=entry)
 
@@ -1201,7 +1063,7 @@ def withdrawals():
     
     # Get all suppliers for the dropdown
     suppliers = Supplier.query.all()
-    suppliers = get_sequential_order(suppliers, 'supplier_id')
+    suppliers = sort_by_id(suppliers, 'supplier_id')
     
     # Calculate current month totals
     current_month = datetime.now(IST).strftime("%Y-%m")
@@ -1226,14 +1088,14 @@ def withdrawals():
                          monthly_balance=monthly_balance,
                          current_month=current_month)
 
-# ================== MONTHLY REPORTS WITH SEQUENTIAL ORDERING ==================
+# ================== MONTHLY REPORTS ==================
 @app.route('/monthly')
 @login_required
 def monthly():
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
-    # Get all suppliers with their collections for the month
+    # FIXED: Use outer join to show ALL suppliers even without collections
     supplier_results = db.session.query(
         Supplier.supplier_id, 
         Supplier.name, 
@@ -1265,8 +1127,7 @@ def monthly():
             "balance": int(balance)
         })
     
-    # Apply sequential ordering
-    supplier_data = get_sequential_order(supplier_data, 'supplier_id')
+    supplier_data = sort_by_id(supplier_data, 'supplier_id')
     
     # Customer sales
     customer_results = db.session.query(
@@ -1286,8 +1147,7 @@ def monthly():
             "total_amount": int(r.total_amount or 0)
         })
     
-    # Apply sequential ordering
-    customer_data = get_sequential_order(customer_data, 'cust_id')
+    customer_data = sort_by_id(customer_data, 'cust_id')
     
     # Calculate totals
     monthly_total_liters = sum(d['total_liters'] for d in supplier_data)
@@ -1317,7 +1177,7 @@ def export_month_csv():
         Collection.rate_per_liter, Collection.amount
     ).join(Collection, Supplier.id == Collection.supplier_id)\
      .filter(Collection.date.like(like))\
-     .order_by(cast(Supplier.supplier_id, Integer)).all()
+     .order_by(Supplier.name, Collection.date).all()
     
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -1350,8 +1210,7 @@ def export_month_summary_csv():
         func.coalesce(func.sum(Withdrawal.amount), 0).label('withdrawn')
     ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
      .outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
-     .group_by(Supplier.id)\
-     .order_by(cast(Supplier.supplier_id, Integer)).all()
+     .group_by(Supplier.id).all()
     
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -1374,27 +1233,6 @@ def export_month_summary_csv():
         as_attachment=True,
         download_name=f"summary_{month}.csv"
     )
-
-# ================== API ENDPOINTS ==================
-@app.route('/api/calculate_rate')
-def calculate_rate():
-    """API endpoint to calculate rate based on fat and milk type"""
-    fat = request.args.get('fat', type=float)
-    milk_type = request.args.get('milk_type', 'buffalo')
-    
-    if fat is None:
-        return jsonify({'error': 'Fat is required'}), 400
-    
-    rate = find_rate(fat, milk_type)
-    
-    if rate is None:
-        return jsonify({'error': 'Rate not found for given parameters'}), 404
-    
-    return jsonify({
-        'fat': fat,
-        'milk_type': milk_type,
-        'rate': rate
-    })
 
 # ================== DATABASE MIGRATION COMMANDS ==================
 @app.cli.command('migrate-db')

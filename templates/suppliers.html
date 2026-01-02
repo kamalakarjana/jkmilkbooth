@@ -13,8 +13,7 @@
         <form method="post" action="{{ url_for('suppliers') }}">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <input type="text" name="supplier_id" class="form-control" placeholder="Supplier ID (Number)" required>
-                    <small class="text-muted">Must be a number (e.g., 1, 2, 3)</small>
+                    <input type="text" name="supplier_id" class="form-control" placeholder="Supplier ID" required>
                 </div>
                 <div class="col-md-3">
                     <input type="text" name="name" class="form-control" placeholder="Name" required>
@@ -44,7 +43,6 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th width="50">#</th>
                         <th>ID</th>
                         <th>Name</th>
                         <th>Mobile</th>
@@ -55,7 +53,6 @@
                 <tbody>
                     {% for s in suppliers %}
                     <tr>
-                        <td class="seq-number">{{ s.seq }}</td>
                         <td><strong>{{ s.supplier_id }}</strong></td>
                         <td>{{ s.name }}</td>
                         <td>{{ s.mobile or '-' }}</td>
@@ -73,7 +70,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
+                        <td colspan="5" class="text-center py-4 text-muted">
                             No suppliers found
                         </td>
                     </tr>
@@ -83,12 +80,4 @@
         </div>
     </div>
 </div>
-
-<style>
-.seq-number {
-    font-weight: bold;
-    color: #2c3e50;
-    text-align: center;
-}
-</style>
 {% endblock %}

@@ -42,6 +42,10 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
         }
         .card-header {
             background: linear-gradient(135deg, #3498db, #2c3e50);
@@ -91,6 +95,32 @@
             font-weight: 700;
             color: #2c3e50;
         }
+        .supplier-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        .supplier-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .customer-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #27ae60;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        .customer-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
         .form-control, .form-select {
             border-radius: 6px;
             border: 1px solid #ddd;
@@ -135,7 +165,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('add_collection_page') }}">
                 <i class="fas fa-cow"></i> Milk Booth
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -143,7 +173,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    {% if current_user.is_authenticated and current_user.role in ['admin', 'employee'] %}
+                    {% if current_user.is_authenticated %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('add_collection_page') }}">
                             <i class="fas fa-plus-circle"></i> Add Collection
@@ -199,31 +229,12 @@
                     </li>
                     {% endif %}
                     {% endif %}
-                    
-                    {% if current_user.is_authenticated and current_user.role == 'supplier' %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('supplier_account') }}">
-                            <i class="fas fa-user-circle"></i> My Supplier Account
-                        </a>
-                    </li>
-                    {% endif %}
-                    
-                    {% if current_user.is_authenticated and current_user.role == 'customer' %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('customer_account') }}">
-                            <i class="fas fa-user-circle"></i> My Customer Account
-                        </a>
-                    </li>
-                    {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
                         <span class="user-info">
                             <i class="fas fa-user"></i> {{ current_user.username }} ({{ current_user.role }})
-                            {% if current_user.role == 'supplier' and current_user.supplier %}
-                            - ID: {{ current_user.supplier.supplier_id }}
-                            {% endif %}
                         </span>
                     </li>
                     <li class="nav-item">

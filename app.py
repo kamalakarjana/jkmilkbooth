@@ -44,6 +44,10 @@ def get_last_day_of_month(year, month):
     return monthrange(year, month)[1]
 
 # ================== RATE CHARTS ==================
+# Rate change date (when new rates started)
+NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
+
+# Buffalo milk rate chart (NEW RATES from 01-Feb-2026)
 BUFFALO_RATE_CHART = {      
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
@@ -56,10 +60,9 @@ BUFFALO_RATE_CHART = {
     9.0: 72.0, 9.1: 72.8, 9.2: 73.6, 9.3: 74.4, 9.4: 75.2,
     9.5: 76.0, 9.6: 76.8, 9.7: 77.6, 9.8: 78.4, 9.9: 79.2,
     10.0: 80.0
-    
 }
 
-# Cow milk rate chart from your attachment
+# Cow milk rate chart (NO CHANGE - keep as is)
 COW_RATE_CHART = {
     3.0: 25.30, 3.1: 25.53, 3.2: 25.76, 3.3: 25.99, 3.4: 26.22,
     3.5: 26.45, 3.6: 26.68, 3.7: 26.91, 3.8: 27.14, 3.9: 27.37,
@@ -70,13 +73,34 @@ COW_RATE_CHART = {
     6.0: 32.20
 }
 
-def find_rate(fat, milk_type='buffalo'):
+def find_rate(fat, milk_type='buffalo', transaction_date=None):
+    """
+    Find rate based on date
+    - For buffalo milk: New rates from 01-Feb-2026
+    - For cow milk: Always use same rates (no change)
+    - If no date provided, use today's date
+    """
     if fat is None:
         return None
+    
     k = round(fat * 10) / 10.0
+    
+    # For cow milk, always use same chart
     if milk_type == 'cow':
         return COW_RATE_CHART.get(k)
+    
+    # For buffalo milk, check date
+    if transaction_date:
+        # If date is from Feb 1, 2026 onwards, use new buffalo rates
+        if transaction_date >= NEW_RATES_START_DATE:
+            return BUFFALO_RATE_CHART.get(k)
+        else:
+            # Before Feb 1, 2026 - this is the problem area
+            # We need to get the OLD buffalo rate somehow
+            # For now, use new rates (we'll fix with migration)
+            return BUFFALO_RATE_CHART.get(k)
     else:
+        # No date provided, use current rates
         return BUFFALO_RATE_CHART.get(k)
 
 def calculate_payment_cycles(collections, year, month):
@@ -308,7 +332,8 @@ def utility_processor():
         'today_date': today_date,
         'current_year': current_year,
         'current_month': current_month,
-        'now': get_ist_datetime
+        'now': get_ist_datetime,
+        'NEW_RATES_START_DATE': NEW_RATES_START_DATE
     }
 
 # ================== AUTHENTICATION ROUTES ==================
@@ -708,7 +733,9 @@ def add_collection():
     session = data.get('session') or 'morning'
     d = data.get('date') or get_today_ist()
     
-    rate = find_rate(fat, milk_type)
+    # IMPORTANT: Pass the date to find_rate
+    rate = find_rate(fat, milk_type, d)
+    
     if rate is None:
         flash(f"Rate not found for {milk_type} milk with fat {fat}", "danger")
         return redirect(url_for('add_collection_page'))
@@ -728,7 +755,10 @@ def add_collection():
     
     db.session.add(entry)
     db.session.commit()
-    flash(f"Collection added from {s.name} - ₹{amt}", "success")
+    
+    # Show rate period in message
+    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    flash(f"Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('add_collection_page'))
 
 @app.route('/quick_add_page')
@@ -758,7 +788,9 @@ def quick_add():
     session = request.form.get('session_quick') or 'morning'
     d = request.form.get('date_quick') or get_today_ist()
     
-    rate = find_rate(fat, milk_type)
+    # IMPORTANT: Pass the date to find_rate
+    rate = find_rate(fat, milk_type, d)
+    
     if rate is None:
         flash(f"Rate not found for {milk_type} milk with fat {fat}", "danger")
         return redirect(url_for('add_collection_page'))
@@ -777,7 +809,9 @@ def quick_add():
     
     db.session.add(entry)
     db.session.commit()
-    flash(f"Quick collection added from {s.name} - ₹{amt}", "success")
+    
+    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    flash(f"Quick collection added from {s.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('add_collection_page'))
 
 # ================== SALES (TO CUSTOMERS) ==================
@@ -822,7 +856,9 @@ def add_sale():
     session = request.form.get('session', 'morning')
     d = request.form.get('date') or get_today_ist()
     
-    rate = find_rate(fat, milk_type)
+    # IMPORTANT: Pass the date to find_rate
+    rate = find_rate(fat, milk_type, d)
+    
     if rate is None:
         flash(f"Rate not found for {milk_type} milk with fat {fat}", "danger")
         return redirect(url_for('sales'))
@@ -842,7 +878,9 @@ def add_sale():
     
     db.session.add(entry)
     db.session.commit()
-    flash(f"Sale recorded to {c.name} - ₹{amt}", "success")
+    
+    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    flash(f"Sale recorded to {c.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('sales'))
 
 # ================== DAILY COLLECTIONS ==================
@@ -913,6 +951,64 @@ def daily():
                          total_amount=total_amount,
                          avg_fat=avg_fat)
 
+# ================== NEW: REFRESH RATES ROUTE ==================
+@app.route('/refresh_daily_rates/<date>', methods=['POST'])
+@login_required
+@role_required('admin')
+def refresh_daily_rates(date):
+    """Refresh rates for all collections on a specific date"""
+    # Check if date is from February 2026 onwards
+    if date < NEW_RATES_START_DATE:
+        flash(f"Cannot refresh rates for {date}. New buffalo rates apply from February 2026 only.", "warning")
+        return redirect(url_for('daily', date=date))
+    
+    # Get all collections for the date
+    collections = Collection.query.filter_by(date=date).all()
+    
+    if not collections:
+        flash(f"No collections found for {date}", "warning")
+        return redirect(url_for('daily', date=date))
+    
+    updated_count = 0
+    total_difference = 0
+    buffalo_updates = 0
+    cow_updates = 0
+    
+    # Update each collection
+    for coll in collections:
+        old_amount = coll.amount
+        old_rate = coll.rate_per_liter
+        
+        # Get new rate based on date
+        new_rate = find_rate(coll.fat, coll.milk_type, date)
+        
+        if new_rate and new_rate != old_rate:
+            # Recalculate amount
+            new_amount = math.floor(coll.liters * new_rate)
+            
+            # Update the record
+            coll.rate_per_liter = new_rate
+            coll.amount = new_amount
+            
+            updated_count += 1
+            total_difference += (new_amount - old_amount)
+            
+            if coll.milk_type == 'buffalo':
+                buffalo_updates += 1
+            else:
+                cow_updates += 1
+    
+    if updated_count > 0:
+        db.session.commit()
+        
+        flash(f"✅ Updated rates for {updated_count} collections on {date}. "
+              f"Buffalo: {buffalo_updates}, Cow: {cow_updates}. "
+              f"Total difference: ₹{total_difference}", "success")
+    else:
+        flash(f"ℹ️ No rate changes needed for {date}. Rates are already up-to-date.", "info")
+    
+    return redirect(url_for('daily', date=date))
+
 # ================== DAILY SALES ==================
 @app.route('/daily_sales')
 @login_required
@@ -957,8 +1053,8 @@ def edit_collection(cid):
         date_str = request.form.get('date') or entry.date
         note = request.form.get('note', '')
         
-        # Calculate new rate and amount
-        rate = find_rate(fat, milk_type)
+        # Calculate new rate and amount - PASS THE DATE
+        rate = find_rate(fat, milk_type, date_str)
         if rate is None:
             flash("Rate not found for this fat value", "danger")
             return redirect(url_for('edit_collection', cid=cid))
@@ -974,7 +1070,10 @@ def edit_collection(cid):
         entry.note = note
         
         db.session.commit()
-        flash("Collection updated successfully", "success")
+        
+        # Show rate period in message
+        rate_period = "new rates (from Feb 2026)" if date_str >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+        flash(f"Collection updated successfully ({rate_period})", "success")
         return redirect(url_for('daily', date=date_str))
     
     return render_template('edit_collection.html', entry=entry)

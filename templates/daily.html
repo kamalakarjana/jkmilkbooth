@@ -47,12 +47,23 @@
       font-weight: bold;
       color: #2c3e50;
     }
+    /* Rate period badge */
+    .rate-period-badge {
+      font-size: 0.7rem;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body class="p-3">
 <div class="container">
   <h3 class="mb-3">
     <i class="fas fa-calendar-day text-primary"></i> Daily Collections — {{ date }}
+    {% if date >= NEW_RATES_START_DATE %}
+    <span class="badge bg-info rate-period-badge">New Buffalo Rates Period (Feb 2026+)</span>
+    {% else %}
+    <span class="badge bg-secondary rate-period-badge">Old Buffalo Rates Period</span>
+    {% endif %}
   </h3>
   
   <!-- Statistics Row -->
@@ -126,6 +137,13 @@
     <a href="{{ url_for('sales') }}" class="btn btn-success">
       <i class="fas fa-shopping-cart"></i> Sales
     </a>
+    
+    <!-- NEW: Refresh Rates Button (only for Feb 2026+ dates) -->
+    {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
+    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
+      <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates
+    </button>
+    {% endif %}
   </div>
   
   <!-- Collections Table (No # column) -->
@@ -169,6 +187,9 @@
             {% if r.milk_type %}
             <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
               {{ r.milk_type|title }}
+              {% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}
+              <span class="badge bg-dark" title="New rates from Feb 2026">NEW</span>
+              {% endif %}
             </span>
             {% else %}
             <span class="badge bg-secondary">No Data</span>
@@ -208,6 +229,15 @@
           <td data-sort-value="{{ r.rate_per_liter }}" data-sort-type="number">
             {% if r.rate_per_liter > 0 %}
             {{ "%.2f"|format(r.rate_per_liter) }}
+            {% if r.milk_type == 'buffalo' %}
+            <small class="text-muted d-block">
+              {% if date >= NEW_RATES_START_DATE %}
+              <span class="badge bg-success">New Rate</span>
+              {% else %}
+              <span class="badge bg-secondary">Old Rate</span>
+              {% endif %}
+            </small>
+            {% endif %}
             {% else %}
             <span class="text-muted">-</span>
             {% endif %}
@@ -253,6 +283,47 @@
     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
     </a>
+  </div>
+</div>
+
+<!-- Refresh Rates Modal -->
+<div class="modal fade" id="refreshRatesModal" tabindex="-1" aria-labelledby="refreshRatesModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refreshRatesModalLabel">
+          <i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle"></i>
+          <strong>Warning:</strong> This action will recalculate rates for <strong>buffalo milk collections only</strong> on {{ date }} using new rates (from February 2026).
+        </div>
+        
+        <p><strong>What will happen:</strong></p>
+        <ul>
+          <li>✅ <strong>Buffalo milk rates</strong> will be updated to new 2026 rates</li>
+          <li>✅ Amounts will be recalculated for buffalo milk</li>
+          <li>⏺️ <strong>Cow milk rates will NOT change</strong> (same as before)</li>
+          <li>⚠️ This will affect supplier balances</li>
+        </ul>
+        
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          Only collections from <strong>February 1, 2026 onwards</strong> can be updated. Cow milk rates remain unchanged.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}" id="refreshForm">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates Now
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 

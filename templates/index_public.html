@@ -9,11 +9,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #8B4513; /* Brown */
-            --secondary: #D4AF37; /* Gold */
-            --accent: #2E8B57; /* Green */
-            --light: #FFF8DC; /* Light cream */
-            --dark: #5D4037; /* Dark brown */
+            --primary: #8B4513;
+            --secondary: #D4AF37;
+            --accent: #2E8B57;
+            --light: #FFF8DC;
+            --dark: #5D4037;
+            --light-brown: #A0522D;
+            --background: #f9f5f0;
+            --card-bg: white;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
         }
         
         * {
@@ -826,6 +835,19 @@
         // Observe all feature cards
         document.querySelectorAll('.feature-card').forEach(card => {
             observer.observe(card);
+        });
+        // Load theme from localStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('rrMilkTheme');
+            if (savedTheme) {
+                const theme = JSON.parse(savedTheme);
+            
+                document.documentElement.style.setProperty('--primary', theme.primary);
+                document.documentElement.style.setProperty('--secondary', theme.secondary);
+                document.documentElement.style.setProperty('--background', theme.background);
+                document.documentElement.style.setProperty('--dark', theme.dark);
+                document.documentElement.style.setProperty('--light-brown', theme.lightBrown);
+            }
         });
     </script>
 </body>

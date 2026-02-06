@@ -1,79 +1,318 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login - Milk Booth</title>
+    <title>Login - RR Milk</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #8B4513; /* Brown */
+            --secondary: #D4AF37; /* Gold */
+            --accent: #2E8B57; /* Green */
+            --light: #FFF8DC; /* Light cream */
+            --dark: #5D4037; /* Dark brown */
+        }
+        
+        * {
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+        }
+        
         body {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
+            background: linear-gradient(135deg, #FFF8DC 0%, #F5F5DC 100%);
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
+            margin: 0;
         }
+        
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo-circle {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 30px rgba(139, 69, 19, 0.3);
+            border: 4px solid var(--secondary);
+        }
+        
+        .logo-icon {
+            font-size: 2.8rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .brand-name {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: var(--dark);
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+        
         .login-card {
             background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 25px;
+            padding: 50px 40px;
+            box-shadow: 0 25px 70px rgba(139, 69, 19, 0.15);
+            border: 2px solid rgba(139, 69, 19, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 400px;
+            height: 8px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
         }
-        .logo {
+        
+        .login-form h2 {
+            color: var(--dark);
+            margin-bottom: 35px;
             text-align: center;
-            margin-bottom: 30px;
+            font-size: 1.8rem;
+            font-weight: 600;
         }
-        .logo i {
-            font-size: 3rem;
-            color: #3498db;
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--dark);
+            font-weight: 500;
+            font-size: 1rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e0d6c2;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #FFFEF9;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(139, 69, 19, 0.1);
+            background: white;
+        }
+        
+        .form-control::placeholder {
+            color: #a99b7c;
+        }
+        
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white;
+            border: none;
+            padding: 18px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(139, 69, 19, 0.4);
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 1px solid #f0e9d7;
+        }
+        
+        .back-to-home {
+            color: var(--primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 15px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .back-to-home:hover {
+            color: var(--dark);
+            transform: translateX(-5px);
+        }
+        
+        .admin-note {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.05), rgba(212, 175, 55, 0.05));
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--dark);
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+        }
+        
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 40px 25px;
+            }
+            
+            .brand-name {
+                font-size: 2rem;
+            }
+            
+            .logo-circle {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .logo-icon {
+                font-size: 2.2rem;
+            }
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .login-card {
+            animation: fadeIn 0.6s ease-out;
         }
     </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="logo">
-            <i class="fas fa-cow"></i>
-            <h3 class="mt-3">Milk Booth</h3>
-            <p class="text-muted">Login to continue</p>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-circle">
+                <i class="fas fa-cow logo-icon"></i>
+            </div>
+            <h1 class="brand-name">RR Milk</h1>
+            <p class="subtitle">Management Portal Login</p>
         </div>
         
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <form method="post" action="{{ url_for('login') }}">
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" required>
+        <div class="login-card">
+            <form class="login-form" method="post" action="{{ url_for('login') }}">
+                <h2>Account Login</h2>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" class="form-control" required placeholder="Enter your username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" required placeholder="Enter your password">
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login to RR Milk
+                </button>
+                
+                <div class="login-footer">
+                    <a href="{{ url_for('index') }}" class="back-to-home">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </a>
+                </div>
+            </form>
+            
+            <div class="admin-note">
+                <p><i class="fas fa-shield-alt me-2"></i>Secure access. Contact administrator for account credentials</p>
+                <p class="mt-2 mb-0"><i class="fas fa-headset me-2"></i>Support: support@rrmilk.com | +91 98765 43210</p>
             </div>
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" required>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">
-                <i class="fas fa-sign-in-alt"></i> Login
-            </button>
-        </form>
-        
-        <hr class="my-4">
-
-	
-       <!--  <div class="text-center">
-            <p class="text-muted">Default admin login:</p>
-            <p><strong>Username:</strong> admin<br>
-            <strong>Password:</strong> admin123</p>
-            <small class="text-danger">Change password after first login!</small>
-        </div>  -->
+        </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Focus on username field when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('username').focus();
+        });
+        
+        // Add animation to form inputs
+        const inputs = document.querySelectorAll('.form-control');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', function() {
+                if (!this.value) {
+                    this.parentElement.classList.remove('focused');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

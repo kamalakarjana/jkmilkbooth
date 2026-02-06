@@ -339,8 +339,9 @@ def utility_processor():
 # ================== AUTHENTICATION ROUTES ==================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """Login page with username/password form"""
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         username = request.form.get('username')
@@ -351,7 +352,7 @@ def login():
             login_user(user)
             flash(f'Welcome back, {user.username}!', 'success')
             next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('index'))
+            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'danger')
     
@@ -362,7 +363,7 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))
+    return redirect(url_for('index'))  # Changed from 'login' to 'index'
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
@@ -419,15 +420,16 @@ def manage_users():
 
 # ================== MAIN ROUTES ==================
 @app.route('/')
-@login_required
 def index():
-    """Main dashboard - Redirect to add collection page as default"""
-    return redirect(url_for('add_collection_page'))
+    """Main landing page - shows public page for guests, redirects to dashboard for logged-in users"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('index_public.html')
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Original dashboard view"""
+    """Dashboard for logged-in users"""
     today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
@@ -482,7 +484,7 @@ def my_account():
     
     else:
         flash('No supplier or customer account linked to your user', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 # ================== NEW: ADD COLLECTION PAGE ==================
 @app.route('/add_collection_page')

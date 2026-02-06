@@ -136,13 +136,6 @@
       margin-left: 5px;
       vertical-align: middle;
     }
-    
-    /* Row number column */
-    .row-number {
-      font-weight: bold;
-      color: var(--primary);
-      text-align: center;
-    }
   </style>
 </head>
 <body class="p-3">
@@ -236,14 +229,11 @@
     {% endif %}
   </div>
   
-  <!-- Collections Table (WITH # column) -->
+  <!-- Collections Table (No # column) -->
   <div class="table-responsive">
     <table class="table table-hover table-striped" id="daily-collections">
       <thead>
         <tr>
-          <th class="sortable-header" onclick="sortTable('index', 'number')">
-            # <i class="fas fa-sort sort-icon"></i>
-          </th>
           <th class="sortable-header" onclick="sortTable('supplier-id', 'smart-numeric')">
             Supplier ID <i class="fas fa-sort sort-icon"></i>
           </th>
@@ -271,11 +261,7 @@
       </thead>
       <tbody id="table-body">
         {% for r in rows %}
-        {% set index = loop.index %}
         <tr class="{% if not r.id %}no-collection{% endif %}">
-          <td class="row-number" data-sort-value="{{ index }}" data-sort-type="number">
-            {{ index }}
-          </td>
           <td class="supplier-id" data-supplier-id="{{ r.supplier.supplier_id }}" data-sort-type="smart-numeric">
             <strong>{{ r.supplier.supplier_id }}</strong>
           </td>
@@ -361,7 +347,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="{% if current_user.role in ['admin', 'employee'] %}10{% else %}8{% endif %}" class="text-center py-4">
+          <td colspan="{% if current_user.role in ['admin', 'employee'] %}9{% else %}7{% endif %}" class="text-center py-4">
             <div class="text-muted">
               <i class="fas fa-inbox fa-2x mb-3"></i>
               <p>No suppliers found</p>
@@ -449,16 +435,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = document.getElementById('table-body');
         const rows = Array.from(tbody.getElementsByTagName('tr'));
         
-        // Determine column index based on column type and user role
+        // Determine column index based on column type
         let colIndex = 0;
         switch(column) {
-            case 'index': colIndex = 0; break;
-            case 'supplier-id': colIndex = 1; break;
-            case 'supplier-name': colIndex = 2; break;
-            case 'liters': colIndex = 5; break;
-            case 'fat': colIndex = 6; break;
-            case 'amount': colIndex = 7; break;
-            case 'rate': colIndex = 8; break;
+            case 'supplier-id': colIndex = 0; break;
+            case 'supplier-name': colIndex = 1; break;
+            case 'liters': colIndex = 4; break; // Adjusted index after removing # column
+            case 'fat': colIndex = 5; break;
+            case 'amount': colIndex = 6; break;
+            case 'rate': colIndex = 7; break;
         }
         
         // Sort rows
@@ -493,13 +478,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         rows.forEach(row => {
             tbody.appendChild(row);
-            
-            // Update row numbers after sorting
-            const indexCells = tbody.querySelectorAll('.row-number');
-            indexCells.forEach((cell, idx) => {
-                cell.textContent = idx + 1;
-                cell.setAttribute('data-sort-value', idx + 1);
-            });
         });
     }
     

@@ -888,17 +888,9 @@ def add_sale():
 # ================== DAILY COLLECTIONS ==================
 @app.route('/daily')
 @login_required
-@app.route("/daily")
 def daily():
-    date = request.args.get("date")
-
-    rows = DailyCollection.query \
-        .join(Supplier) \
-        .filter(DailyCollection.date == date) \
-        .order_by(Supplier.supplier_id.asc()) \
-        .all()
-
-    return render_template("daily.html", rows=rows, date=date)
+    req_date = request.args.get('date') or get_today_ist()
+    session_filter = request.args.get('session', 'all')
     
     # FIXED: Use outer join to show all suppliers with their collections
     query = db.session.query(

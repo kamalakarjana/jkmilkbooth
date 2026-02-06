@@ -339,6 +339,7 @@ def utility_processor():
 # ================== AUTHENTICATION ROUTES ==================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """Login page with username/password form"""
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
@@ -362,7 +363,7 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))
+    return redirect(url_for('index'))  # Changed from 'login' to 'index'
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required

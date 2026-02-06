@@ -909,6 +909,7 @@ def daily():
     if session_filter != 'all':
         query = query.filter(or_(Collection.session == session_filter, Collection.session == None))
     
+    # Sort by supplier ID (convert to integer for proper numeric sorting)
     results = query.order_by(Supplier.supplier_id).all()
     
     # Process results to show all suppliers
@@ -938,6 +939,9 @@ def daily():
                 'amount': 0,
                 'id': None
             })
+    
+    # Sort rows by supplier_id as integer
+    rows = sorted(rows, key=lambda x: int(x['supplier']['supplier_id']) if str(x['supplier']['supplier_id']).isdigit() else 999999)
     
     # Calculate statistics only for actual collections
     actual_collections = Collection.query.filter_by(date=req_date).all()

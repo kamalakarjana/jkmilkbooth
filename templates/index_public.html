@@ -3,145 +3,309 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milk Booth Management System</title>
+    <title>RR Milk - Premium Dairy Management System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --success: #27ae60;
+            --primary: #8B4513; /* Brown */
+            --secondary: #D4AF37; /* Gold */
+            --accent: #2E8B57; /* Green */
+            --light: #FFF8DC; /* Light cream */
+            --dark: #5D4037; /* Dark brown */
+        }
+        
+        * {
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
         }
         
         body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #FFF8DC 0%, #F5F5DC 100%);
+            font-family: 'Roboto', sans-serif;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         
-        /* Hero Section */
-        .hero-section {
-            background: linear-gradient(135deg, #2c3e50, #4a6491);
-            color: white;
-            padding: 100px 0;
-            text-align: center;
+        /* Custom Logo Style */
+        .logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        
+        .logo-circle {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 30px rgba(139, 69, 19, 0.3);
+            border: 5px solid var(--secondary);
             position: relative;
             overflow: hidden;
         }
         
-        .hero-section h1 {
+        .logo-circle::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 20C33.4 20 20 33.4 20 50s13.4 30 30 30 30-13.4 30-30S66.6 20 50 20zm0 10c11 0 20 9 20 20s-9 20-20 20-20-9-20-20 9-20 20-20z' fill='%23D4AF37' fill-opacity='0.2'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        
+        .logo-icon {
             font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 20px;
+            color: white;
+            position: relative;
+            z-index: 1;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
-        .hero-section p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            max-width: 700px;
-            margin: 0 auto 40px;
-            line-height: 1.6;
+        .brand-name {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 3rem;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
         }
         
-        /* Login Button - Big and Prominent */
+        .brand-tagline {
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(rgba(255, 248, 220, 0.9), rgba(245, 245, 220, 0.9)),
+                        url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%238B4513' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+            padding: 100px 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.1) 0%, transparent 50%);
+        }
+        
+        /* Login Button */
         .hero-login-btn {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: linear-gradient(135deg, var(--primary), var(--dark));
             border: none;
             color: white;
-            padding: 18px 45px;
-            font-size: 1.3rem;
+            padding: 18px 50px;
+            font-size: 1.2rem;
             font-weight: 600;
             border-radius: 50px;
             text-decoration: none;
-            display: inline-block;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
+            position: relative;
+            overflow: hidden;
+            margin-top: 30px;
+        }
+        
+        .hero-login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
         }
         
         .hero-login-btn:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(52, 152, 219, 0.4);
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(139, 69, 19, 0.4);
             color: white;
+        }
+        
+        .hero-login-btn:hover::before {
+            left: 100%;
         }
         
         /* Features Section */
         .features-section {
             padding: 100px 0;
             background: white;
+            position: relative;
         }
         
         .section-title {
             text-align: center;
-            color: #2c3e50;
-            font-size: 2.5rem;
-            margin-bottom: 60px;
+            color: var(--dark);
+            font-size: 2.8rem;
+            margin-bottom: 70px;
             font-weight: 700;
             position: relative;
         }
         
-        .section-title:after {
+        .section-title::after {
             content: '';
             position: absolute;
-            bottom: -15px;
+            bottom: -20px;
             left: 50%;
             transform: translateX(-50%);
-            width: 100px;
+            width: 150px;
             height: 4px;
-            background: linear-gradient(135deg, #3498db, #2c3e50);
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
             border-radius: 2px;
         }
         
         .feature-card {
             background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 15px 40px rgba(139, 69, 19, 0.08);
             text-align: center;
             height: 100%;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border: 1px solid #f0f0f0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s ease;
         }
         
         .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            transform: translateY(-15px);
+            box-shadow: 0 25px 60px rgba(139, 69, 19, 0.15);
+            border-color: rgba(139, 69, 19, 0.1);
+        }
+        
+        .feature-card:hover::before {
+            transform: scaleX(1);
         }
         
         .feature-icon {
             font-size: 3.5rem;
-            color: #3498db;
+            color: var(--primary);
             margin-bottom: 25px;
             display: inline-block;
-            padding: 20px;
-            background: rgba(52, 152, 219, 0.1);
-            border-radius: 50%;
-            width: 100px;
-            height: 100px;
-            line-height: 60px;
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(212, 175, 55, 0.1));
+            border-radius: 20px;
+            transition: all 0.4s ease;
+        }
+        
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1) rotate(5deg);
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white;
         }
         
         .feature-card h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
+            color: var(--dark);
+            margin-bottom: 20px;
             font-weight: 600;
+            font-size: 1.5rem;
         }
         
         .feature-card p {
             color: #666;
-            line-height: 1.6;
+            line-height: 1.8;
+            font-size: 1rem;
         }
         
-        /* Call to Action Section */
+        /* Stats Section */
+        .stats-section {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            padding: 80px 0;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stats-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            animation: float 20s linear infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .stat-number {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--secondary);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Call to Action */
         .cta-section {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            background: linear-gradient(135deg, #FFF8DC, #FAF0E6);
             padding: 100px 0;
             text-align: center;
+            position: relative;
         }
         
         .cta-title {
-            color: #2c3e50;
-            font-size: 2.5rem;
+            color: var(--dark);
+            font-size: 2.8rem;
             margin-bottom: 20px;
             font-weight: 700;
         }
@@ -153,6 +317,7 @@
             max-width: 600px;
             margin-left: auto;
             margin-right: auto;
+            line-height: 1.8;
         }
         
         /* Login Card */
@@ -163,103 +328,220 @@
         
         .login-card {
             background: white;
-            border-radius: 20px;
-            padding: 50px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-            max-width: 450px;
+            border-radius: 25px;
+            padding: 60px 50px;
+            box-shadow: 0 25px 70px rgba(139, 69, 19, 0.15);
+            max-width: 500px;
             margin: 0 auto;
             text-align: center;
+            border: 2px solid rgba(139, 69, 19, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
         }
         
         .login-card h3 {
-            color: #2c3e50;
-            margin-bottom: 30px;
+            color: var(--dark);
+            margin-bottom: 40px;
             font-weight: 700;
+            font-size: 2rem;
         }
         
         .login-btn-card {
-            background: linear-gradient(135deg, #27ae60, #219653);
+            background: linear-gradient(135deg, var(--primary), var(--dark));
             border: none;
             color: white;
-            padding: 16px 40px;
-            font-size: 1.2rem;
+            padding: 20px 50px;
+            font-size: 1.3rem;
             font-weight: 600;
-            border-radius: 10px;
+            border-radius: 15px;
             width: 100%;
-            transition: all 0.3s ease;
+            transition: all 0.4s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 10px 30px rgba(139, 69, 19, 0.3);
         }
         
         .login-btn-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(139, 69, 19, 0.4);
+            color: white;
         }
         
         .admin-note {
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #777;
-            font-size: 0.9rem;
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.05), rgba(212, 175, 55, 0.05));
+            border-radius: 15px;
+            text-align: center;
+            font-size: 1rem;
+            color: var(--dark);
+            border-left: 4px solid var(--secondary);
         }
         
         /* Footer */
         .footer {
-            background: #2c3e50;
+            background: linear-gradient(135deg, var(--dark), #3E2723);
             color: white;
-            padding: 40px 0;
-            text-align: center;
+            padding: 60px 0 30px;
         }
         
         .footer-logo {
-            font-size: 1.5rem;
+            font-family: 'Poppins', sans-serif;
             font-weight: 700;
-            margin-bottom: 15px;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: var(--secondary);
+        }
+        
+        .footer-contact {
+            margin-top: 20px;
+        }
+        
+        .footer-contact i {
+            color: var(--secondary);
+            margin-right: 10px;
+        }
+        
+        .footer-bottom {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 30px;
+            margin-top: 40px;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        /* Navigation */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 20px rgba(139, 69, 19, 0.1);
+            padding: 20px 0;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+        
+        .navbar-brand {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--primary) !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .navbar-brand i {
+            color: var(--secondary);
+        }
+        
+        .nav-link {
+            color: var(--dark) !important;
+            font-weight: 500;
+            margin: 0 10px;
+            padding: 10px 20px !important;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white !important;
+            transform: translateY(-2px);
         }
         
         /* Responsive Design */
         @media (max-width: 768px) {
-            .hero-section h1 {
+            .hero-section {
+                padding: 80px 0;
+            }
+            
+            .brand-name {
                 font-size: 2.5rem;
             }
             
-            .hero-section {
-                padding: 60px 0;
-            }
-            
-            .features-section, .cta-section, .login-card-section {
-                padding: 60px 0;
-            }
-            
             .section-title {
-                font-size: 2rem;
+                font-size: 2.2rem;
+            }
+            
+            .feature-card {
+                padding: 30px 20px;
             }
             
             .login-card {
-                padding: 30px;
+                padding: 40px 30px;
+            }
+            
+            .stat-number {
+                font-size: 2.8rem;
             }
         }
+        
+        /* Animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fadeInUp 0.8s ease forwards;
+        }
+        
+        .delay-1 { animation-delay: 0.2s; }
+        .delay-2 { animation-delay: 0.4s; }
+        .delay-3 { animation-delay: 0.6s; }
+        .delay-4 { animation-delay: 0.8s; }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #2c3e50, #4a6491);">
+    <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-cow me-2"></i>Milk Booth Management
+                <i class="fas fa-cow"></i> RR Milk
             </a>
-            <div class="d-flex">
-                {% if current_user.is_authenticated %}
-                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light me-2">
-                    <i class="fas fa-tachometer-alt me-1"></i>Dashboard
-                </a>
-                <a href="{{ url_for('logout') }}" class="btn btn-light">
-                    <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
-                {% else %}
-                <a href="{{ url_for('login') }}" class="btn btn-light">
-                    <i class="fas fa-sign-in-alt me-1"></i>Login
-                </a>
-                {% endif %}
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#stats">Stats</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#login">Login</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
     </nav>
@@ -269,18 +551,28 @@
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-lg-8">
-                    <i class="fas fa-cow fa-5x mb-4"></i>
-                    <h1>Milk Booth Management System</h1>
-                    <p>Streamline your dairy operations with our comprehensive management solution. Track collections, sales, suppliers, and payments all in one place.</p>
+                    <div class="logo-container animate-fade-in">
+                        <div class="logo-circle">
+                            <i class="fas fa-cow logo-icon"></i>
+                        </div>
+                        <h1 class="brand-name">RR Milk</h1>
+                        <p class="brand-tagline">Premium Dairy Management System</p>
+                    </div>
+                    
+                    <p class="lead text-dark mb-4 animate-fade-in delay-1" style="font-size: 1.3rem; line-height: 1.8;">
+                        Streamline your dairy operations with our comprehensive management solution. 
+                        Track collections, sales, suppliers, and payments all in one place with RR Milk's 
+                        state-of-the-art management system.
+                    </p>
                     
                     <!-- ONLY Login Button - NO FORM -->
                     {% if not current_user.is_authenticated %}
-                    <a href="{{ url_for('login') }}" class="hero-login-btn">
-                        <i class="fas fa-sign-in-alt me-2"></i>Login to Your Account
+                    <a href="{{ url_for('login') }}" class="hero-login-btn animate-fade-in delay-2">
+                        <i class="fas fa-sign-in-alt"></i> Login to Your Account
                     </a>
                     {% else %}
-                    <a href="{{ url_for('dashboard') }}" class="hero-login-btn">
-                        <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                    <a href="{{ url_for('dashboard') }}" class="hero-login-btn animate-fade-in delay-2">
+                        <i class="fas fa-tachometer-alt"></i> Go to Dashboard
                     </a>
                     {% endif %}
                 </div>
@@ -289,76 +581,108 @@
     </section>
 
     <!-- Features Section -->
-    <section class="features-section">
+    <section class="features-section" id="features">
         <div class="container">
-            <h2 class="section-title">Powerful Features</h2>
+            <h2 class="section-title animate-fade-in">Powerful Features</h2>
             
-            <div class="row g-4">
+            <div class="row">
                 <!-- Feature 1 -->
-                <div class="col-md-4">
+                <div class="col-md-4 animate-fade-in delay-1">
                     <div class="feature-card">
                         <div class="feature-icon">
                             <i class="fas fa-truck-loading"></i>
                         </div>
                         <h3>Supplier Management</h3>
-                        <p>Track milk deliveries from suppliers with real-time visibility. Manage inventory levels and reorder points effectively.</p>
+                        <p>Track milk deliveries from suppliers with real-time visibility. Manage inventory levels and reorder points effectively with automated supplier payment tracking.</p>
                     </div>
                 </div>
                 
                 <!-- Feature 2 -->
-                <div class="col-md-4">
+                <div class="col-md-4 animate-fade-in delay-2">
                     <div class="feature-card">
                         <div class="feature-icon">
                             <i class="fas fa-chart-line"></i>
                         </div>
                         <h3>Sales Tracking</h3>
-                        <p>Monitor milk sales and track customer orders. Analyze sales trends and identify opportunities for growth.</p>
+                        <p>Monitor milk sales and track customer orders. Analyze sales trends and identify opportunities for growth with real-time sales dashboard and analytics.</p>
                     </div>
                 </div>
                 
                 <!-- Feature 3 -->
-                <div class="col-md-4">
+                <div class="col-md-4 animate-fade-in delay-3">
                     <div class="feature-card">
                         <div class="feature-icon">
                             <i class="fas fa-file-alt"></i>
                         </div>
                         <h3>Daily & Monthly Reports</h3>
-                        <p>Generate detailed reports on milk production and sales. Access historical data for informed decision-making.</p>
+                        <p>Generate detailed reports on milk production and sales. Access historical data for informed decision-making with automated report generation.</p>
                     </div>
                 </div>
             </div>
             
-            <div class="row g-4 mt-4">
+            <div class="row mt-4">
                 <!-- Feature 4 -->
-                <div class="col-md-4">
+                <div class="col-md-4 animate-fade-in delay-1">
                     <div class="feature-card">
                         <div class="feature-icon">
                             <i class="fas fa-credit-card"></i>
                         </div>
                         <h3>Payment Management</h3>
-                        <p>Streamline the payment process with a single platform. Receive invoices and manage payments efficiently.</p>
+                        <p>Streamline the payment process with a single platform. Receive invoices and manage payments efficiently with automated payment reminders.</p>
                     </div>
                 </div>
                 
                 <!-- Feature 5 -->
-                <div class="col-md-4">
+                <div class="col-md-4 animate-fade-in delay-2">
                     <div class="feature-card">
                         <div class="feature-icon">
                             <i class="fas fa-sitemap"></i>
                         </div>
                         <h3>Multi-Site Access</h3>
-                        <p>Manage multiple sites from a centralized dashboard. Ensure compliance and streamline operations.</p>
+                        <p>Manage multiple dairy sites from a centralized dashboard. Ensure compliance and streamline operations with role-based access control.</p>
                     </div>
                 </div>
                 
                 <!-- Feature 6 -->
-                <div class="col-md-4">
+                <div class="col-md-4 animate-fade-in delay-3">
                     <div class="feature-card">
                         <div class="feature-icon">
                             <i class="fas fa-download"></i>
                         </div>
                         <h3>Data Export</h3>
-                        <p>Export data to Excel or CSV format. Share insights with stakeholders for better decision making.</p>
+                        <p>Export data to Excel or CSV format. Share insights with stakeholders for better decision making with automated data backups.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section" id="stats">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">500+</div>
+                        <div class="stat-label">Dairy Farms</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">10K+</div>
+                        <div class="stat-label">Suppliers</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">50M+</div>
+                        <div class="stat-label">Liters Managed</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">Support</div>
                     </div>
                 </div>
             </div>
@@ -369,15 +693,18 @@
     <section class="cta-section">
         <div class="container">
             <h2 class="cta-title">Ready to Manage Your Dairy Operations?</h2>
-            <p class="cta-subtitle">Join hundreds of dairy farms and milk booths using our comprehensive management system</p>
+            <p class="cta-subtitle">
+                Join hundreds of dairy farms and milk booths using RR Milk's comprehensive management system. 
+                Experience the difference with our premium dairy management solution.
+            </p>
             
             {% if not current_user.is_authenticated %}
             <a href="{{ url_for('login') }}" class="hero-login-btn">
-                <i class="fas fa-sign-in-alt me-2"></i>Login to Start Managing
+                <i class="fas fa-sign-in-alt"></i> Start Managing with RR Milk
             </a>
             {% else %}
             <a href="{{ url_for('dashboard') }}" class="hero-login-btn">
-                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                <i class="fas fa-tachometer-alt"></i> Go to Dashboard
             </a>
             {% endif %}
         </div>
@@ -385,10 +712,10 @@
 
     <!-- Login Card Section (Only for non-logged-in users) -->
     {% if not current_user.is_authenticated %}
-    <section class="login-card-section">
+    <section class="login-card-section" id="login">
         <div class="container">
             <div class="login-card">
-                <h3>Login to Your Account</h3>
+                <h3>Access Your RR Milk Account</h3>
                 
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
@@ -403,11 +730,12 @@
                 
                 <!-- ONLY Login Button - NO FORM -->
                 <a href="{{ url_for('login') }}" class="login-btn-card mb-3">
-                    <i class="fas fa-sign-in-alt me-2"></i>Click Here to Login
+                    <i class="fas fa-sign-in-alt"></i> Click Here to Login
                 </a>
                 
                 <div class="admin-note">
-                    <p><i class="fas fa-info-circle me-2"></i>Contact administrator for account access</p>
+                    <p><i class="fas fa-shield-alt me-2"></i>Secure access. Contact administrator for account credentials</p>
+                    <p class="mt-2"><i class="fas fa-phone me-2"></i>Support: +91 98765 43210 | support@rrmilk.com</p>
                 </div>
             </div>
         </div>
@@ -417,36 +745,88 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-6 text-md-start">
+            <div class="row">
+                <div class="col-md-4">
                     <div class="footer-logo">
-                        <i class="fas fa-cow me-2"></i>Milk Booth System
+                        <i class="fas fa-cow me-2"></i>RR Milk
                     </div>
-                    <p>Comprehensive dairy management solution</p>
+                    <p>Premium Dairy Management Solution since 2024</p>
+                    <div class="footer-contact">
+                        <p><i class="fas fa-envelope"></i> support@rrmilk.com</p>
+                        <p><i class="fas fa-phone"></i> +91 98765 43210</p>
+                        <p><i class="fas fa-map-marker-alt"></i> Dairy Complex, RR Milk, India</p>
+                    </div>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <p>&copy; 2024 Milk Booth Management System</p>
-                    <p>All rights reserved</p>
+                <div class="col-md-4">
+                    <h5 class="mb-4" style="color: var(--secondary);">Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#features" class="text-light" style="text-decoration: none;">Features</a></li>
+                        <li class="mb-2"><a href="#stats" class="text-light" style="text-decoration: none;">Statistics</a></li>
+                        <li class="mb-2"><a href="#login" class="text-light" style="text-decoration: none;">Login</a></li>
+                        <li class="mb-2"><a href="{{ url_for('login') }}" class="text-light" style="text-decoration: none;">Dashboard</a></li>
+                    </ul>
                 </div>
+                <div class="col-md-4">
+                    <h5 class="mb-4" style="color: var(--secondary);">Business Hours</h5>
+                    <p class="mb-1">Monday - Friday: 6:00 AM - 10:00 PM</p>
+                    <p class="mb-1">Saturday: 6:00 AM - 8:00 PM</p>
+                    <p class="mb-1">Sunday: 7:00 AM - 6:00 PM</p>
+                    <p class="mt-4"><i class="fas fa-clock me-2"></i>24/7 Support Available</p>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 RR Milk Management System. All rights reserved.</p>
+                <p class="mb-0">Premium Dairy Management Solution</p>
             </div>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Simple animation for feature cards
-        document.addEventListener('DOMContentLoaded', function() {
-            const featureCards = document.querySelectorAll('.feature-card');
-            
-            featureCards.forEach(card => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-10px)';
-                });
-                
-                card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0)';
-                });
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
             });
+        });
+        
+        // Add scroll effect to navbar
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 100) {
+                navbar.style.background = 'rgba(255, 255, 255, 0.98)';
+                navbar.style.boxShadow = '0 5px 25px rgba(139, 69, 19, 0.15)';
+            } else {
+                navbar.style.background = 'rgba(255, 255, 255, 0.95)';
+                navbar.style.boxShadow = '0 5px 20px rgba(139, 69, 19, 0.1)';
+            }
+        });
+        
+        // Animation on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-fade-in');
+                }
+            });
+        }, observerOptions);
+        
+        // Observe all feature cards
+        document.querySelectorAll('.feature-card').forEach(card => {
+            observer.observe(card);
         });
     </script>
 </body>

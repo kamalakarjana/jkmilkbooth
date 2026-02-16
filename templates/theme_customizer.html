@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Theme Customizer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="fw-bold text-dark mb-3">
+            <i class="fas fa-palette" style="color: var(--primary);"></i> Theme Customizer
+        </h2>
+        <p class="lead text-muted">Customize the look and feel of your RR Milk application</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Theme Preview -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-eye"></i> Live Preview
+            </div>
+            <div class="card-body">
+                <div class="theme-preview" id="themePreview">
+                    <!-- Preview Navigation Bar -->
+                    <nav class="navbar navbar-expand-lg navbar-dark mb-3" style="background: var(--header-bg); border-bottom: 3px solid var(--secondary);">
+                        <div class="container-fluid">
+                            <a class="navbar-brand" href="#">
+                                <i class="fas fa-cow"></i> RR Milk
+                            </a>
+                            <div class="ms-auto">
+                                <span class="user-info-badge">
+                                    <i class="fas fa-user-circle"></i>
+                                    <span>Preview User</span>
+                                </span>
+                            </div>
+                        </div>
+                    </nav>
+                    
+                    <!-- Preview Cards -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <i class="fas fa-weight" style="color: var(--primary);"></i>
+                                <div class="number">100 L</div>
+                                <div class="label">Total Liters</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <i class="fas fa-rupee-sign" style="color: var(--secondary);"></i>
+                                <div class="number">₹ 5,000</div>
+                                <div class="label">Total Amount</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <i class="fas fa-percentage" style="color: var(--accent);"></i>
+                                <div class="number">6.5%</div>
+                                <div class="label">Average Fat</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>S001</strong></td>
+                                    <td>John Doe</td>
+                                    <td>₹ 1,500</td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>S002</strong></td>
+                                    <td>Jane Smith</td>
+                                    <td>₹ 2,300</td>
+                                    <td><span class="badge bg-warning">Pending</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Preview Buttons -->
+                    <div class="mt-3">
+                        <button class="btn btn-primary me-2">Primary Button</button>
+                        <button class="btn btn-warning me-2">Warning Button</button>
+                        <button class="btn btn-outline-primary">Outline Button</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Theme Controls -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-paint-brush"></i> Predefined Themes
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    {% for theme_id, theme in predefined_themes.items() %}
+                    <div class="col-6">
+                        <div class="theme-option-card" onclick="applyPredefinedTheme('{{ theme_id }}')" style="cursor: pointer;">
+                            <div class="theme-colors d-flex mb-2">
+                                <div class="color-swatch" style="background-color: {{ theme.primary }};"></div>
+                                <div class="color-swatch" style="background-color: {{ theme.secondary }};"></div>
+                                <div class="color-swatch" style="background-color: {{ theme.accent }};"></div>
+                                <div class="color-swatch" style="background-color: {{ theme.background }};"></div>
+                            </div>
+                            <div class="theme-name">{{ theme.name }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-sliders-h"></i> Customize Colors
+            </div>
+            <div class="card-body">
+                <form id="themeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Primary Color</label>
+                        <div class="d-flex">
+                            <input type="color" id="primaryColor" class="form-control form-control-color me-2" value="{{ user_theme.primary_color if user_theme else '#8B4513' }}" style="width: 60px; height: 40px;">
+                            <input type="text" class="form-control" id="primaryColorText" value="{{ user_theme.primary_color if user_theme else '#8B4513' }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Secondary Color</label>
+                        <div class="d-flex">
+                            <input type="color" id="secondaryColor" class="form-control form-control-color me-2" value="{{ user_theme.secondary_color if user_theme else '#D4AF37' }}" style="width: 60px; height: 40px;">
+                            <input type="text" class="form-control" id="secondaryColorText" value="{{ user_theme.secondary_color if user_theme else '#D4AF37' }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Accent Color</label>
+                        <div class="d-flex">
+                            <input type="color" id="accentColor" class="form-control form-control-color me-2" value="{{ user_theme.accent_color if user_theme else '#2E8B57' }}" style="width: 60px; height: 40px;">
+                            <input type="text" class="form-control" id="accentColorText" value="{{ user_theme.accent_color if user_theme else '#2E8B57' }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Background Color</label>
+                        <div class="d-flex">
+                            <input type="color" id="bgColor" class="form-control form-control-color me-2" value="{{ user_theme.background_color if user_theme else '#f9f5f0' }}" style="width: 60px; height: 40px;">
+                            <input type="text" class="form-control" id="bgColorText" value="{{ user_theme.background_color if user_theme else '#f9f5f0' }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Text Color</label>
+                        <div class="d-flex">
+                            <input type="color" id="textColor" class="form-control form-control-color me-2" value="{{ user_theme.text_color if user_theme else '#2c3e50' }}" style="width: 60px; height: 40px;">
+                            <input type="text" class="form-control" id="textColorText" value="{{ user_theme.text_color if user_theme else '#2c3e50' }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Header Style</label>
+                        <select class="form-select" id="headerStyle">
+                            <option value="gradient" {% if user_theme and user_theme.header_style == 'gradient' %}selected{% endif %}>Gradient</option>
+                            <option value="solid" {% if user_theme and user_theme.header_style == 'solid' %}selected{% endif %}>Solid</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Card Style</label>
+                        <select class="form-select" id="cardStyle">
+                            <option value="rounded" {% if user_theme and user_theme.card_style == 'rounded' %}selected{% endif %}>Rounded</option>
+                            <option value="square" {% if user_theme and user_theme.card_style == 'square' %}selected{% endif %}>Square</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Font Family</label>
+                        <select class="form-select" id="fontFamily">
+                            {% for font in font_options %}
+                            <option value="{{ font }}" {% if user_theme and user_theme.font_family == font %}selected{% endif %}>{{ font }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary" onclick="saveTheme()">
+                    <i class="fas fa-save"></i> Save Theme
+                </button>
+                <button class="btn btn-warning" onclick="resetTheme()">
+                    <i class="fas fa-undo"></i> Reset to Default
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.theme-option-card {
+    padding: 10px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background: var(--card-bg);
+    margin-bottom: 10px;
+}
+
+.theme-option-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    margin-right: 5px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.theme-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+#themePreview {
+    transition: all 0.3s ease;
+}
+
+/* Preview styles */
+.stat-card {
+    background: var(--card-bg);
+    padding: 15px;
+    border-radius: var(--card-style, 8px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stat-card .number {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--text-dark);
+}
+
+.stat-card .label {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* Square card style */
+[data-card-style="square"] .stat-card,
+[data-card-style="square"] .card {
+    border-radius: 0 !important;
+}
+
+/* Solid header style */
+[data-header-style="solid"] .card-header,
+[data-header-style="solid"] .navbar {
+    background: var(--primary) !important;
+    background-image: none !important;
+}
+
+/* Font family */
+body, .theme-preview {
+    font-family: var(--font-family, 'Roboto'), sans-serif;
+}
+</style>
+
+<script>
+// Update preview in real-time
+function updatePreview() {
+    const primary = document.getElementById('primaryColor').value;
+    const secondary = document.getElementById('secondaryColor').value;
+    const accent = document.getElementById('accentColor').value;
+    const bgColor = document.getElementById('bgColor').value;
+    const textColor = document.getElementById('textColor').value;
+    const headerStyle = document.getElementById('headerStyle').value;
+    const cardStyle = document.getElementById('cardStyle').value;
+    const fontFamily = document.getElementById('fontFamily').value;
+    
+    // Update CSS variables
+    const preview = document.getElementById('themePreview');
+    preview.style.setProperty('--primary', primary);
+    preview.style.setProperty('--secondary', secondary);
+    preview.style.setProperty('--accent', accent);
+    preview.style.setProperty('--bg-light', bgColor);
+    preview.style.setProperty('--text-dark', textColor);
+    preview.style.setProperty('--card-bg', '#ffffff');
+    preview.style.setProperty('--header-bg', headerStyle === 'gradient' ? `linear-gradient(135deg, ${adjustColor(primary, -20)}, ${primary})` : primary);
+    preview.style.setProperty('--font-family', fontFamily);
+    preview.setAttribute('data-header-style', headerStyle);
+    preview.setAttribute('data-card-style', cardStyle);
+    
+    // Update RGB values for rgba usage
+    const rgb = hexToRgb(primary);
+    if (rgb) {
+        preview.style.setProperty('--primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+    }
+    
+    // Update text inputs
+    document.getElementById('primaryColorText').value = primary;
+    document.getElementById('secondaryColorText').value = secondary;
+    document.getElementById('accentColorText').value = accent;
+    document.getElementById('bgColorText').value = bgColor;
+    document.getElementById('textColorText').value = textColor;
+}
+
+// Helper function to adjust color brightness
+function adjustColor(hex, percent) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+    
+    rgb.r = Math.max(0, Math.min(255, rgb.r + percent));
+    rgb.g = Math.max(0, Math.min(255, rgb.g + percent));
+    rgb.b = Math.max(0, Math.min(255, rgb.b + percent));
+    
+    return `#${((1 << 24) + (rgb.r << 16) + (rgb.g << 8) + rgb.b).toString(16).slice(1)}`;
+}
+
+// Helper function to convert hex to RGB
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+// Apply predefined theme
+function applyPredefinedTheme(themeId) {
+    const themes = {{ predefined_themes|tojson }};
+    const theme = themes[themeId];
+    
+    if (theme) {
+        document.getElementById('primaryColor').value = theme.primary;
+        document.getElementById('secondaryColor').value = theme.secondary;
+        document.getElementById('accentColor').value = theme.accent;
+        document.getElementById('bgColor').value = theme.background;
+        document.getElementById('textColor').value = theme.text;
+        
+        updatePreview();
+    }
+}
+
+// Save theme to server
+function saveTheme() {
+    const themeData = {
+        theme_name: 'custom',
+        primary: document.getElementById('primaryColor').value,
+        secondary: document.getElementById('secondaryColor').value,
+        accent: document.getElementById('accentColor').value,
+        background: document.getElementById('bgColor').value,
+        text: document.getElementById('textColor').value,
+        header_style: document.getElementById('headerStyle').value,
+        card_style: document.getElementById('cardStyle').value,
+        font_family: document.getElementById('fontFamily').value
+    };
+    
+    fetch('/save_theme', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(themeData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alert.style.cssText = 'top: 80px; right: 20px; z-index: 9999;';
+            alert.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                ${data.message}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            `;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+            
+            // Apply theme to main page
+            location.reload();
+        }
+    });
+}
+
+// Reset theme to default
+function resetTheme() {
+    if (confirm('Are you sure you want to reset your theme to default?')) {
+        fetch('/reset_theme', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Color picker listeners
+    document.getElementById('primaryColor').addEventListener('input', updatePreview);
+    document.getElementById('secondaryColor').addEventListener('input', updatePreview);
+    document.getElementById('accentColor').addEventListener('input', updatePreview);
+    document.getElementById('bgColor').addEventListener('input', updatePreview);
+    document.getElementById('textColor').addEventListener('input', updatePreview);
+    document.getElementById('headerStyle').addEventListener('change', updatePreview);
+    document.getElementById('cardStyle').addEventListener('change', updatePreview);
+    document.getElementById('fontFamily').addEventListener('change', updatePreview);
+    
+    // Initial preview update
+    updatePreview();
+});
+</script>
+{% endblock %}

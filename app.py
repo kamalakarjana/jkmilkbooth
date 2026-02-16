@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from sqlalchemy import func, or_
 from datetime import date, datetime
-import os, csv, io, math, pytz
+import os, csv, io, math, pytz, json
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -258,6 +258,25 @@ class User(db.Model):
     def is_anonymous(self):
         return False
 
+class UserTheme(db.Model):
+    """Store user theme preferences"""
+    __tablename__ = 'user_themes'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    theme_name = db.Column(db.String(50), default='default')
+    primary_color = db.Column(db.String(20), default='#8B4513')
+    secondary_color = db.Column(db.String(20), default='#D4AF37')
+    accent_color = db.Column(db.String(20), default='#2E8B57')
+    background_color = db.Column(db.String(20), default='#f9f5f0')
+    text_color = db.Column(db.String(20), default='#2c3e50')
+    header_style = db.Column(db.String(20), default='gradient')
+    card_style = db.Column(db.String(20), default='rounded')
+    font_family = db.Column(db.String(50), default='Roboto')
+    created_at = db.Column(db.DateTime, default=get_ist_datetime)
+    updated_at = db.Column(db.DateTime, default=get_ist_datetime, onupdate=get_ist_datetime)
+    
+    user = db.relationship('User', backref=db.backref('theme', uselist=False))
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -316,13 +335,178 @@ def utility_processor():
     def current_month():
         return datetime.now(IST).month
     
+    def get_user_theme():
+        """Get current user's theme preferences"""
+        if current_user.is_authenticated:
+            theme = UserTheme.query.filter_by(user_id=current_user.id).first()
+            if theme:
+                return {
+                    'primary': theme.primary_color,
+                    'secondary': theme.secondary_color,
+                    'accent': theme.accent_color,
+                    'background': theme.background_color,
+                    'text': theme.text_color,
+                    'header_style': theme.header_style,
+                    'card_style': theme.card_style,
+                    'font_family': theme.font_family
+                }
+        # Return default theme
+        return {
+            'primary': '#8B4513',
+            'secondary': '#D4AF37',
+            'accent': '#2E8B57',
+            'background': '#f9f5f0',
+            'text': '#2c3e50',
+            'header_style': 'gradient',
+            'card_style': 'rounded',
+            'font_family': 'Roboto'
+        }
+    
     return {
         'today_date': today_date,
         'current_year': current_year,
         'current_month': current_month,
         'now': get_ist_datetime,
-        'NEW_RATES_START_DATE': NEW_RATES_START_DATE
+        'NEW_RATES_START_DATE': NEW_RATES_START_DATE,
+        'user_theme': get_user_theme
     }
+
+# ================== THEME MANAGEMENT ==================
+@app.route('/theme_customizer')
+@login_required
+def theme_customizer():
+    """Theme customization page"""
+    # Get user's current theme or create default
+    user_theme = UserTheme.query.filter_by(user_id=current_user.id).first()
+    
+    # Predefined themes
+    predefined_themes = {
+        'default': {
+            'name': 'Default Brown',
+            'primary': '#8B4513',
+            'secondary': '#D4AF37',
+            'accent': '#2E8B57',
+            'background': '#f9f5f0',
+            'text': '#2c3e50'
+        },
+        'ocean': {
+            'name': 'Ocean Blue',
+            'primary': '#1e4a6d',
+            'secondary': '#3498db',
+            'accent': '#2ecc71',
+            'background': '#e6f3ff',
+            'text': '#1e3c5c'
+        },
+        'forest': {
+            'name': 'Forest Green',
+            'primary': '#2c5e2e',
+            'secondary': '#8bc34a',
+            'accent': '#ff9800',
+            'background': '#e8f5e9',
+            'text': '#1e3a1e'
+        },
+        'royal': {
+            'name': 'Royal Purple',
+            'primary': '#6a1b9a',
+            'secondary': '#e1a6f0',
+            'accent': '#f06292',
+            'background': '#f3e5f5',
+            'text': '#4a1b6a'
+        },
+        'sunset': {
+            'name': 'Sunset Orange',
+            'primary': '#d35400',
+            'secondary': '#f39c12',
+            'accent': '#e67e22',
+            'background': '#ffefe2',
+            'text': '#a04000'
+        },
+        'midnight': {
+            'name': 'Midnight Dark',
+            'primary': '#2c3e50',
+            'secondary': '#e74c3c',
+            'accent': '#3498db',
+            'background': '#1e2b38',
+            'text': '#ecf0f1'
+        }
+    }
+    
+    # Font options
+    font_options = ['Roboto', 'Poppins', 'Open Sans', 'Lato', 'Montserrat', 'Raleway']
+    
+    return render_template('theme_customizer.html', 
+                         user_theme=user_theme,
+                         predefined_themes=predefined_themes,
+                         font_options=font_options)
+
+@app.route('/save_theme', methods=['POST'])
+@login_required
+def save_theme():
+    """Save user's theme preferences"""
+    data = request.json
+    
+    # Get or create user theme
+    user_theme = UserTheme.query.filter_by(user_id=current_user.id).first()
+    
+    if not user_theme:
+        user_theme = UserTheme(user_id=current_user.id)
+        db.session.add(user_theme)
+    
+    # Update theme properties
+    user_theme.theme_name = data.get('theme_name', 'custom')
+    user_theme.primary_color = data.get('primary', '#8B4513')
+    user_theme.secondary_color = data.get('secondary', '#D4AF37')
+    user_theme.accent_color = data.get('accent', '#2E8B57')
+    user_theme.background_color = data.get('background', '#f9f5f0')
+    user_theme.text_color = data.get('text', '#2c3e50')
+    user_theme.header_style = data.get('header_style', 'gradient')
+    user_theme.card_style = data.get('card_style', 'rounded')
+    user_theme.font_family = data.get('font_family', 'Roboto')
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Theme saved successfully'})
+
+@app.route('/reset_theme', methods=['POST'])
+@login_required
+def reset_theme():
+    """Reset theme to default"""
+    user_theme = UserTheme.query.filter_by(user_id=current_user.id).first()
+    
+    if user_theme:
+        db.session.delete(user_theme)
+        db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Theme reset to default'})
+
+@app.route('/get_theme')
+@login_required
+def get_theme():
+    """Get current user's theme as JSON"""
+    user_theme = UserTheme.query.filter_by(user_id=current_user.id).first()
+    
+    if user_theme:
+        return jsonify({
+            'primary': user_theme.primary_color,
+            'secondary': user_theme.secondary_color,
+            'accent': user_theme.accent_color,
+            'background': user_theme.background_color,
+            'text': user_theme.text_color,
+            'header_style': user_theme.header_style,
+            'card_style': user_theme.card_style,
+            'font_family': user_theme.font_family
+        })
+    else:
+        return jsonify({
+            'primary': '#8B4513',
+            'secondary': '#D4AF37',
+            'accent': '#2E8B57',
+            'background': '#f9f5f0',
+            'text': '#2c3e50',
+            'header_style': 'gradient',
+            'card_style': 'rounded',
+            'font_family': 'Roboto'
+        })
 
 # ================== AUTHENTICATION ROUTES ==================
 @app.route('/login', methods=['GET', 'POST'])

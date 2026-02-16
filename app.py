@@ -47,7 +47,7 @@ def get_last_day_of_month(year, month):
 # Rate change date (when new rates started)
 NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
 
-# Buffalo milk rate chart (NEW RATES from 01-Feb-2026)
+# Buffalo milk rate chart (CURRENT RATES from 01-Feb-2026)
 BUFFALO_RATE_CHART = {      
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
@@ -62,7 +62,7 @@ BUFFALO_RATE_CHART = {
     10.0: 80.0
 }
 
-# Cow milk rate chart (NO CHANGE - keep as is)
+# Cow milk rate chart
 COW_RATE_CHART = {
     3.0: 25.30, 3.1: 25.53, 3.2: 25.76, 3.3: 25.99, 3.4: 26.22,
     3.5: 26.45, 3.6: 26.68, 3.7: 26.91, 3.8: 27.14, 3.9: 27.37,
@@ -76,9 +76,8 @@ COW_RATE_CHART = {
 def find_rate(fat, milk_type='buffalo', transaction_date=None):
     """
     Find rate based on date
-    - For buffalo milk: New rates from 01-Feb-2026
-    - For cow milk: Always use same rates (no change)
-    - If no date provided, use today's date
+    - For buffalo milk: Current rates from 01-Feb-2026
+    - For cow milk: Standard rates
     """
     if fat is None:
         return None
@@ -89,19 +88,8 @@ def find_rate(fat, milk_type='buffalo', transaction_date=None):
     if milk_type == 'cow':
         return COW_RATE_CHART.get(k)
     
-    # For buffalo milk, check date
-    if transaction_date:
-        # If date is from Feb 1, 2026 onwards, use new buffalo rates
-        if transaction_date >= NEW_RATES_START_DATE:
-            return BUFFALO_RATE_CHART.get(k)
-        else:
-            # Before Feb 1, 2026 - this is the problem area
-            # We need to get the OLD buffalo rate somehow
-            # For now, use new rates (we'll fix with migration)
-            return BUFFALO_RATE_CHART.get(k)
-    else:
-        # No date provided, use current rates
-        return BUFFALO_RATE_CHART.get(k)
+    # For buffalo milk, use current rates
+    return BUFFALO_RATE_CHART.get(k)
 
 def calculate_payment_cycles(collections, year, month):
     """Calculate payment cycles for a given month"""
@@ -363,7 +351,78 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))  # Changed from 'login' to 'index'
+    return redirect(url_for('index'))
+
+# ================== PASSWORD MANAGEMENT ==================
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Allow users to change their password"""
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate inputs
+        if not current_password or not new_password or not confirm_password:
+            flash('All fields are required', 'danger')
+            return redirect(url_for('change_password'))
+        
+        # Check if new password matches confirm password
+        if new_password != confirm_password:
+            flash('New password and confirm password do not match', 'danger')
+            return redirect(url_for('change_password'))
+        
+        # Verify current password
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'danger')
+            return redirect(url_for('change_password'))
+        
+        # Password strength validation
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'danger')
+            return redirect(url_for('change_password'))
+        
+        # Update password
+        current_user.set_password(new_password)
+        db.session.commit()
+        
+        flash('Your password has been changed successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('change_password.html')
+
+@app.route('/admin_reset_password/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def admin_reset_password(user_id):
+    """Admin route to reset any user's password"""
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not new_password or not confirm_password:
+            flash('All fields are required', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        
+        if new_password != confirm_password:
+            flash('Passwords do not match', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        
+        # Update password
+        user.set_password(new_password)
+        db.session.commit()
+        
+        flash(f'Password for {user.username} has been reset successfully!', 'success')
+        return redirect(url_for('manage_users'))
+    
+    return render_template('admin_reset_password.html', user=user)
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
@@ -378,6 +437,14 @@ def register():
         
         if User.query.filter_by(username=username).first():
             flash('Username already exists', 'danger')
+            return redirect(url_for('register'))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists', 'danger')
+            return redirect(url_for('register'))
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long', 'danger')
             return redirect(url_for('register'))
         
         user = User(username=username, email=email, role=role, mobile=mobile)
@@ -486,7 +553,7 @@ def my_account():
         flash('No supplier or customer account linked to your user', 'danger')
         return redirect(url_for('dashboard'))
 
-# ================== NEW: ADD COLLECTION PAGE ==================
+# ================== ADD COLLECTION PAGE ==================
 @app.route('/add_collection_page')
 @login_required
 @role_required('admin', 'employee')
@@ -539,7 +606,6 @@ def suppliers():
     all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
     return render_template('suppliers.html', suppliers=all_suppliers)
 
-# ================== NEW: EDIT SUPPLIER ==================
 @app.route('/edit_supplier/<supplier_id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'employee')
@@ -565,7 +631,6 @@ def edit_supplier(supplier_id):
     
     return render_template('edit_supplier.html', supplier=supplier)
 
-# ================== NEW: DELETE SUPPLIER ==================
 @app.route('/delete_supplier/<supplier_id>', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -735,7 +800,7 @@ def add_collection():
     session = data.get('session') or 'morning'
     d = data.get('date') or get_today_ist()
     
-    # IMPORTANT: Pass the date to find_rate
+    # Find rate based on date
     rate = find_rate(fat, milk_type, d)
     
     if rate is None:
@@ -758,9 +823,7 @@ def add_collection():
     db.session.add(entry)
     db.session.commit()
     
-    # Show rate period in message
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
-    flash(f"Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
+    flash(f"Collection added from {s.name} - ₹{amt}", "success")
     return redirect(url_for('add_collection_page'))
 
 @app.route('/quick_add_page')
@@ -790,7 +853,7 @@ def quick_add():
     session = request.form.get('session_quick') or 'morning'
     d = request.form.get('date_quick') or get_today_ist()
     
-    # IMPORTANT: Pass the date to find_rate
+    # Find rate based on date
     rate = find_rate(fat, milk_type, d)
     
     if rate is None:
@@ -812,8 +875,7 @@ def quick_add():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
-    flash(f"Quick collection added from {s.name} - ₹{amt} ({rate_period})", "success")
+    flash(f"Quick collection added from {s.name} - ₹{amt}", "success")
     return redirect(url_for('add_collection_page'))
 
 # ================== SALES (TO CUSTOMERS) ==================
@@ -858,7 +920,7 @@ def add_sale():
     session = request.form.get('session', 'morning')
     d = request.form.get('date') or get_today_ist()
     
-    # IMPORTANT: Pass the date to find_rate
+    # Find rate based on date
     rate = find_rate(fat, milk_type, d)
     
     if rate is None:
@@ -881,8 +943,7 @@ def add_sale():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
-    flash(f"Sale recorded to {c.name} - ₹{amt} ({rate_period})", "success")
+    flash(f"Sale recorded to {c.name} - ₹{amt}", "success")
     return redirect(url_for('sales'))
 
 # ================== DAILY COLLECTIONS ==================
@@ -892,7 +953,7 @@ def daily():
     req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
     
-    # FIXED: Use outer join to show all suppliers with their collections
+    # Use outer join to show all suppliers with their collections
     query = db.session.query(
         Supplier.supplier_id,
         Supplier.name,
@@ -953,7 +1014,7 @@ def daily():
                          total_amount=total_amount,
                          avg_fat=avg_fat)
 
-# ================== NEW: REFRESH RATES ROUTE ==================
+# ================== REFRESH RATES ROUTE ==================
 @app.route('/refresh_daily_rates/<date>', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -961,7 +1022,7 @@ def refresh_daily_rates(date):
     """Refresh rates for all collections on a specific date"""
     # Check if date is from February 2026 onwards
     if date < NEW_RATES_START_DATE:
-        flash(f"Cannot refresh rates for {date}. New buffalo rates apply from February 2026 only.", "warning")
+        flash(f"Cannot refresh rates for {date}. Current buffalo rates apply from February 2026 only.", "warning")
         return redirect(url_for('daily', date=date))
     
     # Get all collections for the date
@@ -1073,9 +1134,7 @@ def edit_collection(cid):
         
         db.session.commit()
         
-        # Show rate period in message
-        rate_period = "new rates (from Feb 2026)" if date_str >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
-        flash(f"Collection updated successfully ({rate_period})", "success")
+        flash(f"Collection updated successfully", "success")
         return redirect(url_for('daily', date=date_str))
     
     return render_template('edit_collection.html', entry=entry)
@@ -1197,7 +1256,7 @@ def monthly():
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
-    # FIXED: Use outer join to show ALL suppliers even without collections
+    # Use outer join to show ALL suppliers even without collections
     supplier_results = db.session.query(
         Supplier.supplier_id, 
         Supplier.name, 

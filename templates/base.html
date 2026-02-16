@@ -106,6 +106,41 @@
             font-size: 1.1rem;
         }
         
+        /* Dropdown Menu */
+        .dropdown-menu {
+            background: white;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 10px;
+            padding: 10px 0;
+            border-top: 3px solid var(--secondary);
+        }
+        
+        .dropdown-item {
+            padding: 10px 20px;
+            color: var(--dark);
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(212, 175, 55, 0.1));
+            color: var(--primary);
+            padding-left: 25px;
+        }
+        
+        .dropdown-item i {
+            margin-right: 10px;
+            width: 20px;
+            color: var(--primary);
+        }
+        
+        .dropdown-divider {
+            border-top: 1px solid rgba(139, 69, 19, 0.1);
+            margin: 5px 0;
+        }
+        
         /* Cards */
         .card {
             border: none;
@@ -187,6 +222,36 @@
         
         .btn-outline-primary:hover {
             background: var(--primary);
+            color: white;
+            transform: translateY(-3px);
+        }
+        
+        .btn-outline-warning {
+            border: 2px solid var(--secondary);
+            color: var(--secondary);
+            border-radius: 8px;
+            padding: 10px 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-warning:hover {
+            background: var(--secondary);
+            color: var(--dark);
+            transform: translateY(-3px);
+        }
+        
+        .btn-outline-danger {
+            border: 2px solid #dc3545;
+            color: #dc3545;
+            border-radius: 8px;
+            padding: 10px 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-danger:hover {
+            background: #dc3545;
             color: white;
             transform: translateY(-3px);
         }
@@ -327,6 +392,19 @@
             background: linear-gradient(135deg, #27ae60, #219653);
         }
         
+        .badge-warning {
+            background: linear-gradient(135deg, var(--secondary), #e6b800);
+            color: var(--dark);
+        }
+        
+        .badge-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        
+        .badge-info {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+        
         /* Alerts */
         .alert {
             border-radius: 10px;
@@ -348,39 +426,32 @@
             border-left: 5px solid #e74c3c;
         }
         
+        .alert-warning {
+            background: linear-gradient(135deg, #fff3cd, #ffeeba);
+            color: #856404;
+            border-left: 5px solid var(--secondary);
+        }
+        
         .alert-info {
             background: linear-gradient(135deg, #d1ecf1, #bee5eb);
             color: #0c5460;
             border-left: 5px solid #3498db;
         }
         
-        /* User Info */
-        .user-info {
-            color: rgba(255,255,255,0.9);
-            font-size: 0.9rem;
-            margin-right: 15px;
+        /* User Info Badge */
+        .user-info-badge {
+            background: rgba(212, 175, 55, 0.15);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(212, 175, 55, 0.1);
-            padding: 8px 15px;
-            border-radius: 20px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
         }
         
-        .user-info i {
+        .user-info-badge i {
             color: var(--secondary);
-        }
-        
-        /* Logout Button */
-        .nav-link.logout {
-            background: rgba(231, 76, 60, 0.1);
-            color: #ff6b6b !important;
-            border: 1px solid rgba(231, 76, 60, 0.2);
-        }
-        
-        .nav-link.logout:hover {
-            background: rgba(231, 76, 60, 0.2);
-            color: white !important;
         }
         
         /* Container */
@@ -432,6 +503,11 @@
             .container {
                 padding: 0 15px;
             }
+            
+            .dropdown-menu {
+                position: absolute !important;
+                width: 100%;
+            }
         }
         
         /* Custom Scrollbar */
@@ -467,6 +543,35 @@
         
         .animate-fade-in {
             animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Tooltip */
+        .tooltip-custom {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip-custom .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: var(--dark);
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+        }
+        
+        .tooltip-custom:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
         }
     </style>
 </head>
@@ -528,7 +633,7 @@
                             <i class="fas fa-cash-register"></i> Record Sale
                         </a>
                     </li>
-                    {% if current_user.role == 'admin' %}
+                    {% if current_user.role in ['admin', 'employee'] %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('withdrawals') }}">
                             <i class="fas fa-money-bill-wave"></i> Withdrawals
@@ -544,17 +649,43 @@
                     {% endif %}
                     {% endif %}
                 </ul>
+                
+                <!-- User Menu Dropdown -->
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item d-none d-lg-block">
-                        <span class="user-info">
-                            <i class="fas fa-user"></i> {{ current_user.username }} ({{ current_user.role }})
-                        </span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link logout" href="{{ url_for('logout') }}">
-                            <i class="fas fa-sign-out-alt"></i> Logout
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="user-info-badge">
+                                <i class="fas fa-user-circle"></i>
+                                <span>{{ current_user.username }}</span>
+                                <span class="badge 
+                                    {% if current_user.role == 'admin' %}bg-danger
+                                    {% elif current_user.role == 'employee' %}bg-primary
+                                    {% elif current_user.role == 'supplier' %}bg-success
+                                    {% else %}bg-info{% endif %}">
+                                    {{ current_user.role|title }}
+                                </span>
+                            </div>
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('my_account') }}">
+                                    <i class="fas fa-id-card"></i> My Account
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('change_password') }}">
+                                    <i class="fas fa-key"></i> Change Password
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
@@ -574,17 +705,17 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         <div class="d-flex align-items-center">
                             <i class="fas 
                                 {% if category == 'success' %}fa-check-circle{% endif %}
                                 {% if category == 'danger' %}fa-exclamation-circle{% endif %}
                                 {% if category == 'warning' %}fa-exclamation-triangle{% endif %}
                                 {% if category == 'info' %}fa-info-circle{% endif %}
-                                me-3"></i>
+                                me-3 fa-lg"></i>
                             <div>{{ message }}</div>
                         </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             {% endif %}
@@ -599,10 +730,13 @@
         <div class="container">
             <p>&copy; 2024 RR Milk Management System | 
                 {% if current_user.is_authenticated %}
-                <i class="fas fa-user me-1"></i> {{ current_user.username }} ({{ current_user.role }})
+                <i class="fas fa-user me-1"></i> {{ current_user.username }} ({{ current_user.role|title }})
                 {% else %}
                 <i class="fas fa-cow me-1"></i> Premium Dairy Management Solution
                 {% endif %}
+            </p>
+            <p class="small text-light opacity-75 mt-2">
+                <i class="fas fa-shield-alt me-1"></i> Secure Password Management
             </p>
         </div>
     </footer>
@@ -612,15 +746,9 @@
     <script>
         // Initialize tooltips
         document.addEventListener('DOMContentLoaded', function() {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            });
-            
             // Auto-dismiss alerts after 5 seconds
             setTimeout(function() {
-                var alerts = document.querySelectorAll('.alert');
-                alerts.forEach(function(alert) {
+                document.querySelectorAll('.alert').forEach(function(alert) {
                     var bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();
                 });
@@ -633,6 +761,17 @@
                     link.classList.add('active');
                 }
             });
+            
+            // Add animation to dropdown
+            const dropdown = document.getElementById('userDropdown');
+            if (dropdown) {
+                dropdown.addEventListener('show.bs.dropdown', function() {
+                    this.querySelector('.user-info-badge').style.backgroundColor = 'rgba(212, 175, 55, 0.25)';
+                });
+                dropdown.addEventListener('hide.bs.dropdown', function() {
+                    this.querySelector('.user-info-badge').style.backgroundColor = 'rgba(212, 175, 55, 0.15)';
+                });
+            }
         });
     </script>
     {% block scripts %}{% endblock %}

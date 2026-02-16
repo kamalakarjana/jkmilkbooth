@@ -145,23 +145,23 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <!-- Reset Password Button - Available for all users except current admin trying to reset themselves -->
-                                {% if user.role != 'admin' or current_user.id != user.id %}
+                                <!-- RESET PASSWORD BUTTON - This is the important one! -->
                                 <a href="{{ url_for('admin_reset_password', user_id=user.id) }}" 
                                    class="btn btn-warning" 
                                    title="Reset Password"
                                    data-bs-toggle="tooltip">
-                                    <i class="fas fa-key"></i>
+                                    <i class="fas fa-key"></i> Reset
                                 </a>
-                                {% endif %}
                                 
-                                <!-- Edit User Button (Placeholder - you can add edit functionality later) -->
+                                <!-- Edit User Button (Optional - can be removed if not needed) -->
+                                <!-- Commented out to avoid confusion
                                 <button class="btn btn-outline-primary" 
                                         title="Edit User"
                                         data-bs-toggle="tooltip"
                                         onclick="showNotification('Edit feature coming soon', 'info')">
                                     <i class="fas fa-edit"></i>
                                 </button>
+                                -->
                                 
                                 <!-- Toggle Status Button (Admin only) -->
                                 {% if current_user.role == 'admin' and user.id != current_user.id %}
@@ -232,7 +232,7 @@
         </div>
         <div class="alert alert-warning mt-3 mb-0">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>Note:</strong> When resetting a user's password, make sure to communicate the new password securely to the user. Never share passwords via unsecured channels.
+            <strong>Note:</strong> Click the yellow "Reset" button next to any user to change their password. The system will hash the new password securely.
         </div>
     </div>
 </div>
@@ -313,6 +313,20 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: rgba(139, 69, 19, 0.05);
     transform: scale(1.01);
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* Reset button styling */
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107, #ffb300);
+    border: none;
+    color: #212529;
+    font-weight: 500;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #ffb300, #ffa000);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
 }
 
 /* Security tips card */

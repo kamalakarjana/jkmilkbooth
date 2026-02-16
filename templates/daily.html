@@ -6,24 +6,35 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     .stat-card {
-      background: white;
+      background: var(--card-bg);
       padding: 15px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
     .stat-card .number {
       font-size: 1.5rem;
       font-weight: bold;
-      color: #2c3e50;
+      color: var(--text-dark);
     }
     .session-btn.active {
-      background-color: #0d6efd;
+      background-color: var(--primary) !important;
       color: white;
+      border-color: var(--primary);
     }
     .table th {
-      background-color: #2c3e50;
+      background: var(--table-header-bg);
       color: white;
+      border: none;
+    }
+    .table td {
+      color: var(--text-dark);
+      border-color: rgba(0,0,0,0.05);
     }
     .no-collection {
       color: #999;
@@ -35,7 +46,7 @@
       position: relative;
     }
     .sortable-header:hover {
-      background-color: #34495e !important;
+      background-color: rgba(255,255,255,0.2) !important;
     }
     .sort-icon {
       position: absolute;
@@ -45,20 +56,97 @@
     }
     .supplier-id {
       font-weight: bold;
-      color: #2c3e50;
+      color: var(--text-dark);
     }
-    /* Rate period badge - Updated to remove "NEW" */
+    /* Rate period badge */
     .rate-period-badge {
       font-size: 0.7rem;
       margin-left: 5px;
       vertical-align: middle;
     }
+    /* Table row hover */
+    .table tbody tr:hover {
+      background-color: rgba(var(--primary-rgb), 0.05) !important;
+    }
+    /* Buttons with theme colors */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--light-brown));
+      border: none;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--light-brown), var(--dark));
+    }
+    .btn-outline-primary {
+      border: 2px solid var(--primary);
+      color: var(--primary);
+    }
+    .btn-outline-primary:hover {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-outline-primary.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    /* Modal theme */
+    .modal-content {
+      background: var(--card-bg);
+      color: var(--text-dark);
+    }
+    .modal-header {
+      background: var(--header-bg);
+      color: white;
+      border-bottom: 3px solid var(--secondary);
+    }
+    .modal-header .btn-close {
+      filter: brightness(0) invert(1);
+    }
+    .modal-footer {
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+    /* Form controls */
+    .form-control, .form-select {
+      background: var(--card-bg);
+      color: var(--text-dark);
+      border: 2px solid rgba(0,0,0,0.1);
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.1);
+    }
+    /* Alert boxes */
+    .alert-warning {
+      background: linear-gradient(135deg, #fff3cd, #ffeeba);
+      color: #856404;
+      border-left: 5px solid var(--secondary);
+    }
+    .alert-info {
+      background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+      color: #0c5460;
+      border-left: 5px solid var(--primary);
+    }
+    /* Badge colors using theme */
+    .badge.bg-warning {
+      background: linear-gradient(135deg, var(--secondary), #e6b800) !important;
+      color: var(--dark);
+    }
+    .badge.bg-info {
+      background: linear-gradient(135deg, #17a2b8, #138496) !important;
+    }
+    .badge.bg-success {
+      background: linear-gradient(135deg, #28a745, #20c997) !important;
+    }
+    .badge.bg-secondary {
+      background: linear-gradient(135deg, #6c757d, #5a6268) !important;
+    }
   </style>
 </head>
-<body class="p-3">
+<body class="p-3" data-theme="default">
 <div class="container">
   <h3 class="mb-3">
-    <i class="fas fa-calendar-day text-primary"></i> Daily Collections — {{ date }}
+    <i class="fas fa-calendar-day" style="color: var(--primary);"></i> Daily Collections — {{ date }}
     {% if date >= NEW_RATES_START_DATE %}
     <span class="badge bg-info rate-period-badge">Buffalo Rates (Feb 2026 onwards)</span>
     {% else %}
@@ -70,28 +158,28 @@
   <div class="row mb-4">
     <div class="col-md-3">
       <div class="stat-card">
-        <i class="fas fa-weight text-primary mb-2"></i>
+        <i class="fas fa-weight" style="color: var(--primary);"></i>
         <div class="number">{{ "%.2f"|format(total_liters) }}</div>
         <div class="text-muted">Total Liters</div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="stat-card">
-        <i class="fas fa-rupee-sign text-success mb-2"></i>
+        <i class="fas fa-rupee-sign" style="color: var(--success);"></i>
         <div class="number">₹ {{ total_amount }}</div>
         <div class="text-muted">Total Amount</div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="stat-card">
-        <i class="fas fa-percentage text-warning mb-2"></i>
+        <i class="fas fa-percentage" style="color: var(--secondary);"></i>
         <div class="number">{{ "%.1f"|format(avg_fat) }}%</div>
         <div class="text-muted">Average Fat</div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="stat-card">
-        <i class="fas fa-list text-info mb-2"></i>
+        <i class="fas fa-list" style="color: var(--info);"></i>
         <div class="number">{{ rows|selectattr('id')|list|length }}</div>
         <div class="text-muted">Collections</div>
       </div>
@@ -131,16 +219,16 @@
     <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
       <i class="fas fa-plus"></i> Add New Collection
     </a>
-    <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning">
+    <a href="{{ url_for('quick_add_page') }}" class="btn" style="background: linear-gradient(135deg, var(--secondary), #e6b800); color: var(--dark); border: none;">
       <i class="fas fa-bolt"></i> Quick Add
     </a>
-    <a href="{{ url_for('sales') }}" class="btn btn-success">
+    <a href="{{ url_for('sales') }}" class="btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none;">
       <i class="fas fa-shopping-cart"></i> Sales
     </a>
     
-    <!-- Refresh Rates Button (only for Feb 2026+ dates) - Updated text -->
+    <!-- Refresh Rates Button -->
     {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
-    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
+    <button type="button" class="btn" style="background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none;" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
       <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates
     </button>
     {% endif %}
@@ -187,7 +275,6 @@
             {% if r.milk_type %}
             <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
               {{ r.milk_type|title }}
-              <!-- REMOVED: The "NEW" badge that was here -->
             </span>
             {% else %}
             <span class="badge bg-secondary">No Data</span>
@@ -229,7 +316,6 @@
             {{ "%.2f"|format(r.rate_per_liter) }}
             {% if r.milk_type == 'buffalo' %}
             <small class="text-muted d-block">
-              <!-- REMOVED: The "New Rate" badge that was here -->
               <span class="badge bg-success">Current Rate</span>
             </small>
             {% endif %}
@@ -239,7 +325,7 @@
           </td>
           <td>
             {% if r.id %}
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}">
+            <a class="btn btn-sm" href="{{ url_for('edit_collection', cid=r.id) }}" style="border: 2px solid var(--primary); color: var(--primary); background: transparent;">
               <i class="fas fa-edit"></i>
             </a>
             <form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" 
@@ -281,13 +367,13 @@
   </div>
 </div>
 
-<!-- Refresh Rates Modal - Updated text to remove "NEW" references -->
+<!-- Refresh Rates Modal -->
 <div class="modal fade" id="refreshRatesModal" tabindex="-1" aria-labelledby="refreshRatesModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="refreshRatesModalLabel">
-          <i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}
+          <i class="fas fa-sync-alt me-2" style="color: var(--secondary);"></i>Refresh Buffalo Milk Rates for {{ date }}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -337,17 +423,17 @@ function smartNumericSort(a, b) {
   
   // If one is a number and the other isn't, numbers come first
   if (!isNaN(aNum) && isNaN(bNum)) {
-    return -1; // a (number) comes before b (non-number)
+    return -1;
   }
   if (isNaN(aNum) && !isNaN(bNum)) {
-    return 1; // b (number) comes before a (non-number)
+    return 1;
   }
   
   // Both are non-numbers, sort alphabetically
   return a.toString().localeCompare(b.toString());
 }
 
-// Sort table on page load by Supplier ID (smart numeric)
+// Sort table on page load by Supplier ID
 document.addEventListener('DOMContentLoaded', function() {
   // Initially sort by Supplier ID using smart numeric sorting
   sortTableBody('supplier-id', 'smart-numeric');
@@ -357,7 +443,6 @@ document.addEventListener('DOMContentLoaded', function() {
   headers.forEach(header => {
     if (header.textContent.includes('Supplier ID')) {
       header.classList.add('active');
-      // Update sort icon
       const icon = header.querySelector('.sort-icon');
       if (icon) {
         icon.className = 'fas fa-sort-down sort-icon';
@@ -392,18 +477,15 @@ function sortTableBody(columnType, sortType) {
   const tbody = document.getElementById('table-body');
   const rows = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
   
-  // Determine sort direction
   const header = document.querySelector(`.sortable-header[onclick*="${columnType}"]`);
   const isCurrentlyActive = header.classList.contains('active');
   let isAscending = true;
   
   if (isCurrentlyActive) {
-    // Toggle direction if already active
     const currentDirection = header.getAttribute('data-sort-dir') || 'asc';
     isAscending = currentDirection === 'asc' ? false : true;
     header.setAttribute('data-sort-dir', isAscending ? 'asc' : 'desc');
   } else {
-    // Remove active state from all headers
     document.querySelectorAll('.sortable-header').forEach(h => {
       h.classList.remove('active');
       h.removeAttribute('data-sort-dir');
@@ -413,18 +495,15 @@ function sortTableBody(columnType, sortType) {
       }
     });
     
-    // Set active state for clicked header
     header.classList.add('active');
     header.setAttribute('data-sort-dir', 'asc');
   }
   
-  // Update sort icon
   const icon = header.querySelector('.sort-icon');
   if (icon) {
     icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon';
   }
   
-  // Sort rows
   rows.sort((rowA, rowB) => {
     const valueA = getCellValue(rowA, columnType);
     const valueB = getCellValue(rowB, columnType);
@@ -439,11 +518,9 @@ function sortTableBody(columnType, sortType) {
       comparison = valueA.toString().localeCompare(valueB.toString());
     }
     
-    // Reverse if descending
     return isAscending ? comparison : -comparison;
   });
   
-  // Reorder rows in tbody
   tbody.innerHTML = '';
   rows.forEach(row => {
     tbody.appendChild(row);

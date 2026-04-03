@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Scan Register Page{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:860px">
+
+  <h4 class="mb-1">Scan register page</h4>
+  <p class="text-muted small mb-4">Take a photo of your daily book page — the app will read every entry automatically.</p>
+
+  <!-- ── STEP 1: Upload ── -->
+  <div id="step-upload" class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="card-title mb-3">Step 1 — Choose photo &amp; date</h6>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Date on the page</label>
+        <input type="date" id="scan-date" class="form-control" style="max-width:200px" value="{{ today }}">
+        <div class="form-text">You can change this after scanning too.</div>
+      </div>
+
+      <!-- Drag-drop zone -->
+      <div id="drop-zone"
+           style="border:2px dashed #adb5bd;border-radius:10px;padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s"
+           onclick="document.getElementById('file-input').click()"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)">
+        <div style="font-size:2.2rem;margin-bottom:.5rem">📷</div>
+        <p class="mb-1 fw-semibold">Tap to take photo or choose file</p>
+        <p class="text-muted small mb-0">JPG · PNG · WEBP — max 10 MB</p>
+        <input type="file" id="file-input" accept="image/*" capture="environment"
+               style="display:none" onchange="onFileChosen(event)">
+      </div>
+
+      <!-- Preview -->
+      <div id="preview-wrap" class="mt-3" style="display:none;text-align:center">
+        <img id="preview-img" style="max-width:100%;max-height:340px;border-radius:8px;border:1px solid #dee2e6">
+        <div class="mt-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="resetUpload()">Change photo</button>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <button id="btn-scan" class="btn btn-primary" onclick="startScan()" disabled>
+          <span id="scan-spinner" class="spinner-border spinner-border-sm me-2" style="display:none"></span>
+          Read entries from photo
+        </button>
+      </div>
+
+      <div id="scan-error" class="alert alert-danger mt-3" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Review table ── -->
+  <div id="step-review" style="display:none">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+          <h6 class="card-title mb-0">Step 2 — Review &amp; confirm</h6>
+          <div class="d-flex align-items-center gap-2">
+            <label class="mb-0 small fw-semibold">Date:</label>
+            <input type="date" id="review-date" class="form-control form-control-sm" style="width:160px">
+            <button class="btn btn-sm btn-outline-secondary" onclick="recalcAll()">Recalculate amounts</button>
+          </div>
+        </div>
+
+        <!-- Warnings -->
+        <div id="warnings-box" class="alert alert-warning py-2 small" style="display:none"></div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-2" id="review-table">
+            <thead class="table-light">
+              <tr>
+                <th style="width:36px"></th>
+                <th>Supplier ID</th>
+                <th>Name</th>
+                <th>Session</th>
+                <th>Type</th>
+                <th>Litres</th>
+                <th>Fat %</th>
+                <th>Rate</th>
+                <th>Amount ₹</th>
+              </tr>
+            </thead>
+            <tbody id="review-body"></tbody>
+          </table>
+        </div>
+
+        <div class="d-flex gap-2 mt-3 flex-wrap">
+          <button class="btn btn-success" onclick="saveAll()">
+            <span id="save-spinner" class="spinner-border spinner-border-sm me-2" style="display:none"></span>
+            Save all entries
+          </button>
+          <button class="btn btn-outline-secondary" onclick="addBlankRow()">+ Add row</button>
+          <button class="btn btn-outline-danger" onclick="resetAll()">Start over</button>
+        </div>
+
+        <div id="save-error" class="alert alert-danger mt-3" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let chosenFile = null;
+  let extractedDate = '{{ today }}';
+
+  /* ── Drag & drop ── */
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').style.borderColor = '#0d6efd';
+    document.getElementById('drop-zone').style.background  = '#f0f4ff';
+  }
+  function onDragLeave(e) {
+    document.getElementById('drop-zone').style.borderColor = '#adb5bd';
+    document.getElementById('drop-zone').style.background  = '';
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    onDragLeave(e);
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+  }
+  function onFileChosen(e) { if (e.target.files[0]) setFile(e.target.files[0]); }
+
+  function setFile(file) {
+    chosenFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('preview-img').src = ev.target.result;
+      document.getElementById('preview-wrap').style.display = '';
+      document.getElementById('drop-zone').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('btn-scan').disabled = false;
+    document.getElementById('scan-error').style.display = 'none';
+  }
+
+  function resetUpload() {
+    chosenFile = null;
+    document.getElementById('file-input').value = '';
+    document.getElementById('preview-wrap').style.display = 'none';
+    document.getElementById('drop-zone').style.display = '';
+    document.getElementById('btn-scan').disabled = true;
+  }
+
+  /* ── Scan ── */
+  async function startScan() {
+    if (!chosenFile) return;
+    const spinner = document.getElementById('scan-spinner');
+    const btn     = document.getElementById('btn-scan');
+    const errBox  = document.getElementById('scan-error');
+    spinner.style.display = '';
+    btn.disabled = true;
+    errBox.style.display = 'none';
+
+    const fd = new FormData();
+    fd.append('image', chosenFile);
+    fd.append('date',  document.getElementById('scan-date').value);
+
+    try {
+      const res  = await fetch('{{ url_for("scan_page_post") }}', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Unknown error');
+      renderReview(data);
+    } catch (err) {
+      errBox.textContent = '⚠ ' + err.message;
+      errBox.style.display = '';
+      btn.disabled = false;
+    } finally {
+      spinner.style.display = 'none';
+    }
+  }
+
+  /* ── Review table ── */
+  function renderReview(data) {
+    extractedDate = data.date || document.getElementById('scan-date').value;
+    document.getElementById('review-date').value = extractedDate;
+    document.getElementById('step-review').style.display = '';
+
+    /* Warnings */
+    const wb = document.getElementById('warnings-box');
+    if (data.warnings && data.warnings.length) {
+      wb.innerHTML = '<strong>Notes from scan:</strong> ' + data.warnings.join(' · ');
+      wb.style.display = '';
+    } else {
+      wb.style.display = 'none';
+    }
+
+    const tbody = document.getElementById('review-body');
+    tbody.innerHTML = '';
+    (data.rows || []).forEach((row, i) => appendRow(row, i));
+
+    document.getElementById('step-upload').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function appendRow(row, i) {
+    const tbody = document.getElementById('review-body');
+    const tr = document.createElement('tr');
+    if (!row.supplier_found) tr.classList.add('table-warning');
+
+    const nameCell = row.supplier_found
+      ? `<span class="text-success fw-semibold">${escHtml(row.supplier_name)}</span>`
+      : `<span class="text-danger small">Not found</span>`;
+
+    tr.innerHTML = `
+      <td style="text-align:center">
+        <input type="checkbox" class="row-check form-check-input" checked title="Include this row">
+      </td>
+      <td><input class="form-control form-control-sm f-sid" value="${escHtml(row.supplier_id||'')}" style="width:80px"></td>
+      <td class="f-name">${nameCell}</td>
+      <td>
+        <select class="form-select form-select-sm f-session" style="width:100px">
+          <option value="morning"  ${row.session==='morning'  ? 'selected':''}>Morning</option>
+          <option value="evening" ${row.session==='evening' ? 'selected':''}>Evening</option>
+        </select>
+      </td>
+      <td>
+        <select class="form-select form-select-sm f-type" style="width:90px">
+          <option value="buffalo" ${(row.milk_type||'buffalo')==='buffalo' ? 'selected':''}>Buffalo</option>
+          <option value="cow"     ${row.milk_type==='cow'     ? 'selected':''}>Cow</option>
+        </select>
+      </td>
+      <td><input type="number" class="form-control form-control-sm f-liters" value="${row.liters??''}" step="0.1" min="0" style="width:80px"></td>
+      <td><input type="number" class="form-control form-control-sm f-fat"    value="${row.fat??''}"    step="0.1" min="0" max="15" style="width:70px"></td>
+      <td class="f-rate text-muted small">${row.rate != null ? row.rate.toFixed(2) : '—'}</td>
+      <td class="f-amount fw-semibold">${row.amount != null ? '₹'+row.amount : '—'}</td>
+    `;
+
+    /* Live recalc when fat / liters / type changes */
+    tr.querySelectorAll('.f-fat,.f-liters,.f-type').forEach(el => {
+      el.addEventListener('change', () => recalcRow(tr));
+    });
+    tbody.appendChild(tr);
+  }
+
+  function addBlankRow() {
+    appendRow({
+      supplier_id:'', supplier_name:'', supplier_found:false,
+      session:'morning', milk_type:'buffalo', liters:'', fat:'', rate:null, amount:null
+    }, document.querySelectorAll('#review-body tr').length);
+  }
+
+  async function recalcRow(tr) {
+    const fat      = parseFloat(tr.querySelector('.f-fat').value);
+    const liters   = parseFloat(tr.querySelector('.f-liters').value);
+    const milkType = tr.querySelector('.f-type').value;
+    const date     = document.getElementById('review-date').value;
+    if (isNaN(fat) || isNaN(liters)) return;
+
+    try {
+      const res  = await fetch(`/get_rate_json?fat=${fat}&milk_type=${milkType}&date=${date}`);
+      const data = await res.json();
+      const rate = data.rate;
+      tr.querySelector('.f-rate').textContent   = rate != null ? rate.toFixed(2) : '—';
+      tr.querySelector('.f-amount').textContent = rate != null ? '₹' + Math.floor(liters * rate) : '—';
+    } catch(_) {}
+  }
+
+  async function recalcAll() {
+    document.querySelectorAll('#review-body tr').forEach(tr => recalcRow(tr));
+  }
+
+  /* ── Save ── */
+  async function saveAll() {
+    const date    = document.getElementById('review-date').value;
+    const spinner = document.getElementById('save-spinner');
+    const errBox  = document.getElementById('save-error');
+    spinner.style.display = '';
+    errBox.style.display  = 'none';
+
+    const rows = [];
+    document.querySelectorAll('#review-body tr').forEach(tr => {
+      if (!tr.querySelector('.row-check').checked) return;
+      rows.push({
+        supplier_id: tr.querySelector('.f-sid').value.trim(),
+        session:     tr.querySelector('.f-session').value,
+        milk_type:   tr.querySelector('.f-type').value,
+        liters:      parseFloat(tr.querySelector('.f-liters').value),
+        fat:         parseFloat(tr.querySelector('.f-fat').value),
+      });
+    });
+
+    if (rows.length === 0) {
+      errBox.textContent = 'No rows selected. Tick the checkboxes for rows you want to save.';
+      errBox.style.display = '';
+      spinner.style.display = 'none';
+      return;
+    }
+
+    try {
+      const res  = await fetch('{{ url_for("scan_confirm") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, rows })
+      });
+      const data = await res.json();
+      if (data.redirect) window.location.href = data.redirect;
+      else throw new Error(data.error || 'Save failed');
+    } catch (err) {
+      errBox.textContent = '⚠ ' + err.message;
+      errBox.style.display = '';
+    } finally {
+      spinner.style.display = 'none';
+    }
+  }
+
+  function resetAll() {
+    document.getElementById('step-review').style.display = 'none';
+    resetUpload();
+    document.getElementById('review-body').innerHTML = '';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+{% endblock %}

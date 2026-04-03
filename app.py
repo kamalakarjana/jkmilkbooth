@@ -1389,6 +1389,247 @@ def export_month_summary_csv():
         download_name=f"summary_{month}.csv"
     )
 
+
+
+
+
+
+# ================== SCAN PAGE (PHOTO → DATA) ==================
+import base64, json, urllib.request, urllib.error
+
+ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+
+
+@app.route('/get_rate_json')
+@login_required
+def get_rate_json():
+    """Return the rate for a given fat/milk_type/date as JSON (used by scan review screen)."""
+    try:
+        fat       = float(request.args.get('fat', 0))
+        milk_type = request.args.get('milk_type', 'buffalo')
+        date_str  = request.args.get('date') or get_today_ist()
+        rate      = find_rate(fat, milk_type, date_str)
+        return jsonify({'rate': rate})
+    except (ValueError, TypeError):
+        return jsonify({'rate': None})
+
+
+SCAN_SYSTEM_PROMPT = """You are a data extraction assistant for a milk collection register.
+The user will send you a photo of a handwritten daily register page.
+Extract every row you can see. Each row has these columns:
+  - supplier_id  (a short numeric or alphanumeric code, e.g. 1, 2, 101)
+  - session      ("morning" or "evening" — look for M/AM/Morning or E/PM/Evening)
+  - milk_type    ("buffalo" or "cow")
+  - liters       (a decimal number, e.g. 4.5)
+  - fat          (a decimal number, e.g. 6.2)
+
+Return ONLY a valid JSON object — no markdown, no explanation, nothing else.
+Format:
+{
+  "date": "YYYY-MM-DD or null if not visible",
+  "rows": [
+    {"supplier_id": "1", "session": "morning", "milk_type": "buffalo", "liters": 4.5, "fat": 6.2},
+    ...
+  ],
+  "warnings": ["any notes about unclear entries"]
+}
+If a field is illegible, use null for that field.
+If there are no rows, return {"date": null, "rows": [], "warnings": ["No entries found"]}."""
+
+
+def call_vision_api(image_b64: str, media_type: str) -> dict:
+    """Send image to Claude Vision API and return parsed JSON."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY is not set in your .env file.")
+
+    payload = json.dumps({
+        "model": "claude-opus-4-5",
+        "max_tokens": 2048,
+        "system": SCAN_SYSTEM_PROMPT,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": image_b64
+                    }
+                },
+                {
+                    "type": "text",
+                    "text": "Please extract all milk collection entries from this register page."
+                }
+            ]
+        }]
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        ANTHROPIC_API_URL,
+        data=payload,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+
+    raw_text = result["content"][0]["text"].strip()
+    # Strip accidental markdown code fences if present
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("```")[1]
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+    return json.loads(raw_text)
+
+
+@app.route('/scan_page', methods=['GET'])
+@login_required
+@role_required('admin', 'employee')
+def scan_page():
+    """Show the photo upload form."""
+    today = get_today_ist()
+    return render_template('scan_page.html', today=today)
+
+
+@app.route('/scan_page', methods=['POST'])
+@login_required
+@role_required('admin', 'employee')
+@csrf.exempt   # File upload via fetch; token handled in JS header alternative; re-enable if using form POST
+def scan_page_post():
+    """Receive uploaded image, call Vision API, return extracted rows as JSON."""
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+
+    img = request.files['image']
+    if img.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    allowed = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+    media_type = img.mimetype or 'image/jpeg'
+    if media_type not in allowed:
+        return jsonify({"error": f"Unsupported file type: {media_type}"}), 400
+
+    img_bytes = img.read()
+    if len(img_bytes) > 10 * 1024 * 1024:   # 10 MB hard limit
+        return jsonify({"error": "Image too large (max 10 MB)"}), 400
+
+    image_b64 = base64.standard_b64encode(img_bytes).decode("utf-8")
+
+    try:
+        extracted = call_vision_api(image_b64, media_type)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return jsonify({"error": f"API error {e.code}: {body}"}), 500
+    except json.JSONDecodeError:
+        return jsonify({"error": "AI returned unreadable data. Try a clearer photo."}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+    # Enrich each row: validate supplier exists, pre-calculate rate & amount
+    suppliers_map = {s.supplier_id: s for s in Supplier.query.all()}
+    today = get_today_ist()
+    override_date = request.form.get('date') or extracted.get('date') or today
+
+    enriched = []
+    for row in extracted.get('rows', []):
+        sid = str(row.get('supplier_id') or '').strip()
+        supplier = suppliers_map.get(sid)
+        fat = row.get('fat')
+        liters = row.get('liters')
+        milk_type = (row.get('milk_type') or 'buffalo').lower()
+        session = (row.get('session') or 'morning').lower()
+
+        rate = find_rate(fat, milk_type, override_date) if fat is not None else None
+        amount = math.floor(liters * rate) if (liters and rate) else None
+
+        enriched.append({
+            "supplier_id":   sid,
+            "supplier_name": supplier.name if supplier else None,
+            "supplier_found": supplier is not None,
+            "session":       session,
+            "milk_type":     milk_type,
+            "liters":        liters,
+            "fat":           fat,
+            "rate":          rate,
+            "amount":        amount,
+        })
+
+    return jsonify({
+        "date":     override_date,
+        "rows":     enriched,
+        "warnings": extracted.get('warnings', [])
+    })
+
+
+@app.route('/scan_confirm', methods=['POST'])
+@login_required
+@role_required('admin', 'employee')
+def scan_confirm():
+    """Save the confirmed (and possibly edited) rows from the scan review screen."""
+    try:
+        payload = request.get_json(force=True)
+    except Exception:
+        flash("Invalid data submitted.", "danger")
+        return redirect(url_for('scan_page'))
+
+    collection_date = payload.get('date') or get_today_ist()
+    rows = payload.get('rows', [])
+    suppliers_map = {s.supplier_id: s for s in Supplier.query.all()}
+
+    saved, skipped = 0, []
+    for row in rows:
+        sid = str(row.get('supplier_id') or '').strip()
+        supplier = suppliers_map.get(sid)
+        if not supplier:
+            skipped.append(f"Supplier '{sid}' not found")
+            continue
+
+        try:
+            liters    = float(row['liters'])
+            fat       = round(float(row['fat']), 1)
+            milk_type = row.get('milk_type', 'buffalo').lower()
+            session   = row.get('session', 'morning').lower()
+            rate      = find_rate(fat, milk_type, collection_date)
+            if rate is None:
+                skipped.append(f"Supplier {sid}: no rate for fat={fat}, type={milk_type}")
+                continue
+            amount = math.floor(liters * rate)
+        except (KeyError, ValueError, TypeError) as e:
+            skipped.append(f"Supplier {sid}: bad data ({e})")
+            continue
+
+        entry = Collection(
+            supplier_id=supplier.id,
+            date=collection_date,
+            session=session,
+            liters=liters,
+            fat=fat,
+            milk_type=milk_type,
+            rate_per_liter=rate,
+            amount=amount,
+            note="Added via page scan"
+        )
+        db.session.add(entry)
+        saved += 1
+
+    db.session.commit()
+
+    if skipped:
+        flash(f"Saved {saved} entries. Skipped {len(skipped)}: {'; '.join(skipped)}", "warning")
+    else:
+        flash(f"Successfully saved {saved} collection entries from scan.", "success")
+
+    return jsonify({"redirect": url_for('daily', date=collection_date)})
+
+
 # ================== DATABASE MIGRATION COMMANDS ==================
 @app.cli.command('migrate-db')
 def migrate_db():

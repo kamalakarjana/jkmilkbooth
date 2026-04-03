@@ -337,6 +337,7 @@ def utility_processor():
     }
 
 # ================== AUTHENTICATION ROUTES ==================
+# Update the login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page with username/password form"""
@@ -350,20 +351,23 @@ def login():
         
         if user and user.check_password(password):
             login_user(user)
-            flash(f'Welcome back, {user.username}!', 'success')
+            # Use flash for toast notification
+            flash(f'✨ Welcome back, {user.username}! You have successfully logged in.', 'success')
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password', 'danger')
+            flash('❌ Invalid username or password. Please try again.', 'danger')
     
     return render_template('login.html')
 
+# Update the logout route
 @app.route('/logout')
 @login_required
 def logout():
+    username = current_user.username
     logout_user()
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))  # Changed from 'login' to 'index'
+    flash(f'👋 Goodbye, {username}! You have been logged out successfully.', 'info')
+    return redirect(url_for('index'))
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required

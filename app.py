@@ -1271,9 +1271,11 @@ def monthly():
                          monthly_total_sales=monthly_total_sales)
 
 # ================== EXPORT CSV ==================
+# Update the export routes to ensure they work properly
 @app.route('/export_month_csv')
 @login_required
 def export_month_csv():
+    """Export monthly collections to CSV"""
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
@@ -1284,6 +1286,10 @@ def export_month_csv():
     ).join(Collection, Supplier.id == Collection.supplier_id)\
      .filter(Collection.date.like(like))\
      .order_by(Supplier.name, Collection.date).all()
+    
+    if not rows:
+        flash(f'No data found for {month}', 'warning')
+        return redirect(url_for('monthly', month=month))
     
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -1297,7 +1303,7 @@ def export_month_csv():
     
     buf.seek(0)
     return send_file(
-        io.BytesIO(buf.getvalue().encode('utf-8')),
+        io.BytesIO(buf.getvalue().encode('utf-8-sig')),  # Use utf-8-sig for Excel compatibility
         mimetype='text/csv',
         as_attachment=True,
         download_name=f"collections_{month}.csv"
@@ -1306,6 +1312,7 @@ def export_month_csv():
 @app.route('/export_month_summary_csv')
 @login_required
 def export_month_summary_csv():
+    """Export monthly summary to CSV"""
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
@@ -1317,6 +1324,10 @@ def export_month_summary_csv():
     ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
      .outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
      .group_by(Supplier.id).all()
+    
+    if not rows:
+        flash(f'No data found for {month}', 'warning')
+        return redirect(url_for('monthly', month=month))
     
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -1334,7 +1345,7 @@ def export_month_summary_csv():
     
     buf.seek(0)
     return send_file(
-        io.BytesIO(buf.getvalue().encode('utf-8')),
+        io.BytesIO(buf.getvalue().encode('utf-8-sig')),
         mimetype='text/csv',
         as_attachment=True,
         download_name=f"summary_{month}.csv"

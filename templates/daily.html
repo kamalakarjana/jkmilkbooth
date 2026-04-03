@@ -38,6 +38,8 @@
     .table th {
       background-color: #2c3e50;
       color: white;
+      position: sticky;
+      top: 0;
     }
     .no-collection {
       color: #999;
@@ -66,7 +68,7 @@
       vertical-align: middle;
     }
     .export-dropdown .dropdown-menu {
-      min-width: 200px;
+      min-width: 220px;
     }
     .export-dropdown .dropdown-item i {
       width: 25px;
@@ -81,6 +83,30 @@
       .btn-group .btn {
         font-size: 0.75rem;
         padding: 5px 10px;
+      }
+    }
+    .table-responsive-custom {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    /* PDF Print Styles */
+    @media print {
+      body {
+        padding: 0;
+        margin: 0;
+      }
+      .no-print {
+        display: none;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .table th, .table td {
+        border: 1px solid #ddd;
+        padding: 8px;
       }
     }
   </style>
@@ -156,12 +182,12 @@
             <i class="fas fa-download"></i> Export
           </button>
           <ul class="dropdown-menu">
-            <li><h6 class="dropdown-header">Excel Export</h6></li>
+            <li><h6 class="dropdown-header">📊 Excel Export</h6></li>
             <li><a class="dropdown-item" href="#" onclick="exportToExcel('all')"><i class="fas fa-file-excel text-success"></i> Full Data (Excel)</a></li>
             <li><a class="dropdown-item" href="#" onclick="exportToExcel('morning')"><i class="fas fa-sun text-warning"></i> Morning Only (Excel)</a></li>
             <li><a class="dropdown-item" href="#" onclick="exportToExcel('evening')"><i class="fas fa-moon text-info"></i> Evening Only (Excel)</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><h6 class="dropdown-header">PDF Export</h6></li>
+            <li><h6 class="dropdown-header">📄 PDF Export</h6></li>
             <li><a class="dropdown-item" href="#" onclick="exportToPDF('all')"><i class="fas fa-file-pdf text-danger"></i> Full Data (PDF)</a></li>
             <li><a class="dropdown-item" href="#" onclick="exportToPDF('morning')"><i class="fas fa-sun text-warning"></i> Morning Only (PDF)</a></li>
             <li><a class="dropdown-item" href="#" onclick="exportToPDF('evening')"><i class="fas fa-moon text-info"></i> Evening Only (PDF)</a></li>
@@ -179,7 +205,7 @@
   </div>
   
   <!-- Action Buttons -->
-  <div class="mb-3 d-flex flex-wrap gap-2">
+  <div class="mb-3 d-flex flex-wrap gap-2 no-print">
     <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
       <i class="fas fa-plus"></i> Add New Collection
     </a>
@@ -217,17 +243,17 @@
           <th class="sortable-header" onclick="sortTable('rate', 'number')">
             Rate/L <i class="fas fa-sort sort-icon"></i>
           </th>
-          <th>Actions</th>
+          <th class="no-print">Actions</th>
           {% endif %}
         </tr>
       </thead>
       <tbody id="table-body">
         {% for r in rows %}
         <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
-          <td class="supplier-id" data-supplier-id="{{ r.supplier.supplier_id }}" data-sort-type="smart-numeric">
+          <td class="supplier-id" data-supplier-id="{{ r.supplier.supplier_id }}">
             <strong>{{ r.supplier.supplier_id }}</strong>
           </td>
-          <td data-sort-type="text">{{ r.supplier.name }}</td>
+          <td>{{ r.supplier.name }}</td>
           <td>
             {% if r.milk_type %}
             <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
@@ -249,21 +275,21 @@
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td data-sort-value="{{ r.liters }}" data-sort-type="number" class="liters-cell">
+          <td class="liters-cell">
             {% if r.liters > 0 %}
             {{ "%.2f"|format(r.liters) }}
             {% else %}
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td data-sort-value="{{ r.fat }}" data-sort-type="number" class="fat-cell">
+          <td class="fat-cell">
             {% if r.fat > 0 %}
             {{ "%.1f"|format(r.fat) }}
             {% else %}
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td data-sort-value="{{ r.amount }}" data-sort-type="number" class="amount-cell">
+          <td class="amount-cell">
             {% if r.amount > 0 %}
             <strong>₹ {{ r.amount }}</strong>
             {% else %}
@@ -271,14 +297,14 @@
             {% endif %}
           </td>
           {% if current_user.role in ['admin', 'employee'] %}
-          <td data-sort-value="{{ r.rate_per_liter }}" data-sort-type="number">
+          <td>
             {% if r.rate_per_liter > 0 %}
             {{ "%.2f"|format(r.rate_per_liter) }}
             {% else %}
             <span class="text-muted">-</span>
             {% endif %}
           </td>
-          <td>
+          <td class="no-print">
             {% if r.id %}
             <div class="btn-group btn-group-sm">
               <a class="btn btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}">
@@ -314,7 +340,7 @@
     </table>
   </div>
   
-  <div class="mt-3 d-flex flex-wrap gap-2">
+  <div class="mt-3 d-flex flex-wrap gap-2 no-print">
     <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
       <i class="fas fa-plus"></i> Add Collection
     </a>
@@ -325,7 +351,7 @@
 </div>
 
 <!-- Refresh Rates Modal -->
-<div class="modal fade" id="refreshRatesModal" tabindex="-1" aria-labelledby="refreshRatesModalLabel" aria-hidden="true">
+<div class="modal fade no-print" id="refreshRatesModal" tabindex="-1" aria-labelledby="refreshRatesModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -471,7 +497,7 @@ function updateStatistics(session) {
   const collectionCount = visibleRows.length;
   
   document.getElementById('totalLiters').innerHTML = totalLiters.toFixed(2);
-  document.getElementById('totalAmount').innerHTML = '₹ ' + totalAmount;
+  document.getElementById('totalAmount').innerHTML = '₹ ' + totalAmount.toFixed(0);
   document.getElementById('avgFat').innerHTML = avgFat.toFixed(1) + '%';
   document.getElementById('collectionCount').innerHTML = collectionCount;
 }
@@ -517,13 +543,19 @@ function exportToExcel(filter) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Daily Collections');
   
-  const fileName = `daily_collections_${document.getElementById('dateInput').value}_${filter}.xlsx`;
+  const filterText = filter === 'all' ? 'all' : filter;
+  const fileName = `daily_collections_${document.getElementById('dateInput').value}_${filterText}.xlsx`;
   XLSX.writeFile(wb, fileName);
   
-  toastr.success(`Exported ${exportData.length - 1} records to Excel`, 'Export Successful');
+  // Show success message
+  if (typeof toastr !== 'undefined') {
+    toastr.success(`Exported ${exportData.length - 1} records to Excel`, 'Export Successful');
+  } else {
+    alert(`Exported ${exportData.length - 1} records to Excel`);
+  }
 }
 
-// Export to PDF
+// Export to PDF with proper table formatting
 function exportToPDF(filter) {
   // Apply filter first
   if (filter !== 'all') {
@@ -534,79 +566,172 @@ function exportToPDF(filter) {
   const totalLiters = document.getElementById('totalLiters').textContent;
   const totalAmount = document.getElementById('totalAmount').textContent;
   const avgFat = document.getElementById('avgFat').textContent;
+  const collectionCount = document.getElementById('collectionCount').textContent;
   
-  // Create a printable element
-  const printContent = document.createElement('div');
-  printContent.style.padding = '20px';
-  printContent.style.fontFamily = 'Arial, sans-serif';
+  const filterText = filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session';
   
-  // Add header
-  printContent.innerHTML = `
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="color: #8B4513;">RR Milk Management System</h1>
-      <h2>Daily Collections Report - ${date}</h2>
-      <h3>Filter: ${filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session'}</h3>
-      <hr>
-      <div style="display: flex; justify-content: space-around; margin: 20px 0;">
-        <div><strong>Total Liters:</strong> ${totalLiters}</div>
-        <div><strong>Total Amount:</strong> ${totalAmount}</div>
-        <div><strong>Average Fat:</strong> ${avgFat}</div>
-        <div><strong>Total Collections:</strong> ${document.getElementById('collectionCount').textContent}</div>
-      </div>
-      <hr>
-    </div>
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="background-color: #8B4513; color: white;">
-          <th style="border: 1px solid #ddd; padding: 8px;">Supplier ID</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">Name</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">Type</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">Session</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">Liters</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">Fat %</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-  
+  // Get visible rows
   const rows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
+  
+  // Build HTML for PDF with proper table structure
+  let tableRows = '';
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
-      printContent.innerHTML += `
+      tableRows += `
         <tr>
           <td style="border: 1px solid #ddd; padding: 8px;">${cells[0].textContent.trim()}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${cells[1].textContent.trim()}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${cells[3].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[4].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[5].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[6].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[4].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[5].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[6].textContent.trim()}</td>
         </tr>
       `;
     }
   });
   
-  printContent.innerHTML += `
-      </tbody>
-    </table>
-    <div style="text-align: center; margin-top: 30px; color: #666;">
-      <p>Generated on: ${new Date().toLocaleString()}</p>
-      <p>RR Milk Management System</p>
-    </div>
+  // Create complete HTML document for PDF
+  const printContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Daily Collections Report - ${date}</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          padding: 0;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          border-bottom: 2px solid #8B4513;
+          padding-bottom: 20px;
+        }
+        .header h1 {
+          color: #8B4513;
+          margin: 0;
+        }
+        .header h2 {
+          color: #5D4037;
+          margin: 10px 0;
+        }
+        .header h3 {
+          color: #D4AF37;
+          margin: 5px 0;
+        }
+        .summary {
+          margin: 20px 0;
+          padding: 15px;
+          background-color: #f5f5f5;
+          border-radius: 5px;
+        }
+        .summary-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 20px;
+        }
+        .summary-table td {
+          padding: 8px;
+          border: none;
+        }
+        .data-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        .data-table th {
+          background-color: #8B4513;
+          color: white;
+          padding: 10px;
+          border: 1px solid #ddd;
+          text-align: center;
+        }
+        .data-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #ddd;
+          font-size: 12px;
+          color: #666;
+        }
+        .text-right {
+          text-align: right;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>RR Milk Management System</h1>
+        <h2>Daily Collections Report</h2>
+        <h3>Date: ${date}</h3>
+        <h4>Filter: ${filterText}</h4>
+      </div>
+      
+      <div class="summary">
+        <table class="summary-table" style="width: 100%;">
+          <tr>
+            <td style="width: 25%;"><strong>Total Liters:</strong></td>
+            <td style="width: 25%;">${totalLiters}</td>
+            <td style="width: 25%;"><strong>Total Amount:</strong></td>
+            <td style="width: 25%;">${totalAmount}</td>
+          </tr>
+          <tr>
+            <td><strong>Average Fat:</strong></td>
+            <td>${avgFat}</td>
+            <td><strong>Total Collections:</strong></td>
+            <td>${collectionCount}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Supplier ID</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Session</th>
+            <th>Liters</th>
+            <th>Fat %</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        <p>Generated on: ${new Date().toLocaleString()}</p>
+        <p>RR Milk Management System - Premium Dairy Solution</p>
+      </div>
+    </body>
+    </html>
   `;
   
+  // PDF options
   const opt = {
     margin: [0.5, 0.5, 0.5, 0.5],
     filename: `daily_collections_${date}_${filter}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
+    html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
   
+  // Generate PDF
   html2pdf().set(opt).from(printContent).save();
-  toastr.success(`Exporting PDF with ${filter} data`, 'Export Started');
+  
+  if (typeof toastr !== 'undefined') {
+    toastr.success(`Generating PDF with ${filterText}`, 'Export Started');
+  }
 }
 
 // Smart numeric sorting function
@@ -633,17 +758,20 @@ function getCellValue(row, columnType) {
     const cell = row.querySelector('td:nth-child(2)');
     return cell ? cell.textContent.trim() : '';
   } else if (columnType === 'liters') {
-    const cell = row.querySelector('td:nth-child(5)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+    const cell = row.querySelector('.liters-cell');
+    const text = cell ? cell.textContent.trim() : '0';
+    return parseFloat(text) || 0;
   } else if (columnType === 'fat') {
-    const cell = row.querySelector('td:nth-child(6)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+    const cell = row.querySelector('.fat-cell');
+    const text = cell ? cell.textContent.trim() : '0';
+    return parseFloat(text) || 0;
   } else if (columnType === 'amount') {
-    const cell = row.querySelector('td:nth-child(7)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+    const cell = row.querySelector('.amount-cell');
+    const text = cell ? cell.textContent.trim().replace('₹', '') : '0';
+    return parseFloat(text) || 0;
   } else if (columnType === 'rate') {
     const cell = row.querySelector('td:nth-child(8)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
+    return cell ? parseFloat(cell.textContent) || 0 : 0;
   }
   return '';
 }
@@ -656,7 +784,7 @@ function sortTableBody(columnType, sortType) {
   const rows = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
   
   const header = document.querySelector(`.sortable-header[onclick*="${columnType}"]`);
-  const isCurrentlyActive = header.classList.contains('active');
+  const isCurrentlyActive = header && header.classList.contains('active');
   
   let isAscending = true;
   if (isCurrentlyActive && currentSortColumn === columnType) {
@@ -670,15 +798,19 @@ function sortTableBody(columnType, sortType) {
         icon.className = 'fas fa-sort sort-icon';
       }
     });
-    header.classList.add('active');
+    if (header) {
+      header.classList.add('active');
+    }
     currentSortColumn = columnType;
     currentSortDirection = 'asc';
     isAscending = true;
   }
   
-  const icon = header.querySelector('.sort-icon');
-  if (icon) {
-    icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon';
+  if (header) {
+    const icon = header.querySelector('.sort-icon');
+    if (icon) {
+      icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon';
+    }
   }
   
   rows.sort((rowA, rowB) => {

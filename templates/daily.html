@@ -89,6 +89,10 @@
       .no-print { display: none; }
       body { padding: 0; margin: 0; }
     }
+    .amount-value {
+      font-weight: bold;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body class="p-3">
@@ -203,7 +207,7 @@
             Fat % <i class="fas fa-sort sort-icon"></i>
           </th>
           <th class="sortable-header" onclick="sortTable('amount', 'number')">
-            Amount <i class="fas fa-sort sort-icon"></i>
+            Amount (₹) <i class="fas fa-sort sort-icon"></i>
           </th>
           {% if current_user.role in ['admin', 'employee'] %}
           <th class="sortable-header" onclick="sortTable('rate', 'number')">
@@ -217,19 +221,19 @@
         {% for r in rows %}
         <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
           <td class="supplier-id"><strong>{{ r.supplier.supplier_id }}</strong></td>
-          <td>{{ r.supplier.name }}</td>
-          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}{% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}<span class="badge bg-dark">NEW</span>{% endif %}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</td>
-          <td>{% if r.session %}<span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %} session-badge">{{ r.session|title }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
-          <td class="liters-cell">{% if r.liters > 0 %}{{ "%.2f"|format(r.liters) }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
-          <td class="fat-cell">{% if r.fat > 0 %}{{ "%.1f"|format(r.fat) }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
-          <td class="amount-cell">{% if r.amount > 0 %}<strong>₹ {{ r.amount }}</strong>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+          <td>{{ r.supplier.name }}</span></td>
+          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}{% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}<span class="badge bg-dark">NEW</span>{% endif %}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</span></td>
+          <td>{% if r.session %}<span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %} session-badge">{{ r.session|title }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
+          <td class="liters-cell">{% if r.liters > 0 %}{{ "%.2f"|format(r.liters) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
+          <td class="fat-cell">{% if r.fat > 0 %}{{ "%.1f"|format(r.fat) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
+          <td class="amount-cell" data-amount="{{ r.amount }}">{% if r.amount > 0 %}<strong class="amount-value">₹ {{ "{:,.0f}".format(r.amount) }}</strong>{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
           {% if current_user.role in ['admin', 'employee'] %}
-          <td>{% if r.rate_per_liter > 0 %}{{ "%.2f"|format(r.rate_per_liter) }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
-          <td class="no-print">{% if r.id %}<div class="btn-group btn-group-sm"><a class="btn btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}"><i class="fas fa-edit"></i></a><form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this collection?')"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></form></div>{% else %}<a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Add</a>{% endif %}</td>
+          <td>{% if r.rate_per_liter > 0 %}{{ "%.2f"|format(r.rate_per_liter) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
+          <td class="no-print">{% if r.id %}<div class="btn-group btn-group-sm"><a class="btn btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}"><i class="fas fa-edit"></i></a><form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this collection?')"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></form></div>{% else %}<a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Add</a>{% endif %}</span></td>
           {% endif %}
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center py-4"><div class="text-muted"><i class="fas fa-inbox fa-2x mb-3"></i><p>No suppliers found</p></div></td></tr>
+        <tr><td colspan="9" class="text-center py-4"><div class="text-muted"><i class="fas fa-inbox fa-2x mb-3"></i><p>No suppliers found</p></div></span></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -253,6 +257,11 @@
 // Store all rows data
 let allRows = [];
 let currentFilter = 'all';
+
+// Helper function to format amount
+function formatAmount(amount) {
+    return '₹ ' + Number(amount).toLocaleString('en-IN');
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -286,12 +295,21 @@ function updateStatistics(session) {
     const litersCell = row.querySelector('.liters-cell');
     const amountCell = row.querySelector('.amount-cell');
     const fatCell = row.querySelector('.fat-cell');
-    if (litersCell && litersCell.textContent.trim() !== '-') { let l = parseFloat(litersCell.textContent); if (!isNaN(l)) totalLiters += l; }
-    if (amountCell && amountCell.textContent.trim() !== '-') { let a = parseFloat(amountCell.textContent.replace('₹', '').trim()); if (!isNaN(a)) totalAmount += a; }
-    if (fatCell && fatCell.textContent.trim() !== '-') { let f = parseFloat(fatCell.textContent.replace('%', '').trim()); if (!isNaN(f)) { totalFat += f; count++; } }
+    if (litersCell && litersCell.textContent.trim() !== '-') { 
+      let l = parseFloat(litersCell.textContent); 
+      if (!isNaN(l)) totalLiters += l; 
+    }
+    if (amountCell && amountCell.textContent.trim() !== '-') { 
+      let a = parseFloat(amountCell.getAttribute('data-amount')); 
+      if (!isNaN(a)) totalAmount += a; 
+    }
+    if (fatCell && fatCell.textContent.trim() !== '-') { 
+      let f = parseFloat(fatCell.textContent.replace('%', '').trim()); 
+      if (!isNaN(f)) { totalFat += f; count++; } 
+    }
   });
   document.getElementById('totalLiters').innerHTML = totalLiters.toFixed(2);
-  document.getElementById('totalAmount').innerHTML = '₹ ' + totalAmount.toFixed(0);
+  document.getElementById('totalAmount').innerHTML = '₹ ' + totalAmount.toLocaleString('en-IN');
   document.getElementById('avgFat').innerHTML = (count > 0 ? (totalFat / count).toFixed(1) : '0.0') + '%';
   document.getElementById('collectionCount').innerHTML = visibleRows.length;
 }
@@ -299,10 +317,11 @@ function updateStatistics(session) {
 function exportToExcel(filter) {
   if (filter !== 'all') filterTable(filter);
   const rows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
-  const exportData = [['Supplier ID', 'Name', 'Milk Type', 'Session', 'Liters', 'Fat %', 'Amount']];
+  const exportData = [['Supplier ID', 'Name', 'Milk Type', 'Session', 'Liters', 'Fat %', 'Amount (₹)']];
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
+      let amount = cells[6].textContent.trim().replace('₹', '').trim();
       exportData.push([
         cells[0].textContent.trim(),
         cells[1].textContent.trim(),
@@ -310,7 +329,7 @@ function exportToExcel(filter) {
         cells[3].textContent.trim(),
         cells[4].textContent.trim(),
         cells[5].textContent.trim(),
-        cells[6].textContent.trim().replace('₹', '').trim()
+        amount
       ]);
     }
   });
@@ -325,10 +344,16 @@ function exportToPDF(filter) {
   if (filter !== 'all') filterTable(filter);
   
   const date = document.getElementById('dateInput').value;
-  const totalLiters = document.getElementById('totalLiters').textContent;
-  const totalAmount = document.getElementById('totalAmount').textContent;
-  const avgFat = document.getElementById('avgFat').textContent;
-  const collectionCount = document.getElementById('collectionCount').textContent;
+  const totalLitersElem = document.getElementById('totalLiters');
+  const totalAmountElem = document.getElementById('totalAmount');
+  const avgFatElem = document.getElementById('avgFat');
+  const collectionCountElem = document.getElementById('collectionCount');
+  
+  const totalLiters = totalLitersElem ? totalLitersElem.textContent : '0';
+  const totalAmount = totalAmountElem ? totalAmountElem.textContent : '₹ 0';
+  const avgFat = avgFatElem ? avgFatElem.textContent : '0%';
+  const collectionCount = collectionCountElem ? collectionCountElem.textContent : '0';
+  
   const filterText = filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session';
   
   const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
@@ -336,7 +361,19 @@ function exportToPDF(filter) {
   visibleRows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
-      tableRows += `<tr><td style="border:1px solid #ddd;padding:8px;">${cells[0].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;">${cells[1].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td><td style="border:1px solid #ddd;padding:8px;">${cells[3].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[4].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[5].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[6].textContent.trim()}</td></tr>`;
+      // Get amount properly formatted
+      let amountText = cells[6].textContent.trim().replace('₹', '').trim();
+      let amountNum = parseFloat(amountText.replace(/,/g, '')) || 0;
+      
+      tableRows += `<tr>
+        <td style="border:1px solid #ddd;padding:8px;">${cells[0].textContent.trim()}</td>
+        <td style="border:1px solid #ddd;padding:8px;">${cells[1].textContent.trim()}</td>
+        <td style="border:1px solid #ddd;padding:8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
+        <td style="border:1px solid #ddd;padding:8px;">${cells[3].textContent.trim()}</td>
+        <td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[4].textContent.trim()}</td>
+        <td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[5].textContent.trim()}</td>
+        <td style="border:1px solid #ddd;padding:8px;text-align:right;">₹ ${amountNum.toLocaleString('en-IN')}</td>
+      </tr>`;
     }
   });
   
@@ -359,14 +396,28 @@ function exportToPDF(filter) {
     </head>
     <body>
       <div class="header"><h1>RR Milk Management System</h1><h2>Daily Collections Report</h2><h3>Date: ${date} | Filter: ${filterText}</h3></div>
-      <div class="summary"><div class="summary-item"><div class="summary-number">${totalLiters}</div><div>Total Liters</div></div><div class="summary-item"><div class="summary-number">${totalAmount}</div><div>Total Amount</div></div><div class="summary-item"><div class="summary-number">${avgFat}</div><div>Average Fat</div></div><div class="summary-item"><div class="summary-number">${collectionCount}</div><div>Collections</div></div></div>
-      <table class="data-table"><thead><tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Amount</th></tr></thead><tbody>${tableRows}</tbody></table>
+      <div class="summary">
+        <div class="summary-item"><div class="summary-number">${totalLiters}</div><div>Total Liters</div></div>
+        <div class="summary-item"><div class="summary-number">${totalAmount}</div><div>Total Amount</div></div>
+        <div class="summary-item"><div class="summary-number">${avgFat}</div><div>Average Fat</div></div>
+        <div class="summary-item"><div class="summary-number">${collectionCount}</div><div>Collections</div></div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Amount (₹)</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
       <div class="footer"><p>Generated on: ${new Date().toLocaleString()}</p><p>RR Milk Management System</p></div>
     </body>
     </html>
   `;
   
-  const opt = { margin: [0.5, 0.5, 0.5, 0.5], filename: `daily_collections_${date}_${filter}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } };
+  const opt = { 
+    margin: [0.5, 0.5, 0.5, 0.5], 
+    filename: `daily_collections_${date}_${filter}.pdf`, 
+    image: { type: 'jpeg', quality: 0.98 }, 
+    html2canvas: { scale: 2 }, 
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } 
+  };
   html2pdf().set(opt).from(printContent).save();
   alert(`Generating PDF with ${filterText}`);
 }
@@ -376,7 +427,8 @@ function getCellValue(row, columnType) {
   if (columnType === 'supplier-name') { let cell = row.querySelector('td:nth-child(2)'); return cell ? cell.textContent.trim() : ''; }
   if (columnType === 'liters') { let cell = row.querySelector('.liters-cell'); let text = cell ? cell.textContent.trim() : '0'; return parseFloat(text) || 0; }
   if (columnType === 'fat') { let cell = row.querySelector('.fat-cell'); let text = cell ? cell.textContent.trim() : '0'; return parseFloat(text) || 0; }
-  if (columnType === 'amount') { let cell = row.querySelector('.amount-cell'); let text = cell ? cell.textContent.trim().replace('₹', '') : '0'; return parseFloat(text) || 0; }
+  if (columnType === 'amount') { let cell = row.querySelector('.amount-cell'); let text = cell ? cell.getAttribute('data-amount') : '0'; return parseFloat(text) || 0; }
+  if (columnType === 'rate') { let cell = row.querySelector('td:nth-child(8)'); let text = cell ? cell.textContent.trim() : '0'; return parseFloat(text) || 0; }
   return '';
 }
 

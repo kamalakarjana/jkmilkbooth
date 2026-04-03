@@ -4,9 +4,6 @@
   <title>Daily Collections - {{ date }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     .stat-card {
       background: white;
@@ -58,10 +55,6 @@
       top: 50%;
       transform: translateY(-50%);
     }
-    .supplier-id {
-      font-weight: bold;
-      color: #2c3e50;
-    }
     .rate-period-badge {
       font-size: 0.7rem;
       margin-left: 5px;
@@ -74,16 +67,9 @@
       width: 25px;
     }
     @media (max-width: 768px) {
-      .stat-card .number {
-        font-size: 1.1rem;
-      }
-      .btn-group {
-        flex-wrap: wrap;
-      }
-      .btn-group .btn {
-        font-size: 0.75rem;
-        padding: 5px 10px;
-      }
+      .stat-card .number { font-size: 1.1rem; }
+      .btn-group { flex-wrap: wrap; }
+      .btn-group .btn { font-size: 0.75rem; padding: 5px 10px; }
     }
     .table-responsive-custom {
       overflow-x: auto;
@@ -91,7 +77,6 @@
       max-height: 70vh;
       overflow-y: auto;
     }
-    /* Fix for table structure */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -99,6 +84,10 @@
     table td, table th {
       border: 1px solid #ddd;
       padding: 8px;
+    }
+    @media print {
+      .no-print { display: none; }
+      body { padding: 0; margin: 0; }
     }
   </style>
 </head>
@@ -185,7 +174,6 @@
           </ul>
         </div>
         
-        <!-- Refresh Rates Button -->
         {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
         <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
           <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates
@@ -195,20 +183,7 @@
     </div>
   </div>
   
-  <!-- Action Buttons -->
-  <div class="mb-3 d-flex flex-wrap gap-2 no-print">
-    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Add New Collection
-    </a>
-    <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning">
-      <i class="fas fa-bolt"></i> Quick Add
-    </a>
-    <a href="{{ url_for('sales') }}" class="btn btn-success">
-      <i class="fas fa-shopping-cart"></i> Sales
-    </a>
-  </div>
-  
-  <!-- Collections Table - FIXED STRUCTURE -->
+  <!-- Collections Table -->
   <div class="table-responsive-custom">
     <table class="table table-hover table-striped table-bordered" id="daily-collections">
       <thead>
@@ -241,473 +216,192 @@
       <tbody id="table-body">
         {% for r in rows %}
         <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
-          <td class="supplier-id">
-            <strong>{{ r.supplier.supplier_id }}</strong>
-           </td>
+          <td class="supplier-id"><strong>{{ r.supplier.supplier_id }}</strong></td>
           <td>{{ r.supplier.name }}</td>
-          <td>
-            {% if r.milk_type %}
-            <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
-              {{ r.milk_type|title }}
-              {% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}
-              <span class="badge bg-dark" title="New rates from Feb 2026">NEW</span>
-              {% endif %}
-            </span>
-            {% else %}
-            <span class="badge bg-secondary">No Data</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if r.session %}
-            <span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %} session-badge">
-              {{ r.session|title }}
-            </span>
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td class="liters-cell">
-            {% if r.liters > 0 %}
-            {{ "%.2f"|format(r.liters) }}
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td class="fat-cell">
-            {% if r.fat > 0 %}
-            {{ "%.1f"|format(r.fat) }}
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td class="amount-cell">
-            {% if r.amount > 0 %}
-            <strong>₹ {{ r.amount }}</strong>
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
+          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}{% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}<span class="badge bg-dark">NEW</span>{% endif %}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</td>
+          <td>{% if r.session %}<span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %} session-badge">{{ r.session|title }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+          <td class="liters-cell">{% if r.liters > 0 %}{{ "%.2f"|format(r.liters) }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+          <td class="fat-cell">{% if r.fat > 0 %}{{ "%.1f"|format(r.fat) }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+          <td class="amount-cell">{% if r.amount > 0 %}<strong>₹ {{ r.amount }}</strong>{% else %}<span class="text-muted">-</span>{% endif %}</td>
           {% if current_user.role in ['admin', 'employee'] %}
-          <td>
-            {% if r.rate_per_liter > 0 %}
-            {{ "%.2f"|format(r.rate_per_liter) }}
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td class="no-print">
-            {% if r.id %}
-            <div class="btn-group btn-group-sm">
-              <a class="btn btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}">
-                <i class="fas fa-edit"></i>
-              </a>
-              <form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" 
-                    style="display:inline" onsubmit="return confirm('Delete this collection?')">
-                <button class="btn btn-danger">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </form>
-            </div>
-            {% else %}
-            <a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" 
-               class="btn btn-sm btn-success">
-              <i class="fas fa-plus"></i> Add
-            </a>
-            {% endif %}
-          </td>
+          <td>{% if r.rate_per_liter > 0 %}{{ "%.2f"|format(r.rate_per_liter) }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+          <td class="no-print">{% if r.id %}<div class="btn-group btn-group-sm"><a class="btn btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}"><i class="fas fa-edit"></i></a><form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this collection?')"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></form></div>{% else %}<a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Add</a>{% endif %}</td>
           {% endif %}
         </tr>
         {% else %}
-        <tr>
-          <td colspan="{% if current_user.role in ['admin', 'employee'] %}9{% else %}7{% endif %}" class="text-center py-4">
-            <div class="text-muted">
-              <i class="fas fa-inbox fa-2x mb-3"></i>
-              <p>No suppliers found</p>
-            </div>
-          </td>
-        </tr>
+        <tr><td colspan="9" class="text-center py-4"><div class="text-muted"><i class="fas fa-inbox fa-2x mb-3"></i><p>No suppliers found</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   
   <div class="mt-3 d-flex flex-wrap gap-2 no-print">
-    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Add Collection
-    </a>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
+    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Collection</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
   </div>
 </div>
 
 <!-- Refresh Rates Modal -->
 <div class="modal fade no-print" id="refreshRatesModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-warning">
-          <i class="fas fa-exclamation-triangle"></i>
-          <strong>Warning:</strong> This action will recalculate rates for <strong>buffalo milk collections only</strong> on {{ date }} using new rates (from February 2026).
-        </div>
-        <p><strong>What will happen:</strong></p>
-        <ul>
-          <li>✅ <strong>Buffalo milk rates</strong> will be updated to new 2026 rates</li>
-          <li>✅ Amounts will be recalculated for buffalo milk</li>
-          <li>⏺️ <strong>Cow milk rates will NOT change</strong> (same as before)</li>
-          <li>⚠️ This will affect supplier balances</li>
-        </ul>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates Now
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+  <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This action will recalculate rates for <strong>buffalo milk collections only</strong> on {{ date }} using new rates (from February 2026).</div><ul><li>✅ <strong>Buffalo milk rates</strong> will be updated to new 2026 rates</li><li>✅ Amounts will be recalculated for buffalo milk</li><li>⏺️ <strong>Cow milk rates will NOT change</strong></li></ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}"><button type="submit" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh Buffalo Rates Now</button></form></div></div></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 // Store all rows data
 let allRows = [];
 let currentFilter = 'all';
 
-// Initialize on page load
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
-  // Store all rows
   const rows = document.querySelectorAll('#table-body tr');
-  rows.forEach(row => {
-    if (row.querySelector('.liters-cell')) {
-      allRows.push(row);
-    }
-  });
-  
-  // Update statistics
+  rows.forEach(row => { if (row.querySelector('.liters-cell')) allRows.push(row); });
   updateStatistics('all');
-  
-  // Initially sort by Supplier ID
   sortTableBody('supplier-id', 'smart-numeric');
 });
 
-// Filter table by session
 function filterTable(session) {
   currentFilter = session;
-  
-  // Update active button state
   document.getElementById('filterAll').classList.remove('active');
   document.getElementById('filterMorning').classList.remove('active');
   document.getElementById('filterEvening').classList.remove('active');
+  if (session === 'all') document.getElementById('filterAll').classList.add('active');
+  else if (session === 'morning') document.getElementById('filterMorning').classList.add('active');
+  else if (session === 'evening') document.getElementById('filterEvening').classList.add('active');
   
-  if (session === 'all') {
-    document.getElementById('filterAll').classList.add('active');
-  } else if (session === 'morning') {
-    document.getElementById('filterMorning').classList.add('active');
-  } else if (session === 'evening') {
-    document.getElementById('filterEvening').classList.add('active');
-  }
-  
-  // Filter rows
   allRows.forEach(row => {
     const rowSession = row.getAttribute('data-session');
-    if (session === 'all') {
-      row.style.display = '';
-    } else {
-      if (rowSession === session) {
-        row.style.display = '';
-      } else {
-        row.style.display = 'none';
-      }
-    }
+    if (session === 'all') row.style.display = '';
+    else row.style.display = (rowSession === session) ? '' : 'none';
   });
-  
-  // Update statistics based on filtered data
   updateStatistics(session);
 }
 
-// Update statistics for visible rows
 function updateStatistics(session) {
-  let totalLiters = 0;
-  let totalAmount = 0;
-  let totalFat = 0;
-  let count = 0;
-  
+  let totalLiters = 0, totalAmount = 0, totalFat = 0, count = 0;
   const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
-  
   visibleRows.forEach(row => {
     const litersCell = row.querySelector('.liters-cell');
     const amountCell = row.querySelector('.amount-cell');
     const fatCell = row.querySelector('.fat-cell');
-    
-    if (litersCell && litersCell.textContent.trim() !== '-') {
-      const liters = parseFloat(litersCell.textContent);
-      if (!isNaN(liters)) {
-        totalLiters += liters;
-      }
-    }
-    
-    if (amountCell && amountCell.textContent.trim() !== '-') {
-      const amountText = amountCell.textContent.replace('₹', '').trim();
-      const amount = parseFloat(amountText);
-      if (!isNaN(amount)) {
-        totalAmount += amount;
-      }
-    }
-    
-    if (fatCell && fatCell.textContent.trim() !== '-') {
-      const fatText = fatCell.textContent.replace('%', '').trim();
-      const fat = parseFloat(fatText);
-      if (!isNaN(fat)) {
-        totalFat += fat;
-        count++;
-      }
-    }
+    if (litersCell && litersCell.textContent.trim() !== '-') { let l = parseFloat(litersCell.textContent); if (!isNaN(l)) totalLiters += l; }
+    if (amountCell && amountCell.textContent.trim() !== '-') { let a = parseFloat(amountCell.textContent.replace('₹', '').trim()); if (!isNaN(a)) totalAmount += a; }
+    if (fatCell && fatCell.textContent.trim() !== '-') { let f = parseFloat(fatCell.textContent.replace('%', '').trim()); if (!isNaN(f)) { totalFat += f; count++; } }
   });
-  
-  const avgFat = count > 0 ? totalFat / count : 0;
-  const collectionCount = visibleRows.length;
-  
   document.getElementById('totalLiters').innerHTML = totalLiters.toFixed(2);
   document.getElementById('totalAmount').innerHTML = '₹ ' + totalAmount.toFixed(0);
-  document.getElementById('avgFat').innerHTML = avgFat.toFixed(1) + '%';
-  document.getElementById('collectionCount').innerHTML = collectionCount;
+  document.getElementById('avgFat').innerHTML = (count > 0 ? (totalFat / count).toFixed(1) : '0.0') + '%';
+  document.getElementById('collectionCount').innerHTML = visibleRows.length;
 }
 
-// Export to Excel
 function exportToExcel(filter) {
-  if (filter !== 'all') {
-    filterTable(filter);
-  }
-  
+  if (filter !== 'all') filterTable(filter);
   const rows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
-  const exportData = [];
-  
-  const headers = ['Supplier ID', 'Name', 'Milk Type', 'Session', 'Liters', 'Fat %', 'Amount'];
-  exportData.push(headers);
-  
+  const exportData = [['Supplier ID', 'Name', 'Milk Type', 'Session', 'Liters', 'Fat %', 'Amount']];
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
-      const rowData = [];
-      rowData.push(cells[0].textContent.trim());
-      rowData.push(cells[1].textContent.trim());
-      rowData.push(cells[2].textContent.trim().replace(/\n/g, ' '));
-      rowData.push(cells[3].textContent.trim());
-      rowData.push(cells[4].textContent.trim());
-      rowData.push(cells[5].textContent.trim());
-      rowData.push(cells[6].textContent.trim().replace('₹', '').trim());
-      exportData.push(rowData);
+      exportData.push([
+        cells[0].textContent.trim(),
+        cells[1].textContent.trim(),
+        cells[2].textContent.trim().replace(/\n/g, ' '),
+        cells[3].textContent.trim(),
+        cells[4].textContent.trim(),
+        cells[5].textContent.trim(),
+        cells[6].textContent.trim().replace('₹', '').trim()
+      ]);
     }
   });
-  
   const ws = XLSX.utils.aoa_to_sheet(exportData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Daily Collections');
-  
-  const filterText = filter === 'all' ? 'all' : filter;
-  const fileName = `daily_collections_${document.getElementById('dateInput').value}_${filterText}.xlsx`;
-  XLSX.writeFile(wb, fileName);
-  
-  if (typeof toastr !== 'undefined') {
-    toastr.success(`Exported ${exportData.length - 1} records to Excel`, 'Export Successful');
-  } else {
-    alert(`Exported ${exportData.length - 1} records to Excel`);
-  }
+  XLSX.writeFile(wb, `daily_collections_${document.getElementById('dateInput').value}_${filter}.xlsx`);
+  alert(`Exported ${exportData.length - 1} records to Excel`);
 }
 
-// Export to PDF
 function exportToPDF(filter) {
-  if (filter !== 'all') {
-    filterTable(filter);
-  }
+  if (filter !== 'all') filterTable(filter);
   
   const date = document.getElementById('dateInput').value;
   const totalLiters = document.getElementById('totalLiters').textContent;
   const totalAmount = document.getElementById('totalAmount').textContent;
   const avgFat = document.getElementById('avgFat').textContent;
   const collectionCount = document.getElementById('collectionCount').textContent;
-  
   const filterText = filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session';
   
   const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
-  
   let tableRows = '';
   visibleRows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
-      tableRows += `
-        <tr>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[0].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[1].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[3].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[4].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[5].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[6].textContent.trim()}</td>
-        </tr>
-      `;
+      tableRows += `<tr><td style="border:1px solid #ddd;padding:8px;">${cells[0].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;">${cells[1].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td><td style="border:1px solid #ddd;padding:8px;">${cells[3].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[4].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[5].textContent.trim()}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[6].textContent.trim()}</td></tr>`;
     }
   });
   
   const printContent = `
     <!DOCTYPE html>
     <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Daily Collections Report - ${date}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
-        .header h1 { color: #8B4513; margin: 0; }
-        .summary { margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px; }
-        .summary-grid { display: flex; justify-content: space-between; }
-        .summary-item { text-align: center; flex: 1; }
-        .summary-number { font-size: 1.5rem; font-weight: bold; }
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .data-table th { background-color: #8B4513; color: white; padding: 10px; border: 1px solid #ddd; }
-        .data-table td { border: 1px solid #ddd; padding: 8px; }
-        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; }
-      </style>
+    <head><meta charset="UTF-8"><title>Daily Collections Report - ${date}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
+      .header h1 { color: #8B4513; margin: 0; }
+      .summary { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; display: flex; justify-content: space-around; }
+      .summary-item { text-align: center; }
+      .summary-number { font-size: 1.5rem; font-weight: bold; }
+      .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+      .data-table th { background: #8B4513; color: white; padding: 10px; border: 1px solid #ddd; }
+      .data-table td { border: 1px solid #ddd; padding: 8px; }
+      .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; }
+    </style>
     </head>
     <body>
-      <div class="header">
-        <h1>RR Milk Management System</h1>
-        <h2>Daily Collections Report</h2>
-        <h3>Date: ${date} | Filter: ${filterText}</h3>
-      </div>
-      <div class="summary">
-        <div class="summary-grid">
-          <div class="summary-item"><div class="summary-number">${totalLiters}</div><div>Total Liters</div></div>
-          <div class="summary-item"><div class="summary-number">${totalAmount}</div><div>Total Amount</div></div>
-          <div class="summary-item"><div class="summary-number">${avgFat}</div><div>Average Fat</div></div>
-          <div class="summary-item"><div class="summary-number">${collectionCount}</div><div>Collections</div></div>
-        </div>
-      </div>
-      <table class="data-table">
-        <thead><tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Amount</th></tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table>
+      <div class="header"><h1>RR Milk Management System</h1><h2>Daily Collections Report</h2><h3>Date: ${date} | Filter: ${filterText}</h3></div>
+      <div class="summary"><div class="summary-item"><div class="summary-number">${totalLiters}</div><div>Total Liters</div></div><div class="summary-item"><div class="summary-number">${totalAmount}</div><div>Total Amount</div></div><div class="summary-item"><div class="summary-number">${avgFat}</div><div>Average Fat</div></div><div class="summary-item"><div class="summary-number">${collectionCount}</div><div>Collections</div></div></div>
+      <table class="data-table"><thead><tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Amount</th></tr></thead><tbody>${tableRows}</tbody></table>
       <div class="footer"><p>Generated on: ${new Date().toLocaleString()}</p><p>RR Milk Management System</p></div>
     </body>
     </html>
   `;
   
-  const opt = {
-    margin: [0.5, 0.5, 0.5, 0.5],
-    filename: `daily_collections_${date}_${filter}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
-  };
-  
+  const opt = { margin: [0.5, 0.5, 0.5, 0.5], filename: `daily_collections_${date}_${filter}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } };
   html2pdf().set(opt).from(printContent).save();
-  
-  if (typeof toastr !== 'undefined') {
-    toastr.success(`Generating PDF with ${filterText}`, 'Export Started');
-  }
+  alert(`Generating PDF with ${filterText}`);
 }
 
 function getCellValue(row, columnType) {
-  if (columnType === 'supplier-id') {
-    return row.querySelector('.supplier-id').textContent.trim() || '';
-  } else if (columnType === 'supplier-name') {
-    const cell = row.querySelector('td:nth-child(2)');
-    return cell ? cell.textContent.trim() : '';
-  } else if (columnType === 'liters') {
-    const cell = row.querySelector('.liters-cell');
-    const text = cell ? cell.textContent.trim() : '0';
-    return parseFloat(text) || 0;
-  } else if (columnType === 'fat') {
-    const cell = row.querySelector('.fat-cell');
-    const text = cell ? cell.textContent.trim() : '0';
-    return parseFloat(text) || 0;
-  } else if (columnType === 'amount') {
-    const cell = row.querySelector('.amount-cell');
-    const text = cell ? cell.textContent.trim().replace('₹', '') : '0';
-    return parseFloat(text) || 0;
-  } else if (columnType === 'rate') {
-    const cell = row.querySelector('td:nth-child(8)');
-    return cell ? parseFloat(cell.textContent) || 0 : 0;
-  }
+  if (columnType === 'supplier-id') return row.querySelector('.supplier-id').textContent.trim() || '';
+  if (columnType === 'supplier-name') { let cell = row.querySelector('td:nth-child(2)'); return cell ? cell.textContent.trim() : ''; }
+  if (columnType === 'liters') { let cell = row.querySelector('.liters-cell'); let text = cell ? cell.textContent.trim() : '0'; return parseFloat(text) || 0; }
+  if (columnType === 'fat') { let cell = row.querySelector('.fat-cell'); let text = cell ? cell.textContent.trim() : '0'; return parseFloat(text) || 0; }
+  if (columnType === 'amount') { let cell = row.querySelector('.amount-cell'); let text = cell ? cell.textContent.trim().replace('₹', '') : '0'; return parseFloat(text) || 0; }
   return '';
 }
 
-let currentSortColumn = null;
-let currentSortDirection = 'asc';
-
+let currentSortColumn = null, currentSortDirection = 'asc';
 function sortTableBody(columnType, sortType) {
   const tbody = document.getElementById('table-body');
   const rows = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
-  
   const header = document.querySelector(`.sortable-header[onclick*="${columnType}"]`);
   const isCurrentlyActive = header && header.classList.contains('active');
-  
   let isAscending = true;
-  if (isCurrentlyActive && currentSortColumn === columnType) {
-    isAscending = currentSortDirection === 'asc' ? false : true;
-    currentSortDirection = isAscending ? 'asc' : 'desc';
-  } else {
-    document.querySelectorAll('.sortable-header').forEach(h => {
-      h.classList.remove('active');
-      const icon = h.querySelector('.sort-icon');
-      if (icon) {
-        icon.className = 'fas fa-sort sort-icon';
-      }
-    });
-    if (header) {
-      header.classList.add('active');
-    }
-    currentSortColumn = columnType;
-    currentSortDirection = 'asc';
-    isAscending = true;
-  }
-  
-  if (header) {
-    const icon = header.querySelector('.sort-icon');
-    if (icon) {
-      icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon';
-    }
-  }
-  
-  rows.sort((rowA, rowB) => {
-    const valueA = getCellValue(rowA, columnType);
-    const valueB = getCellValue(rowB, columnType);
-    
+  if (isCurrentlyActive && currentSortColumn === columnType) { isAscending = currentSortDirection === 'asc' ? false : true; currentSortDirection = isAscending ? 'asc' : 'desc'; }
+  else { document.querySelectorAll('.sortable-header').forEach(h => { h.classList.remove('active'); let icon = h.querySelector('.sort-icon'); if (icon) icon.className = 'fas fa-sort sort-icon'; }); if (header) header.classList.add('active'); currentSortColumn = columnType; currentSortDirection = 'asc'; isAscending = true; }
+  if (header) { let icon = header.querySelector('.sort-icon'); if (icon) icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon'; }
+  rows.sort((a, b) => {
+    let valA = getCellValue(a, columnType), valB = getCellValue(b, columnType);
     let comparison = 0;
-    if (sortType === 'smart-numeric') {
-      const aNum = parseFloat(valueA);
-      const bNum = parseFloat(valueB);
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        comparison = aNum - bNum;
-      } else {
-        comparison = valueA.toString().localeCompare(valueB.toString());
-      }
-    } else if (sortType === 'number') {
-      comparison = (parseFloat(valueA) || 0) - (parseFloat(valueB) || 0);
-    } else if (sortType === 'text') {
-      comparison = valueA.toString().localeCompare(valueB.toString());
-    }
-    
+    if (sortType === 'smart-numeric') { let aNum = parseFloat(valA), bNum = parseFloat(valB); if (!isNaN(aNum) && !isNaN(bNum)) comparison = aNum - bNum; else comparison = valA.toString().localeCompare(valB.toString()); }
+    else if (sortType === 'number') comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0);
+    else if (sortType === 'text') comparison = valA.toString().localeCompare(valB.toString());
     return isAscending ? comparison : -comparison;
   });
-  
-  tbody.innerHTML = '';
-  rows.forEach(row => {
-    tbody.appendChild(row);
-  });
-  
+  tbody.innerHTML = ''; rows.forEach(row => tbody.appendChild(row));
   filterTable(currentFilter);
 }
-
-function sortTable(columnType, sortType) {
-  sortTableBody(columnType, sortType);
-}
+function sortTable(columnType, sortType) { sortTableBody(columnType, sortType); }
 </script>
 </body>
 </html>

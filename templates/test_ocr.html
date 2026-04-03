@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Test OCR{% endblock %}
+
+{% block content %}
+<h2><i class="fas fa-microscope"></i> OCR Test Tool</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                Upload Image for Testing
+            </div>
+            <div class="card-body">
+                <form id="ocrTestForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Select Image</label>
+                        <input type="file" name="image" id="testImage" class="form-control" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Test OCR</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                Results
+            </div>
+            <div class="card-body">
+                <div id="results">
+                    <p class="text-muted">Upload an image to test OCR extraction</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('ocrTestForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    const file = document.getElementById('testImage').files[0];
+    formData.append('image', file);
+    
+    document.getElementById('results').innerHTML = '<div class="spinner-border"></div> Processing...';
+    
+    try {
+        const response = await fetch('/test_ocr', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            let html = `<h5>Extracted ${data.entry_count} entries:</h5>`;
+            
+            if (data.entries.length > 0) {
+                html += '<table class="table table-sm">';
+                html += '<tr><th>Supplier ID</th><th>Date</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Type</th></tr>';
+                for (const entry of data.entries) {
+                    html += `<tr>
+                        <td>${entry.supplier_id}</td>
+                        <td>${entry.date}</td>
+                        <td>${entry.session}</td>
+                        <td>${entry.liters}</td>
+                        <td>${entry.fat}</td>
+                        <td>${entry.milk_type}</td>
+                    </tr>`;
+                }
+                html += '</table>';
+            } else {
+                html += '<div class="alert alert-warning">No entries extracted</div>';
+            }
+            
+            html += `<h5 class="mt-3">Raw Extracted Text:</h5>`;
+            html += `<pre class="bg-light p-2">${data.raw_text}</pre>`;
+            
+            if (data.processed_image) {
+                html += `<h5>Processed Image:</h5>`;
+                html += `<img src="data:image/png;base64,${data.processed_image}" class="img-fluid">`;
+            }
+            
+            document.getElementById('results').innerHTML = html;
+        } else {
+            document.getElementById('results').innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        document.getElementById('results').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+});
+</script>
+{% endblock %}

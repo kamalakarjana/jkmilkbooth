@@ -11,15 +11,28 @@
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
     }
     .stat-card .number {
       font-size: 1.5rem;
       font-weight: bold;
       color: #2c3e50;
     }
+    .session-btn {
+      cursor: pointer;
+    }
     .session-btn.active {
       background-color: #0d6efd;
       color: white;
+    }
+    .session-btn.active .btn-outline-primary {
+      background-color: #0d6efd;
+      color: white;
+      border-color: #0d6efd;
     }
     .table th {
       background-color: #2c3e50;
@@ -29,70 +42,74 @@
       color: #999;
       font-style: italic;
     }
-    /* Sort button styling */
-    .sortable-header {
-      cursor: pointer;
-      position: relative;
-    }
-    .sortable-header:hover {
-      background-color: #34495e !important;
-    }
-    .sort-icon {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
     .supplier-id {
       font-weight: bold;
       color: #2c3e50;
     }
-    /* Rate period badge */
     .rate-period-badge {
       font-size: 0.7rem;
       margin-left: 5px;
       vertical-align: middle;
+    }
+    .filter-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-left: 10px;
+    }
+    .export-buttons {
+      display: inline-flex;
+      gap: 10px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
     }
   </style>
 </head>
 <body class="p-3">
 <div class="container">
   <h3 class="mb-3">
-    <i class="fas fa-calendar-day text-primary"></i> Daily Collections — {{ date }}
-    {% if date >= NEW_RATES_START_DATE %}
-    <span class="badge bg-info rate-period-badge">New Buffalo Rates Period (Feb 2026+)</span>
-    {% else %}
-    <span class="badge bg-secondary rate-period-badge">Old Buffalo Rates Period</span>
-    {% endif %}
+    <i class="fas fa-calendar-day text-primary"></i> Daily Collections — <span id="current-date">{{ date }}</span>
+    <span id="rate-badge">
+      {% if date >= NEW_RATES_START_DATE %}
+      <span class="badge bg-info rate-period-badge">New Buffalo Rates Period (Feb 2026+)</span>
+      {% else %}
+      <span class="badge bg-secondary rate-period-badge">Old Buffalo Rates Period</span>
+      {% endif %}
+    </span>
   </h3>
   
   <!-- Statistics Row -->
   <div class="row mb-4">
     <div class="col-md-3">
-      <div class="stat-card">
+      <div class="stat-card" onclick="changeDate()">
         <i class="fas fa-weight text-primary mb-2"></i>
-        <div class="number">{{ "%.2f"|format(total_liters) }}</div>
+        <div class="number" id="total-liters">0.00</div>
         <div class="text-muted">Total Liters</div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="stat-card">
+      <div class="stat-card" onclick="changeDate()">
         <i class="fas fa-rupee-sign text-success mb-2"></i>
-        <div class="number">₹ {{ total_amount }}</div>
+        <div class="number" id="total-amount">₹ 0</div>
         <div class="text-muted">Total Amount</div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="stat-card">
+      <div class="stat-card" onclick="changeDate()">
         <i class="fas fa-percentage text-warning mb-2"></i>
-        <div class="number">{{ "%.1f"|format(avg_fat) }}%</div>
+        <div class="number" id="avg-fat">0.0%</div>
         <div class="text-muted">Average Fat</div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="stat-card">
+      <div class="stat-card" onclick="changeDate()">
         <i class="fas fa-list text-info mb-2"></i>
-        <div class="number">{{ rows|selectattr('id')|list|length }}</div>
+        <div class="number" id="collection-count">0</div>
         <div class="text-muted">Collections</div>
       </div>
     </div>
@@ -101,225 +118,200 @@
   <!-- Date and Filter Controls -->
   <div class="row mb-3">
     <div class="col-md-4">
-      <form method="get" class="d-flex">
-        <input type="date" name="date" value="{{ date }}" class="form-control me-2">
-        <button class="btn btn-primary">
+      <div class="input-group">
+        <input type="date" id="date-picker" value="{{ date }}" class="form-control">
+        <button class="btn btn-primary" onclick="loadData()">
           <i class="fas fa-calendar-alt"></i> Show
         </button>
-      </form>
+      </div>
     </div>
     <div class="col-md-8">
       <div class="btn-group float-end">
-        <a href="{{ url_for('daily', date=date, session='all') }}" 
-           class="btn btn-outline-primary {% if session_filter == 'all' %}active{% endif %}">
-          All Suppliers
-        </a>
-        <a href="{{ url_for('daily', date=date, session='morning') }}" 
-           class="btn btn-outline-primary {% if session_filter == 'morning' %}active{% endif %}">
+        <button onclick="setSession('all')" id="btn-all" class="btn session-btn {% if session_filter == 'all' %}btn-primary active{% else %}btn-outline-primary{% endif %}">
+          <i class="fas fa-list"></i> All Suppliers
+        </button>
+        <button onclick="setSession('morning')" id="btn-morning" class="btn session-btn {% if session_filter == 'morning' %}btn-primary active{% else %}btn-outline-primary{% endif %}">
           <i class="fas fa-sun"></i> Morning Only
-        </a>
-        <a href="{{ url_for('daily', date=date, session='evening') }}" 
-           class="btn btn-outline-primary {% if session_filter == 'evening' %}active{% endif %}">
+        </button>
+        <button onclick="setSession('evening')" id="btn-evening" class="btn session-btn {% if session_filter == 'evening' %}btn-primary active{% else %}btn-outline-primary{% endif %}">
           <i class="fas fa-moon"></i> Evening Only
-        </a>
+        </button>
       </div>
     </div>
   </div>
   
-  <!-- Action Buttons -->
+  <!-- Action Buttons with Export -->
   <div class="mb-3">
-    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Add New Collection
-    </a>
-    <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning">
-      <i class="fas fa-bolt"></i> Quick Add
-    </a>
-    <a href="{{ url_for('sales') }}" class="btn btn-success">
-      <i class="fas fa-shopping-cart"></i> Sales
-    </a>
+    <div class="btn-group">
+      <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add New Collection
+      </a>
+      <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning">
+        <i class="fas fa-bolt"></i> Quick Add
+      </a>
+      <a href="{{ url_for('sales') }}" class="btn btn-success">
+        <i class="fas fa-shopping-cart"></i> Sales
+      </a>
+    </div>
     
-    <!-- NEW: Refresh Rates Button (only for Feb 2026+ dates) -->
+    <!-- Export Dropdown -->
+    <div class="btn-group float-end">
+      <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-download"></i> Export
+      </button>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#" onclick="exportData('pdf')">
+          <i class="fas fa-file-pdf"></i> Export as PDF
+        </a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportData('excel')">
+          <i class="fas fa-file-excel"></i> Export as Excel
+        </a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#" onclick="exportData('pdf-morning')">
+          <i class="fas fa-sun"></i> Export Morning Only (PDF)
+        </a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportData('pdf-evening')">
+          <i class="fas fa-moon"></i> Export Evening Only (PDF)
+        </a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportData('excel-morning')">
+          <i class="fas fa-file-excel"></i> Export Morning Only (Excel)
+        </a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportData('excel-evening')">
+          <i class="fas fa-file-excel"></i> Export Evening Only (Excel)
+        </a></li>
+      </ul>
+    </div>
+    
+    <!-- OCR Upload Button -->
+    <div class="btn-group float-end me-2">
+      <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#ocrModal">
+        <i class="fas fa-camera"></i> Scan from Image
+      </button>
+    </div>
+    
+    <!-- Refresh Rates Button -->
     {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
-    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
-      <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates
-    </button>
+    <div class="btn-group float-end me-2">
+      <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
+        <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates
+      </button>
+    </div>
     {% endif %}
   </div>
   
-  <!-- Collections Table (No # column) -->
-  <div class="table-responsive">
+  <!-- Loading Spinner -->
+  <div id="loading-spinner" class="text-center py-5" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading data...</p>
+  </div>
+  
+  <!-- Collections Table -->
+  <div class="table-responsive" id="table-container">
     <table class="table table-hover table-striped" id="daily-collections">
       <thead>
         <tr>
-          <th class="sortable-header" onclick="sortTable('supplier-id', 'smart-numeric')">
-            Supplier ID <i class="fas fa-sort sort-icon"></i>
-          </th>
-          <th class="sortable-header" onclick="sortTable('supplier-name', 'text')">
-            Name <i class="fas fa-sort sort-icon"></i>
-          </th>
-          <th>Type</th>
-          <th>Session</th>
-          <th class="sortable-header" onclick="sortTable('liters', 'number')">
-            Liters <i class="fas fa-sort sort-icon"></i>
-          </th>
-          <th class="sortable-header" onclick="sortTable('fat', 'number')">
-            Fat % <i class="fas fa-sort sort-icon"></i>
-          </th>
-          <th class="sortable-header" onclick="sortTable('amount', 'number')">
-            Amount <i class="fas fa-sort sort-icon"></i>
-          </th>
+          <th>Supplier ID</th>
+          <th>Name</th>
+          <th>Milk Type</th>
+          <th>Liters</th>
+          <th>Fat %</th>
+          <th>Rate/L</th>
+          <th>Amount (₹)</th>
           {% if current_user.role in ['admin', 'employee'] %}
-          <th class="sortable-header" onclick="sortTable('rate', 'number')">
-            Rate/L <i class="fas fa-sort sort-icon"></i>
-          </th>
           <th>Actions</th>
           {% endif %}
         </tr>
       </thead>
       <tbody id="table-body">
-        {% for r in rows %}
-        <tr class="{% if not r.id %}no-collection{% endif %}">
-          <td class="supplier-id" data-supplier-id="{{ r.supplier.supplier_id }}" data-sort-type="smart-numeric">
-            <strong>{{ r.supplier.supplier_id }}</strong>
-          </td>
-          <td data-sort-type="text">{{ r.supplier.name }}</td>
-          <td>
-            {% if r.milk_type %}
-            <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
-              {{ r.milk_type|title }}
-              {% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}
-              <span class="badge bg-dark" title="New rates from Feb 2026">NEW</span>
-              {% endif %}
-            </span>
-            {% else %}
-            <span class="badge bg-secondary">No Data</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if r.session %}
-            <span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
-              {{ r.session|title }}
-            </span>
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td data-sort-value="{{ r.liters }}" data-sort-type="number">
-            {% if r.liters > 0 %}
-            {{ "%.2f"|format(r.liters) }}
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td data-sort-value="{{ r.fat }}" data-sort-type="number">
-            {% if r.fat > 0 %}
-            {{ "%.1f"|format(r.fat) }}
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td data-sort-value="{{ r.amount }}" data-sort-type="number">
-            {% if r.amount > 0 %}
-            <strong>₹ {{ r.amount }}</strong>
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          {% if current_user.role in ['admin', 'employee'] %}
-          <td data-sort-value="{{ r.rate_per_liter }}" data-sort-type="number">
-            {% if r.rate_per_liter > 0 %}
-            {{ "%.2f"|format(r.rate_per_liter) }}
-            {% if r.milk_type == 'buffalo' %}
-            <small class="text-muted d-block">
-              {% if date >= NEW_RATES_START_DATE %}
-              <span class="badge bg-success">New Rate</span>
-              {% else %}
-              <span class="badge bg-secondary">Old Rate</span>
-              {% endif %}
-            </small>
-            {% endif %}
-            {% else %}
-            <span class="text-muted">-</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if r.id %}
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}">
-              <i class="fas fa-edit"></i>
-            </a>
-            <form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" 
-                  style="display:inline" onsubmit="return confirm('Delete this collection?')">
-              <button class="btn btn-sm btn-danger">
-                <i class="fas fa-trash"></i>
-              </button>
-            </form>
-            {% else %}
-            <a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" 
-               class="btn btn-sm btn-success">
-              <i class="fas fa-plus"></i> Add
-            </a>
-            {% endif %}
-          </td>
-          {% endif %}
-        </tr>
-        {% else %}
         <tr>
-          <td colspan="{% if current_user.role in ['admin', 'employee'] %}9{% else %}7{% endif %}" class="text-center py-4">
+          <td colspan="8" class="text-center py-4">
             <div class="text-muted">
               <i class="fas fa-inbox fa-2x mb-3"></i>
-              <p>No suppliers found</p>
+              <p>Loading data...</p>
             </div>
           </td>
         </tr>
-        {% endfor %}
       </tbody>
     </table>
   </div>
   
   <div class="mt-3">
-    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Add Collection
-    </a>
     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
     </a>
   </div>
 </div>
 
-<!-- Refresh Rates Modal -->
-<div class="modal fade" id="refreshRatesModal" tabindex="-1" aria-labelledby="refreshRatesModalLabel" aria-hidden="true">
+<!-- OCR Upload Modal -->
+<div class="modal fade" id="ocrModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="refreshRatesModalLabel">
-          <i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-camera"></i> Scan Notebook Image
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('upload_image') }}" enctype="multipart/form-data">
+        <div class="modal-body">
+          <p>Take a photo of your notebook entry page and upload it. The system will automatically extract the data.</p>
+          <div class="mb-3">
+            <label class="form-label">Select Image</label>
+            <input type="file" name="image" class="form-control" accept="image/*" required>
+            <small class="text-muted">Supported formats: JPG, PNG, JPEG. Max size: 16MB</small>
+          </div>
+          <div class="alert alert-info">
+            <i class="fas fa-lightbulb"></i> 
+            <strong>Tips for best results:</strong>
+            <ul class="mb-0 mt-2">
+              <li>Ensure good lighting</li>
+              <li>Keep the notebook page flat</li>
+              <li>Write clearly and legibly</li>
+              <li>Include supplier IDs in format like "S001"</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Upload & Scan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Refresh Rates Modal -->
+<div class="modal fade" id="refreshRatesModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-sync-alt"></i> Refresh Buffalo Milk Rates
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="alert alert-warning">
           <i class="fas fa-exclamation-triangle"></i>
-          <strong>Warning:</strong> This action will recalculate rates for <strong>buffalo milk collections only</strong> on {{ date }} using new rates (from February 2026).
+          <strong>Warning:</strong> This action will recalculate rates for buffalo milk collections using new 2026 rates.
         </div>
-        
         <p><strong>What will happen:</strong></p>
         <ul>
-          <li>✅ <strong>Buffalo milk rates</strong> will be updated to new 2026 rates</li>
-          <li>✅ Amounts will be recalculated for buffalo milk</li>
-          <li>⏺️ <strong>Cow milk rates will NOT change</strong> (same as before)</li>
+          <li>✅ Buffalo milk rates will be updated to new 2026 rates</li>
+          <li>✅ Amounts will be recalculated</li>
+          <li>⏺️ Cow milk rates will NOT change</li>
           <li>⚠️ This will affect supplier balances</li>
         </ul>
-        
-        <div class="alert alert-info">
-          <i class="fas fa-info-circle"></i>
-          Only collections from <strong>February 1, 2026 onwards</strong> can be updated. Cow milk rates remain unchanged.
-        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}" id="refreshForm">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates Now
+        <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-sync-alt"></i> Refresh Rates Now
           </button>
         </form>
       </div>
@@ -329,135 +321,251 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Smart numeric sorting function that handles mixed IDs (like 1, 2, 10, C001, T1)
-function smartNumericSort(a, b) {
-  // Try to parse as numbers first
-  const aNum = parseFloat(a);
-  const bNum = parseFloat(b);
+let currentDate = '{{ date }}';
+let currentSession = '{{ session_filter }}';
+
+function setSession(session) {
+  currentSession = session;
   
-  // If both are valid numbers, sort numerically
-  if (!isNaN(aNum) && !isNaN(bNum)) {
-    return aNum - bNum;
+  // Update button styles
+  document.getElementById('btn-all').classList.remove('active', 'btn-primary');
+  document.getElementById('btn-all').classList.add('btn-outline-primary');
+  document.getElementById('btn-morning').classList.remove('active', 'btn-primary');
+  document.getElementById('btn-morning').classList.add('btn-outline-primary');
+  document.getElementById('btn-evening').classList.remove('active', 'btn-primary');
+  document.getElementById('btn-evening').classList.add('btn-outline-primary');
+  
+  if (session === 'all') {
+    document.getElementById('btn-all').classList.add('active', 'btn-primary');
+    document.getElementById('btn-all').classList.remove('btn-outline-primary');
+  } else if (session === 'morning') {
+    document.getElementById('btn-morning').classList.add('active', 'btn-primary');
+    document.getElementById('btn-morning').classList.remove('btn-outline-primary');
+  } else if (session === 'evening') {
+    document.getElementById('btn-evening').classList.add('active', 'btn-primary');
+    document.getElementById('btn-evening').classList.remove('btn-outline-primary');
   }
   
-  // If one is a number and the other isn't, numbers come first
-  if (!isNaN(aNum) && isNaN(bNum)) {
-    return -1; // a (number) comes before b (non-number)
-  }
-  if (isNaN(aNum) && !isNaN(bNum)) {
-    return 1; // b (number) comes before a (non-number)
-  }
-  
-  // Both are non-numbers, sort alphabetically
-  return a.toString().localeCompare(b.toString());
+  loadData();
 }
 
-// Sort table on page load by Supplier ID (smart numeric)
-document.addEventListener('DOMContentLoaded', function() {
-  // Initially sort by Supplier ID using smart numeric sorting
-  sortTableBody('supplier-id', 'smart-numeric');
+function loadData() {
+  const datePicker = document.getElementById('date-picker');
+  currentDate = datePicker.value;
   
-  // Add active state to the Supplier ID header
-  const headers = document.querySelectorAll('.sortable-header');
-  headers.forEach(header => {
-    if (header.textContent.includes('Supplier ID')) {
-      header.classList.add('active');
-      // Update sort icon
-      const icon = header.querySelector('.sort-icon');
-      if (icon) {
-        icon.className = 'fas fa-sort-down sort-icon';
+  // Update URL without reload
+  const newUrl = window.location.pathname + '?date=' + currentDate + '&session=' + currentSession;
+  window.history.pushState({path: newUrl}, '', newUrl);
+  
+  // Show loading spinner
+  document.getElementById('loading-spinner').style.display = 'block';
+  document.getElementById('table-container').style.opacity = '0.5';
+  
+  // Fetch data from API
+  fetch(`/daily_api?date=${currentDate}&session=${currentSession}`)
+    .then(response => response.json())
+    .then(data => {
+      updateUI(data);
+      document.getElementById('loading-spinner').style.display = 'none';
+      document.getElementById('table-container').style.opacity = '1';
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      document.getElementById('loading-spinner').style.display = 'none';
+      document.getElementById('table-container').style.opacity = '1';
+      alert('Error loading data');
+    });
+}
+
+function updateUI(data) {
+  // Update stats
+  document.getElementById('total-liters').innerHTML = data.totals.total_liters.toFixed(2);
+  document.getElementById('total-amount').innerHTML = '₹ ' + data.totals.total_amount;
+  document.getElementById('avg-fat').innerHTML = data.totals.avg_fat.toFixed(1) + '%';
+  document.getElementById('collection-count').innerHTML = data.totals.collection_count;
+  document.getElementById('current-date').innerHTML = data.date;
+  
+  // Update rate badge based on date
+  const rateBadge = document.getElementById('rate-badge');
+  if (data.date >= '2026-02-01') {
+    rateBadge.innerHTML = '<span class="badge bg-info rate-period-badge">New Buffalo Rates Period (Feb 2026+)</span>';
+  } else {
+    rateBadge.innerHTML = '<span class="badge bg-secondary rate-period-badge">Old Buffalo Rates Period</span>';
+  }
+  
+  // Build table body
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  
+  if (data.data.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center py-4">
+          <div class="text-muted">
+            <i class="fas fa-inbox fa-2x mb-3"></i>
+            <p>No suppliers found</p>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  let rowIndex = 0;
+  for (const supplier of data.data) {
+    let displayData = null;
+    let sessionText = '';
+    
+    if (currentSession === 'morning') {
+      displayData = supplier.morning;
+      sessionText = 'Morning';
+    } else if (currentSession === 'evening') {
+      displayData = supplier.evening;
+      sessionText = 'Evening';
+    } else {
+      // For 'all', show combined or separate? Let's show morning and evening in separate rows
+      if (supplier.morning.has_data || supplier.evening.has_data) {
+        if (supplier.morning.has_data) {
+          addTableRow(tbody, supplier, supplier.morning, 'Morning', rowIndex++);
+        }
+        if (supplier.evening.has_data) {
+          addTableRow(tbody, supplier, supplier.evening, 'Evening', rowIndex++);
+        }
+        if (!supplier.morning.has_data && !supplier.evening.has_data) {
+          addTableRow(tbody, supplier, {has_data: false, liters: 0, fat: 0, amount: 0, rate: 0, milk_type: null, id: null}, 'No Data', rowIndex++);
+        }
+      } else {
+        addTableRow(tbody, supplier, {has_data: false, liters: 0, fat: 0, amount: 0, rate: 0, milk_type: null, id: null}, 'No Data', rowIndex++);
       }
+      continue;
+    }
+    
+    addTableRow(tbody, supplier, displayData, sessionText, rowIndex++);
+  }
+}
+
+function addTableRow(tbody, supplier, data, sessionText, index) {
+  const row = tbody.insertRow();
+  row.className = !data.has_data ? 'no-collection' : '';
+  
+  // Supplier ID
+  const cellId = row.insertCell(0);
+  cellId.innerHTML = `<strong>${supplier.supplier_id}</strong>`;
+  cellId.className = 'supplier-id';
+  
+  // Name
+  const cellName = row.insertCell(1);
+  cellName.innerHTML = supplier.name;
+  
+  // Milk Type
+  const cellType = row.insertCell(2);
+  if (data.milk_type) {
+    cellType.innerHTML = `<span class="badge ${data.milk_type === 'cow' ? 'bg-info' : 'bg-warning'}">
+      ${data.milk_type.charAt(0).toUpperCase() + data.milk_type.slice(1)}
+    </span>`;
+  } else {
+    cellType.innerHTML = '<span class="badge bg-secondary">-</span>';
+  }
+  
+  // Liters
+  const cellLiters = row.insertCell(3);
+  if (data.liters > 0) {
+    cellLiters.innerHTML = data.liters.toFixed(2);
+  } else {
+    cellLiters.innerHTML = '<span class="text-muted">-</span>';
+  }
+  
+  // Fat %
+  const cellFat = row.insertCell(4);
+  if (data.fat > 0) {
+    cellFat.innerHTML = data.fat.toFixed(1);
+  } else {
+    cellFat.innerHTML = '<span class="text-muted">-</span>';
+  }
+  
+  // Rate/L
+  const cellRate = row.insertCell(5);
+  if (data.rate > 0) {
+    cellRate.innerHTML = data.rate.toFixed(2);
+  } else {
+    cellRate.innerHTML = '<span class="text-muted">-</span>';
+  }
+  
+  // Amount
+  const cellAmount = row.insertCell(6);
+  if (data.amount > 0) {
+    cellAmount.innerHTML = `<strong>₹ ${data.amount}</strong>`;
+  } else {
+    cellAmount.innerHTML = '<span class="text-muted">-</span>';
+  }
+  
+  // Actions (only if user has permission)
+  {% if current_user.role in ['admin', 'employee'] %}
+  const cellActions = row.insertCell(7);
+  if (data.id) {
+    cellActions.innerHTML = `
+      <div class="btn-group btn-group-sm">
+        <a class="btn btn-outline-primary" href="{{ url_for('edit_collection', cid=0) }}${data.id}">
+          <i class="fas fa-edit"></i>
+        </a>
+        <form method="post" action="{{ url_for('delete_collection', cid=0) }}${data.id}" 
+              style="display:inline" onsubmit="return confirm('Delete this collection?')">
+          <button class="btn btn-outline-danger">
+            <i class="fas fa-trash"></i>
+          </button>
+        </form>
+      </div>
+    `;
+  } else {
+    cellActions.innerHTML = `
+      <a href="{{ url_for('quick_add_page') }}?supplier_id=${supplier.supplier_id}&date=${currentDate}" 
+         class="btn btn-sm btn-success">
+        <i class="fas fa-plus"></i> Add
+      </a>
+    `;
+  }
+  {% endif %}
+}
+
+function changeDate() {
+  const datePicker = document.getElementById('date-picker');
+  if (datePicker) {
+    datePicker.focus();
+  }
+}
+
+function exportData(type) {
+  let exportDate = currentDate;
+  let exportSession = currentSession;
+  
+  if (type === 'pdf-morning') {
+    exportSession = 'morning';
+  } else if (type === 'pdf-evening') {
+    exportSession = 'evening';
+  } else if (type === 'excel-morning') {
+    exportSession = 'morning';
+  } else if (type === 'excel-evening') {
+    exportSession = 'evening';
+  }
+  
+  if (type.includes('pdf')) {
+    window.location.href = `/export_daily_pdf?date=${exportDate}&session=${exportSession}`;
+  } else if (type.includes('excel')) {
+    window.location.href = `/export_daily_excel?date=${exportDate}&session=${exportSession}`;
+  }
+}
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadData();
+  
+  // Add enter key support for date picker
+  document.getElementById('date-picker').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      loadData();
     }
   });
 });
-
-function getCellValue(row, columnType) {
-  if (columnType === 'supplier-id') {
-    return row.querySelector('.supplier-id').getAttribute('data-supplier-id') || '';
-  } else if (columnType === 'supplier-name') {
-    const cell = row.querySelector('td:nth-child(2)');
-    return cell ? cell.textContent.trim() : '';
-  } else if (columnType === 'liters') {
-    const cell = row.querySelector('td:nth-child(5)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
-  } else if (columnType === 'fat') {
-    const cell = row.querySelector('td:nth-child(6)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
-  } else if (columnType === 'amount') {
-    const cell = row.querySelector('td:nth-child(7)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
-  } else if (columnType === 'rate') {
-    const cell = row.querySelector('td:nth-child(8)');
-    return cell ? parseFloat(cell.getAttribute('data-sort-value') || 0) : 0;
-  }
-  return '';
-}
-
-function sortTableBody(columnType, sortType) {
-  const tbody = document.getElementById('table-body');
-  const rows = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
-  
-  // Determine sort direction
-  const header = document.querySelector(`.sortable-header[onclick*="${columnType}"]`);
-  const isCurrentlyActive = header.classList.contains('active');
-  let isAscending = true;
-  
-  if (isCurrentlyActive) {
-    // Toggle direction if already active
-    const currentDirection = header.getAttribute('data-sort-dir') || 'asc';
-    isAscending = currentDirection === 'asc' ? false : true;
-    header.setAttribute('data-sort-dir', isAscending ? 'asc' : 'desc');
-  } else {
-    // Remove active state from all headers
-    document.querySelectorAll('.sortable-header').forEach(h => {
-      h.classList.remove('active');
-      h.removeAttribute('data-sort-dir');
-      const icon = h.querySelector('.sort-icon');
-      if (icon) {
-        icon.className = 'fas fa-sort sort-icon';
-      }
-    });
-    
-    // Set active state for clicked header
-    header.classList.add('active');
-    header.setAttribute('data-sort-dir', 'asc');
-  }
-  
-  // Update sort icon
-  const icon = header.querySelector('.sort-icon');
-  if (icon) {
-    icon.className = isAscending ? 'fas fa-sort-down sort-icon' : 'fas fa-sort-up sort-icon';
-  }
-  
-  // Sort rows
-  rows.sort((rowA, rowB) => {
-    const valueA = getCellValue(rowA, columnType);
-    const valueB = getCellValue(rowB, columnType);
-    
-    let comparison = 0;
-    
-    if (sortType === 'smart-numeric') {
-      comparison = smartNumericSort(valueA, valueB);
-    } else if (sortType === 'number') {
-      comparison = (parseFloat(valueA) || 0) - (parseFloat(valueB) || 0);
-    } else if (sortType === 'text') {
-      comparison = valueA.toString().localeCompare(valueB.toString());
-    }
-    
-    // Reverse if descending
-    return isAscending ? comparison : -comparison;
-  });
-  
-  // Reorder rows in tbody
-  tbody.innerHTML = '';
-  rows.forEach(row => {
-    tbody.appendChild(row);
-  });
-}
-
-function sortTable(columnType, sortType) {
-  sortTableBody(columnType, sortType);
-}
 </script>
 </body>
 </html>

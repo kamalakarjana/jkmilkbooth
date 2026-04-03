@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from sqlalchemy import func, or_
 from datetime import date, datetime
-import os, csv, io, math, pytz
+import os, csv, io, math, pytz, secrets
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,12 +13,32 @@ from calendar import monthrange
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY","milkbooth-secret-key-2024")
+
+# ---- Secret key: always load from env; never fall back to a hardcoded value ----
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    import warnings
+    warnings.warn(
+        "SECRET_KEY env var not set — using a random key. "
+        "Sessions will be invalidated on every restart. "
+        "Set SECRET_KEY in your .env file for production.",
+        stacklevel=1,
+    )
+    _secret = secrets.token_hex(32)
+app.secret_key = _secret
+
+# ---- CSRF protection (requires flask-wtf) ----
+csrf = CSRFProtect(app)
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_path = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(basedir,'milkbooth.db')}"
 app.config['SQLALCHEMY_DATABASE_URI'] = db_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    flash("Your session has expired or the request was invalid. Please try again.", "danger")
+    return redirect(request.referrer or url_for('index'))
 
 # Flask-Login setup
 login_manager = LoginManager()
@@ -47,8 +68,24 @@ def get_last_day_of_month(year, month):
 # Rate change date (when new rates started)
 NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
 
-# Buffalo milk rate chart (NEW RATES from 01-Feb-2026)
-BUFFALO_RATE_CHART = {      
+# Buffalo milk rate chart — OLD RATES (before 01-Feb-2026)
+# Update these values to match your actual pre-Feb 2026 rate card.
+BUFFALO_OLD_RATE_CHART = {
+    5.0: 36.0, 5.1: 36.7, 5.2: 37.4, 5.3: 38.1, 5.4: 38.8,
+    5.5: 39.5, 5.6: 40.2, 5.7: 40.9, 5.8: 41.6, 5.9: 42.3,
+    6.0: 43.0, 6.1: 43.7, 6.2: 44.4, 6.3: 45.1, 6.4: 45.8,
+    6.5: 46.5, 6.6: 47.2, 6.7: 47.9, 6.8: 48.6, 6.9: 49.3,
+    7.0: 50.0, 7.1: 50.7, 7.2: 51.4, 7.3: 52.1, 7.4: 52.8,
+    7.5: 53.5, 7.6: 54.2, 7.7: 54.9, 7.8: 55.6, 7.9: 56.3,
+    8.0: 57.0, 8.1: 57.7, 8.2: 58.4, 8.3: 59.1, 8.4: 59.8,
+    8.5: 60.5, 8.6: 61.2, 8.7: 61.9, 8.8: 62.6, 8.9: 63.3,
+    9.0: 64.0, 9.1: 64.7, 9.2: 65.4, 9.3: 66.1, 9.4: 66.8,
+    9.5: 67.5, 9.6: 68.2, 9.7: 68.9, 9.8: 69.6, 9.9: 70.3,
+    10.0: 71.0
+}
+
+# Buffalo milk rate chart — NEW RATES (from 01-Feb-2026)
+BUFFALO_RATE_CHART = {
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
     6.0: 48.0, 6.1: 48.8, 6.2: 49.6, 6.3: 50.4, 6.4: 51.2,
@@ -75,33 +112,29 @@ COW_RATE_CHART = {
 
 def find_rate(fat, milk_type='buffalo', transaction_date=None):
     """
-    Find rate based on date
-    - For buffalo milk: New rates from 01-Feb-2026
-    - For cow milk: Always use same rates (no change)
-    - If no date provided, use today's date
+    Return the correct per-litre rate for a given fat %, milk type, and date.
+
+    Rules:
+      - Cow milk:    always use COW_RATE_CHART (no rate change).
+      - Buffalo milk before 01-Feb-2026: use BUFFALO_OLD_RATE_CHART.
+      - Buffalo milk from 01-Feb-2026 onwards: use BUFFALO_RATE_CHART.
+      - If no date supplied, default to today (IST) — i.e. the current rates.
     """
     if fat is None:
         return None
-    
+
+    # Round fat to 1 decimal place for chart key lookup
     k = round(fat * 10) / 10.0
-    
-    # For cow milk, always use same chart
+
     if milk_type == 'cow':
         return COW_RATE_CHART.get(k)
-    
-    # For buffalo milk, check date
-    if transaction_date:
-        # If date is from Feb 1, 2026 onwards, use new buffalo rates
-        if transaction_date >= NEW_RATES_START_DATE:
-            return BUFFALO_RATE_CHART.get(k)
-        else:
-            # Before Feb 1, 2026 - this is the problem area
-            # We need to get the OLD buffalo rate somehow
-            # For now, use new rates (we'll fix with migration)
-            return BUFFALO_RATE_CHART.get(k)
-    else:
-        # No date provided, use current rates
+
+    # Buffalo: determine which rate chart applies
+    effective_date = transaction_date or get_today_ist()
+    if effective_date >= NEW_RATES_START_DATE:
         return BUFFALO_RATE_CHART.get(k)
+    else:
+        return BUFFALO_OLD_RATE_CHART.get(k)
 
 def calculate_payment_cycles(collections, year, month):
     """Calculate payment cycles for a given month"""
@@ -300,20 +333,36 @@ def role_required(*roles):
     return decorator
 
 def create_default_admin():
-    """Create default admin user if not exists"""
+    """Create default admin user if not exists.
+
+    The admin password is read from the ADMIN_DEFAULT_PASSWORD env var.
+    If not set, a random password is generated and printed once to stdout —
+    copy it immediately and store it somewhere safe, then set the env var.
+    """
     with app.app_context():
         admin = User.query.filter_by(username='admin').first()
         if not admin:
+            default_password = os.environ.get("ADMIN_DEFAULT_PASSWORD")
+            if not default_password:
+                default_password = secrets.token_urlsafe(16)
+                print(
+                    f"\n{'='*60}\n"
+                    f"  ADMIN ACCOUNT CREATED\n"
+                    f"  Username : admin\n"
+                    f"  Password : {default_password}\n"
+                    f"  ACTION   : Set ADMIN_DEFAULT_PASSWORD in your .env file\n"
+                    f"             and change this password after first login!\n"
+                    f"{'='*60}\n"
+                )
             admin = User(
                 username='admin',
-                email='admin@milkbooth.com',
+                email=os.environ.get("ADMIN_EMAIL", "admin@milkbooth.com"),
                 role='admin',
                 mobile=''
             )
-            admin.set_password('admin123')
+            admin.set_password(default_password)
             db.session.add(admin)
             db.session.commit()
-            print("Default admin created: admin / admin123")
 
 # ================== TEMPLATE CONTEXT PROCESSORS ==================
 @app.context_processor
@@ -596,12 +645,14 @@ def supplier_view(supplier_id):
         flash('Access denied', 'danger')
         return redirect(url_for('my_account'))
     
+    # Fetch ALL collections for accurate totals and cycle calculations;
+    # only pass the most recent 50 to the template for display.
     cols = Collection.query.filter_by(supplier_id=s.id)\
                           .order_by(Collection.date.desc())\
-                          .limit(200).all()
+                          .all()
     wds = Withdrawal.query.filter_by(supplier_id=s.id)\
                          .order_by(Withdrawal.date.desc())\
-                         .limit(50).all()
+                         .all()
     
     total_liters = sum(c.liters for c in cols)
     total_amount = sum(c.amount for c in cols)
@@ -636,9 +687,11 @@ def supplier_view(supplier_id):
                 'total_withdrawn': month_withdrawn,
                 'balance': (cycles['cycle_1']['total_amount'] + cycles['cycle_2']['total_amount'] if cycles else 0) - month_withdrawn
             }
-        except:
+        except (ValueError, KeyError) as e:
+            # Invalid month format in the query string — reset gracefully
+            flash(f"Invalid month format '{selected_month}'. Please use YYYY-MM.", "warning")
             selected_month = ''
-    
+
     # Get all available months for dropdown
     available_months = db.session.query(
         func.substr(Collection.date, 1, 7).label('month')

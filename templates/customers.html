@@ -5,6 +5,21 @@
 {% block content %}
 <h2 class="mb-4"><i class="fas fa-shopping-cart"></i> Customers Management</h2>
 
+<!-- Export Buttons -->
+<div class="row mb-3">
+  <div class="col-md-12 text-end">
+    <div class="dropdown d-inline-block">
+      <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="fas fa-download"></i> Export Customers
+      </button>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#" onclick="exportCustomersToExcel()"><i class="fas fa-file-excel text-success"></i> Export to Excel</a></li>
+        <li><a class="dropdown-item" href="#" onclick="exportCustomersToPDF()"><i class="fas fa-file-pdf text-danger"></i> Export to PDF</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
 <div class="card mb-4">
     <div class="card-header">
         <i class="fas fa-plus"></i> Add New Customer
@@ -25,7 +40,7 @@
                     <input type="text" name="address" class="form-control" placeholder="Address">
                 </div>
                 <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-success">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Add Customer
                     </button>
                 </div>
@@ -40,7 +55,7 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="customersTable">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -59,7 +74,7 @@
                         <td>{{ c.address or '-' }}</td>
                         <td>
                             <a href="{{ url_for('customer_view', cust_id=c.cust_id) }}" 
-                               class="btn btn-sm btn-outline-success">
+                               class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-eye"></i> View
                             </a>
                         </td>
@@ -76,4 +91,179 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+// Export customers to Excel
+function exportCustomersToExcel() {
+  const table = document.getElementById('customersTable');
+  const rows = table.querySelectorAll('tbody tr');
+  const exportData = [];
+  
+  exportData.push(['Customer ID', 'Name', 'Mobile', 'Address']);
+  
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 4 && !row.querySelector('td[colspan]')) {
+      exportData.push([
+        cells[0].textContent.trim(),
+        cells[1].textContent.trim(),
+        cells[2].textContent.trim(),
+        cells[3].textContent.trim()
+      ]);
+    }
+  });
+  
+  const ws = XLSX.utils.aoa_to_sheet(exportData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Customers List');
+  
+  const fileName = `customers_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  
+  if (typeof toastr !== 'undefined') {
+    toastr.success(`Exported ${exportData.length - 1} customers to Excel`, 'Export Successful');
+  } else {
+    alert(`Exported ${exportData.length - 1} customers to Excel`);
+  }
+}
+
+// Export customers to PDF
+function exportCustomersToPDF() {
+  const table = document.getElementById('customersTable');
+  const rows = table.querySelectorAll('tbody tr');
+  const totalCustomers = rows.length;
+  const currentDate = new Date().toLocaleDateString();
+  
+  let tableRows = '';
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 4 && !row.querySelector('td[colspan]')) {
+      tableRows += `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[0].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[1].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[2].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[3].textContent.trim()}</td>
+        </tr>
+      `;
+    }
+  });
+  
+  const printContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Customers Report</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          padding: 0;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          border-bottom: 2px solid #8B4513;
+          padding-bottom: 20px;
+        }
+        .header h1 {
+          color: #8B4513;
+          margin: 0;
+          font-size: 24px;
+        }
+        .header h2 {
+          color: #5D4037;
+          margin: 10px 0;
+          font-size: 18px;
+        }
+        .summary {
+          margin: 20px 0;
+          padding: 15px;
+          background-color: #f5f5f5;
+          border-radius: 5px;
+          text-align: center;
+        }
+        .summary-number {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: #2c3e50;
+        }
+        .data-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+          font-size: 12px;
+        }
+        .data-table th {
+          background-color: #8B4513;
+          color: white;
+          padding: 10px;
+          border: 1px solid #ddd;
+          text-align: center;
+        }
+        .data-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #ddd;
+          font-size: 10px;
+          color: #666;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>RR Milk Management System</h1>
+        <h2>Customers Report</h2>
+        <h3>Generated on: ${currentDate}</h3>
+      </div>
+      
+      <div class="summary">
+        <div class="summary-number">${totalCustomers}</div>
+        <div>Total Customers</div>
+      </div>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Customer ID</th>
+            <th>Name</th>
+            <th>Mobile</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        <p>RR Milk Management System - Premium Dairy Solution</p>
+      </div>
+    </body>
+    </html>
+  `;
+  
+  const opt = {
+    margin: [0.5, 0.5, 0.5, 0.5],
+    filename: `customers_list_${new Date().toISOString().split('T')[0]}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+  
+  html2pdf().set(opt).from(printContent).save();
+  
+  if (typeof toastr !== 'undefined') {
+    toastr.success('Generating Customers PDF report...', 'Export Started');
+  }
+}
+</script>
 {% endblock %}

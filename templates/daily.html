@@ -91,24 +91,6 @@
       max-height: 70vh;
       overflow-y: auto;
     }
-    /* PDF Print Styles */
-    @media print {
-      body {
-        padding: 0;
-        margin: 0;
-      }
-      .no-print {
-        display: none;
-      }
-      .table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .table th, .table td {
-        border: 1px solid #ddd;
-        padding: 8px;
-      }
-    }
   </style>
 </head>
 <body class="p-3">
@@ -250,9 +232,9 @@
       <tbody id="table-body">
         {% for r in rows %}
         <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
-          <td class="supplier-id" data-supplier-id="{{ r.supplier.supplier_id }}">
+          <td class="supplier-id">
             <strong>{{ r.supplier.supplier_id }}</strong>
-          </td>
+           </td>
           <td>{{ r.supplier.name }}</td>
           <td>
             {% if r.milk_type %}
@@ -547,7 +529,6 @@ function exportToExcel(filter) {
   const fileName = `daily_collections_${document.getElementById('dateInput').value}_${filterText}.xlsx`;
   XLSX.writeFile(wb, fileName);
   
-  // Show success message
   if (typeof toastr !== 'undefined') {
     toastr.success(`Exported ${exportData.length - 1} records to Excel`, 'Export Successful');
   } else {
@@ -570,23 +551,31 @@ function exportToPDF(filter) {
   
   const filterText = filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session';
   
-  // Get visible rows
-  const rows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
+  // Get visible rows and build table data
+  const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
   
-  // Build HTML for PDF with proper table structure
+  // Build table rows HTML
   let tableRows = '';
-  rows.forEach(row => {
+  visibleRows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
+      const supplierId = cells[0].textContent.trim();
+      const name = cells[1].textContent.trim();
+      const milkType = cells[2].textContent.trim().replace(/\n/g, ' ');
+      const session = cells[3].textContent.trim();
+      const liters = cells[4].textContent.trim();
+      const fat = cells[5].textContent.trim();
+      const amount = cells[6].textContent.trim();
+      
       tableRows += `
         <tr>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[0].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[1].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[3].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[4].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[5].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[6].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${supplierId}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${name}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${milkType}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${session}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${liters}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${fat}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${amount}</td>
         </tr>
       `;
     }
@@ -614,14 +603,17 @@ function exportToPDF(filter) {
         .header h1 {
           color: #8B4513;
           margin: 0;
+          font-size: 24px;
         }
         .header h2 {
           color: #5D4037;
           margin: 10px 0;
+          font-size: 20px;
         }
         .header h3 {
           color: #D4AF37;
           margin: 5px 0;
+          font-size: 16px;
         }
         .summary {
           margin: 20px 0;
@@ -629,19 +621,26 @@ function exportToPDF(filter) {
           background-color: #f5f5f5;
           border-radius: 5px;
         }
-        .summary-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 20px;
+        .summary-grid {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
         }
-        .summary-table td {
-          padding: 8px;
-          border: none;
+        .summary-item {
+          flex: 1;
+          text-align: center;
+          padding: 10px;
+        }
+        .summary-number {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: #2c3e50;
         }
         .data-table {
           width: 100%;
           border-collapse: collapse;
           margin-top: 20px;
+          font-size: 12px;
         }
         .data-table th {
           background-color: #8B4513;
@@ -659,7 +658,7 @@ function exportToPDF(filter) {
           margin-top: 30px;
           padding-top: 20px;
           border-top: 1px solid #ddd;
-          font-size: 12px;
+          font-size: 10px;
           color: #666;
         }
         .text-right {
@@ -671,25 +670,28 @@ function exportToPDF(filter) {
       <div class="header">
         <h1>RR Milk Management System</h1>
         <h2>Daily Collections Report</h2>
-        <h3>Date: ${date}</h3>
-        <h4>Filter: ${filterText}</h4>
+        <h3>Date: ${date} | Filter: ${filterText}</h3>
       </div>
       
       <div class="summary">
-        <table class="summary-table" style="width: 100%;">
-          <tr>
-            <td style="width: 25%;"><strong>Total Liters:</strong></td>
-            <td style="width: 25%;">${totalLiters}</td>
-            <td style="width: 25%;"><strong>Total Amount:</strong></td>
-            <td style="width: 25%;">${totalAmount}</td>
-          </tr>
-          <tr>
-            <td><strong>Average Fat:</strong></td>
-            <td>${avgFat}</td>
-            <td><strong>Total Collections:</strong></td>
-            <td>${collectionCount}</td>
-          </tr>
-        </table>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="summary-number">${totalLiters}</div>
+            <div>Total Liters</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-number">${totalAmount}</div>
+            <div>Total Amount</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-number">${avgFat}</div>
+            <div>Average Fat</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-number">${collectionCount}</div>
+            <div>Total Collections</div>
+          </div>
+        </div>
       </div>
       
       <table class="data-table">
@@ -753,7 +755,7 @@ function smartNumericSort(a, b) {
 
 function getCellValue(row, columnType) {
   if (columnType === 'supplier-id') {
-    return row.querySelector('.supplier-id').getAttribute('data-supplier-id') || '';
+    return row.querySelector('.supplier-id').textContent.trim() || '';
   } else if (columnType === 'supplier-name') {
     const cell = row.querySelector('td:nth-child(2)');
     return cell ? cell.textContent.trim() : '';

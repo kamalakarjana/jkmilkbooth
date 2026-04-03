@@ -91,6 +91,15 @@
       max-height: 70vh;
       overflow-y: auto;
     }
+    /* Fix for table structure */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table td, table th {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
   </style>
 </head>
 <body class="p-3">
@@ -199,9 +208,9 @@
     </a>
   </div>
   
-  <!-- Collections Table -->
+  <!-- Collections Table - FIXED STRUCTURE -->
   <div class="table-responsive-custom">
-    <table class="table table-hover table-striped" id="daily-collections">
+    <table class="table table-hover table-striped table-bordered" id="daily-collections">
       <thead>
         <tr>
           <th class="sortable-header" onclick="sortTable('supplier-id', 'smart-numeric')">
@@ -333,14 +342,12 @@
 </div>
 
 <!-- Refresh Rates Modal -->
-<div class="modal fade no-print" id="refreshRatesModal" tabindex="-1" aria-labelledby="refreshRatesModalLabel" aria-hidden="true">
+<div class="modal fade no-print" id="refreshRatesModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="refreshRatesModalLabel">
-          <i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title"><i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="alert alert-warning">
@@ -357,7 +364,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}" id="refreshForm">
+        <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}">
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates Now
           </button>
@@ -387,18 +394,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initially sort by Supplier ID
   sortTableBody('supplier-id', 'smart-numeric');
-  
-  // Add active state to Supplier ID header
-  const headers = document.querySelectorAll('.sortable-header');
-  headers.forEach(header => {
-    if (header.textContent.includes('Supplier ID')) {
-      header.classList.add('active');
-      const icon = header.querySelector('.sort-icon');
-      if (icon) {
-        icon.className = 'fas fa-sort-down sort-icon';
-      }
-    }
-  });
 });
 
 // Filter table by session
@@ -486,7 +481,6 @@ function updateStatistics(session) {
 
 // Export to Excel
 function exportToExcel(filter) {
-  // Apply filter first if needed
   if (filter !== 'all') {
     filterTable(filter);
   }
@@ -494,29 +488,20 @@ function exportToExcel(filter) {
   const rows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
   const exportData = [];
   
-  // Add headers
   const headers = ['Supplier ID', 'Name', 'Milk Type', 'Session', 'Liters', 'Fat %', 'Amount'];
-  if ('{{ current_user.role in ["admin", "employee"] }}'.includes('True')) {
-    headers.push('Rate/Liter');
-  }
   exportData.push(headers);
   
-  // Add data rows
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
       const rowData = [];
-      rowData.push(cells[0].textContent.trim()); // Supplier ID
-      rowData.push(cells[1].textContent.trim()); // Name
-      rowData.push(cells[2].textContent.trim().replace(/\n/g, ' ')); // Milk Type
-      rowData.push(cells[3].textContent.trim()); // Session
-      rowData.push(cells[4].textContent.trim()); // Liters
-      rowData.push(cells[5].textContent.trim()); // Fat %
-      rowData.push(cells[6].textContent.trim().replace('₹', '').trim()); // Amount
-      
-      if (cells.length >= 8) {
-        rowData.push(cells[7].textContent.trim()); // Rate/Liter
-      }
+      rowData.push(cells[0].textContent.trim());
+      rowData.push(cells[1].textContent.trim());
+      rowData.push(cells[2].textContent.trim().replace(/\n/g, ' '));
+      rowData.push(cells[3].textContent.trim());
+      rowData.push(cells[4].textContent.trim());
+      rowData.push(cells[5].textContent.trim());
+      rowData.push(cells[6].textContent.trim().replace('₹', '').trim());
       exportData.push(rowData);
     }
   });
@@ -536,9 +521,8 @@ function exportToExcel(filter) {
   }
 }
 
-// Export to PDF with proper table formatting
+// Export to PDF
 function exportToPDF(filter) {
-  // Apply filter first
   if (filter !== 'all') {
     filterTable(filter);
   }
@@ -551,37 +535,26 @@ function exportToPDF(filter) {
   
   const filterText = filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session';
   
-  // Get visible rows and build table data
   const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
   
-  // Build table rows HTML
   let tableRows = '';
   visibleRows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
-      const supplierId = cells[0].textContent.trim();
-      const name = cells[1].textContent.trim();
-      const milkType = cells[2].textContent.trim().replace(/\n/g, ' ');
-      const session = cells[3].textContent.trim();
-      const liters = cells[4].textContent.trim();
-      const fat = cells[5].textContent.trim();
-      const amount = cells[6].textContent.trim();
-      
       tableRows += `
         <tr>
-          <td style="border: 1px solid #ddd; padding: 8px;">${supplierId}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${name}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${milkType}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${session}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${liters}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${fat}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${amount}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[0].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[1].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${cells[3].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[4].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[5].textContent.trim()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${cells[6].textContent.trim()}</td>
         </tr>
       `;
     }
   });
   
-  // Create complete HTML document for PDF
   const printContent = `
     <!DOCTYPE html>
     <html>
@@ -589,81 +562,17 @@ function exportToPDF(filter) {
       <meta charset="UTF-8">
       <title>Daily Collections Report - ${date}</title>
       <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 20px;
-          padding: 0;
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 2px solid #8B4513;
-          padding-bottom: 20px;
-        }
-        .header h1 {
-          color: #8B4513;
-          margin: 0;
-          font-size: 24px;
-        }
-        .header h2 {
-          color: #5D4037;
-          margin: 10px 0;
-          font-size: 20px;
-        }
-        .header h3 {
-          color: #D4AF37;
-          margin: 5px 0;
-          font-size: 16px;
-        }
-        .summary {
-          margin: 20px 0;
-          padding: 15px;
-          background-color: #f5f5f5;
-          border-radius: 5px;
-        }
-        .summary-grid {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: space-between;
-        }
-        .summary-item {
-          flex: 1;
-          text-align: center;
-          padding: 10px;
-        }
-        .summary-number {
-          font-size: 1.5rem;
-          font-weight: bold;
-          color: #2c3e50;
-        }
-        .data-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-          font-size: 12px;
-        }
-        .data-table th {
-          background-color: #8B4513;
-          color: white;
-          padding: 10px;
-          border: 1px solid #ddd;
-          text-align: center;
-        }
-        .data-table td {
-          border: 1px solid #ddd;
-          padding: 8px;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #ddd;
-          font-size: 10px;
-          color: #666;
-        }
-        .text-right {
-          text-align: right;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
+        .header h1 { color: #8B4513; margin: 0; }
+        .summary { margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px; }
+        .summary-grid { display: flex; justify-content: space-between; }
+        .summary-item { text-align: center; flex: 1; }
+        .summary-number { font-size: 1.5rem; font-weight: bold; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .data-table th { background-color: #8B4513; color: white; padding: 10px; border: 1px solid #ddd; }
+        .data-table td { border: 1px solid #ddd; padding: 8px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; }
       </style>
     </head>
     <body>
@@ -672,85 +581,36 @@ function exportToPDF(filter) {
         <h2>Daily Collections Report</h2>
         <h3>Date: ${date} | Filter: ${filterText}</h3>
       </div>
-      
       <div class="summary">
         <div class="summary-grid">
-          <div class="summary-item">
-            <div class="summary-number">${totalLiters}</div>
-            <div>Total Liters</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-number">${totalAmount}</div>
-            <div>Total Amount</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-number">${avgFat}</div>
-            <div>Average Fat</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-number">${collectionCount}</div>
-            <div>Total Collections</div>
-          </div>
+          <div class="summary-item"><div class="summary-number">${totalLiters}</div><div>Total Liters</div></div>
+          <div class="summary-item"><div class="summary-number">${totalAmount}</div><div>Total Amount</div></div>
+          <div class="summary-item"><div class="summary-number">${avgFat}</div><div>Average Fat</div></div>
+          <div class="summary-item"><div class="summary-number">${collectionCount}</div><div>Collections</div></div>
         </div>
       </div>
-      
       <table class="data-table">
-        <thead>
-          <tr>
-            <th>Supplier ID</th>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Session</th>
-            <th>Liters</th>
-            <th>Fat %</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
+        <thead><tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Amount</th></tr></thead>
+        <tbody>${tableRows}</tbody>
       </table>
-      
-      <div class="footer">
-        <p>Generated on: ${new Date().toLocaleString()}</p>
-        <p>RR Milk Management System - Premium Dairy Solution</p>
-      </div>
+      <div class="footer"><p>Generated on: ${new Date().toLocaleString()}</p><p>RR Milk Management System</p></div>
     </body>
     </html>
   `;
   
-  // PDF options
   const opt = {
     margin: [0.5, 0.5, 0.5, 0.5],
     filename: `daily_collections_${date}_${filter}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
+    html2canvas: { scale: 2 },
     jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
   
-  // Generate PDF
   html2pdf().set(opt).from(printContent).save();
   
   if (typeof toastr !== 'undefined') {
     toastr.success(`Generating PDF with ${filterText}`, 'Export Started');
   }
-}
-
-// Smart numeric sorting function
-function smartNumericSort(a, b) {
-  const aNum = parseFloat(a);
-  const bNum = parseFloat(b);
-  
-  if (!isNaN(aNum) && !isNaN(bNum)) {
-    return aNum - bNum;
-  }
-  if (!isNaN(aNum) && isNaN(bNum)) {
-    return -1;
-  }
-  if (isNaN(aNum) && !isNaN(bNum)) {
-    return 1;
-  }
-  return a.toString().localeCompare(b.toString());
 }
 
 function getCellValue(row, columnType) {
@@ -821,7 +681,13 @@ function sortTableBody(columnType, sortType) {
     
     let comparison = 0;
     if (sortType === 'smart-numeric') {
-      comparison = smartNumericSort(valueA, valueB);
+      const aNum = parseFloat(valueA);
+      const bNum = parseFloat(valueB);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        comparison = aNum - bNum;
+      } else {
+        comparison = valueA.toString().localeCompare(valueB.toString());
+      }
     } else if (sortType === 'number') {
       comparison = (parseFloat(valueA) || 0) - (parseFloat(valueB) || 0);
     } else if (sortType === 'text') {
@@ -836,7 +702,6 @@ function sortTableBody(columnType, sortType) {
     tbody.appendChild(row);
   });
   
-  // Reapply filter after sorting
   filterTable(currentFilter);
 }
 

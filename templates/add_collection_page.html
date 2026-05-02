@@ -103,6 +103,41 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-info-circle"></i> Suggested Price & Details
+        </div>
+        <button type="button" class="btn btn-sm btn-light text-secondary" data-bs-toggle="modal" data-bs-target="#priceSuggestionModal">
+            <i class="fas fa-info-circle"></i> Open Popup
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="row gy-3">
+            <div class="col-md-6">
+                <p class="mb-2 text-muted">Use this preview to quickly check the expected rate and total amount before saving.</p>
+                <div class="bg-light rounded p-3">
+                    <p class="mb-1"><strong>Milk Type:</strong> <span id="previewMilkType">Buffalo Milk</span></p>
+                    <p class="mb-1"><strong>Suggested Fat:</strong> <span id="previewFat">6.0%</span></p>
+                    <p class="mb-1"><strong>Rate per Liter:</strong> <span id="previewRate">₹ 48.0</span></p>
+                    <p class="mb-1"><strong>Liters:</strong> <span id="previewLiters">0.00</span></p>
+                    <p class="mb-1"><strong>Expected Amount:</strong> <span id="previewAmount">₹ 0</span></p>
+                    <p class="mb-1"><strong>Rate Info:</strong> <span id="previewRateInfo">Use new rates from 01-Feb-2026 for buffalo milk.</span></p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-2 text-muted">Suggested details help you validate the collection entry without leaving the page.</p>
+                <ul>
+                    <li>Enter supplier, milk type, fat and liters.</li>
+                    <li>The preview updates automatically.</li>
+                    <li>For buffalo milk, rates change from 01-Feb-2026.</li>
+                    <li>The actual saved amount may be rounded down to the nearest rupee.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Links -->
 <div class="row">
     <div class="col-md-4">
@@ -191,6 +226,231 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if popup_data %}
+<style>
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 2050;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .popup-card {
+        width: 100%;
+        max-width: 650px;
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        overflow: hidden;
+    }
+    .popup-step {
+        display: none;
+        animation: fadeInPopup 0.5s ease-in-out;
+    }
+    .popup-step.active {
+        display: block;
+    }
+    .popup-step h3 {
+        margin-bottom: 10px;
+        color: #2d3142;
+    }
+    .popup-step p {
+        color: #4f5665;
+        margin-bottom: 20px;
+    }
+    .popup-detail-list {
+        text-align: left;
+        margin: 0 auto;
+        max-width: 460px;
+    }
+    .popup-detail-list dt {
+        font-weight: 700;
+        margin-top: 12px;
+        color: #2d3142;
+    }
+    .popup-detail-list dd {
+        margin-left: 0;
+        margin-bottom: 10px;
+        color: #55606e;
+    }
+    @keyframes fadeInPopup {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div id="collectionPopupOverlay" class="popup-overlay">
+    <div class="popup-card">
+        <div id="popupStep1" class="popup-step active">
+            <div class="mb-4">
+                <span class="badge bg-success rounded-pill py-2 px-3">Well done!</span>
+            </div>
+            <h3>Thank you, {{ popup_data.supplier_name or 'Supplier' }}!</h3>
+            <p>Your milk entry has been recorded successfully. Your dedication helps keep the farm running strong.</p>
+        </div>
+        <div id="popupStep2" class="popup-step">
+            <div class="mb-4">
+                <span class="badge bg-primary rounded-pill py-2 px-3">Milk Details</span>
+            </div>
+            <h3>Entry Summary</h3>
+            <dl class="popup-detail-list">
+                <dt>Supplier</dt><dd>{{ popup_data.supplier_id }} - {{ popup_data.supplier_name }}</dd>
+                <dt>Milk Type</dt><dd>{{ popup_data.milk_type|title }}</dd>
+                <dt>Date</dt><dd>{{ popup_data.date }}</dd>
+                <dt>Session</dt><dd>{{ popup_data.session|title }}</dd>
+                <dt>Liters</dt><dd>{{ popup_data.liters }}</dd>
+                <dt>Fat %</dt><dd>{{ popup_data.fat }}</dd>
+                <dt>Rate per Liter</dt><dd>₹ {{ popup_data.rate }}</dd>
+                <dt>Estimated Amount</dt><dd>₹ {{ popup_data.amount }}</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    const NEW_RATES_START_DATE = '{{ NEW_RATES_START_DATE }}';
+    const popupData = {{ popup_data|tojson() if popup_data else 'null' }};
+    const BUFFALO_RATE_CHART = {
+        5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
+        5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
+        6.0: 48.0, 6.1: 48.8, 6.2: 49.6, 6.3: 50.0, 6.4: 51.0,
+        6.5: 52.0, 6.6: 52.8, 6.7: 53.6, 6.8: 54.4, 6.9: 55.2,
+        7.0: 56.0, 7.1: 56.8, 7.2: 57.6, 7.3: 58.4, 7.4: 59.2,
+        7.5: 60.0, 7.6: 60.8, 7.7: 61.6, 7.8: 62.4, 7.9: 63.2,
+        8.0: 64.0, 8.1: 64.8, 8.2: 65.6, 8.3: 66.4, 8.4: 67.2,
+        8.5: 68.0, 8.6: 68.8, 8.7: 69.6, 8.8: 70.4, 8.9: 71.2,
+        9.0: 72.0, 9.1: 72.8, 9.2: 73.6, 9.3: 74.4, 9.4: 75.2,
+        9.5: 76.0, 9.6: 76.8, 9.7: 77.6, 9.8: 78.4, 9.9: 79.2,
+        10.0: 80.0
+    };
+    const COW_RATE_CHART = {
+        3.0: 25.30, 3.1: 25.53, 3.2: 25.76, 3.3: 25.99, 3.4: 26.22,
+        3.5: 26.45, 3.6: 26.68, 3.7: 26.91, 3.8: 27.14, 3.9: 27.37,
+        4.0: 27.60, 4.1: 27.83, 4.2: 28.06, 4.3: 28.29, 4.4: 28.52,
+        4.5: 28.75, 4.6: 28.98, 4.7: 29.21, 4.8: 29.44, 4.9: 29.67,
+        5.0: 29.90, 5.1: 30.13, 5.2: 30.36, 5.3: 30.59, 5.4: 30.82,
+        5.5: 31.05, 5.6: 31.28, 5.7: 31.51, 5.8: 31.74, 5.9: 31.97,
+        6.0: 32.20
+    };
+
+    function formatRupees(value) {
+        return value !== null && value !== undefined && !isNaN(value) ? '₹ ' + value.toFixed(0) : 'N/A';
+    }
+
+    function findSuggestedRate(milkType, fat, dateStr) {
+        const fatKey = (Math.round(fat * 10) / 10).toFixed(1);
+        const chart = milkType === 'cow' ? COW_RATE_CHART : BUFFALO_RATE_CHART;
+        const rate = chart[fatKey];
+        return rate || null;
+    }
+
+    function updateSuggestion() {
+        const milkTypeEl = document.querySelector('select[name="milk_type"]');
+        const fatEl = document.querySelector('input[name="fat"]');
+        const litersEl = document.querySelector('input[name="liters"]');
+        const dateEl = document.querySelector('input[name="date"]');
+
+        const milkType = milkTypeEl ? milkTypeEl.value : 'buffalo';
+        const fat = fatEl ? parseFloat(fatEl.value || '0') : 0;
+        const liters = litersEl ? parseFloat(litersEl.value || '0') : 0;
+        const dateValue = dateEl ? dateEl.value : '';
+
+        document.getElementById('previewMilkType').textContent = milkType === 'cow' ? 'Cow Milk' : 'Buffalo Milk';
+        document.getElementById('previewFat').textContent = fat ? fat.toFixed(1) + '%' : '—';
+        document.getElementById('previewLiters').textContent = liters ? liters.toFixed(2) : '0.00';
+
+        const rate = findSuggestedRate(milkType, fat, dateValue);
+        document.getElementById('previewRate').textContent = rate ? formatRupees(rate) : 'N/A';
+
+        const expectedAmount = rate && liters ? Math.floor(liters * rate) : 0;
+        document.getElementById('previewAmount').textContent = formatRupees(expectedAmount);
+
+        const isNewRatePeriod = dateValue >= NEW_RATES_START_DATE && milkType === 'buffalo';
+        const rateInfoText = isNewRatePeriod
+            ? 'Using new buffalo rates from 01-Feb-2026.'
+            : milkType === 'cow'
+                ? 'Using fixed cow milk rates.'
+                : 'Using current standard buffalo rates.';
+
+        document.getElementById('previewRateInfo').textContent = rateInfoText;
+        document.getElementById('modalMilkType').textContent = milkType === 'cow' ? 'Cow Milk' : 'Buffalo Milk';
+        document.getElementById('modalFat').textContent = fat ? fat.toFixed(1) + '%' : '—';
+        document.getElementById('modalLiters').textContent = liters ? liters.toFixed(2) : '0.00';
+        document.getElementById('modalRate').textContent = rate ? formatRupees(rate) : 'N/A';
+        document.getElementById('modalAmount').textContent = formatRupees(expectedAmount);
+        document.getElementById('modalRateInfo').textContent = rateInfoText;
+    }
+
+    function showSubmissionPopup() {
+        const overlay = document.getElementById('collectionPopupOverlay');
+        const step1 = document.getElementById('popupStep1');
+        const step2 = document.getElementById('popupStep2');
+
+        if (!overlay || !popupData) {
+            return;
+        }
+
+        overlay.style.display = 'flex';
+        step1.classList.add('active');
+        step2.classList.remove('active');
+
+        setTimeout(() => {
+            step1.classList.remove('active');
+            step2.classList.add('active');
+        }, 2200);
+
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 5200);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSuggestion();
+        const inputs = document.querySelectorAll('select[name="milk_type"], input[name="fat"], input[name="liters"], input[name="date"]');
+        inputs.forEach(input => input.addEventListener('input', updateSuggestion));
+        if (popupData) {
+            showSubmissionPopup();
+        }
+    });
+</script>
+
+<!-- Price suggestion popup modal -->
+<div class="modal fade" id="priceSuggestionModal" tabindex="-1" aria-labelledby="priceSuggestionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title" id="priceSuggestionModalLabel"><i class="fas fa-info-circle"></i> Collection Price Preview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <p class="mb-2"><strong>Milk Type:</strong> <span id="modalMilkType">Buffalo Milk</span></p>
+                    <p class="mb-2"><strong>Fat %:</strong> <span id="modalFat">6.0%</span></p>
+                    <p class="mb-2"><strong>Liters:</strong> <span id="modalLiters">0.00</span></p>
+                    <p class="mb-2"><strong>Rate per Liter:</strong> <span id="modalRate">₹ 0</span></p>
+                    <p class="mb-2"><strong>Estimated Amount:</strong> <span id="modalAmount">₹ 0</span></p>
+                    <p class="mb-2"><strong>Rate Note:</strong> <span id="modalRateInfo">Use the selected rate chart for calculation.</span></p>
+                </div>
+                <div class="alert alert-info">
+                    This preview gives you suggested price details before submitting. It updates automatically when you change the milk type, fat percentage, liters, or date.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>

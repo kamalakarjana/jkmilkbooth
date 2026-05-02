@@ -5,17 +5,19 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-12">
-        <h2 class="fw-bold text-dark mb-3">
-            <i class="fas fa-chart-line text-primary"></i> Milk Booth Dashboard
-        </h2>
-        <p class="lead text-muted">Welcome, {{ current_user.username }}! Today is {{ today }}</p>
+        <div class="page-header bg-light p-4 rounded-3 mb-4" style="border-left: 5px solid #D4AF37;">
+            <h2 class="fw-bold text-dark mb-2">
+                <i class="fas fa-chart-line text-primary"></i> Milk Booth Dashboard
+            </h2>
+            <p class="text-muted mb-0 fs-5">Welcome, {{ current_user.username }}! Today is {{ today_date() }}</p>
+        </div>
     </div>
 </div>
 
 <!-- Main Action Buttons -->
 <div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card text-center">
+    <div class="col-md-4 mb-3">
+        <div class="card text-center h-100">
             <div class="card-body">
                 <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
                 <h4>Add Collection</h4>
@@ -26,8 +28,8 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card text-center">
+    <div class="col-md-4 mb-3">
+        <div class="card text-center h-100">
             <div class="card-body">
                 <i class="fas fa-bolt fa-3x text-warning mb-3"></i>
                 <h4>Quick Add</h4>
@@ -38,8 +40,8 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card text-center">
+    <div class="col-md-4 mb-3">
+        <div class="card text-center h-100">
             <div class="card-body">
                 <i class="fas fa-shopping-cart fa-3x text-success mb-3"></i>
                 <h4>Record Sale</h4>
@@ -54,37 +56,37 @@
 
 <!-- Today's Statistics -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-3 col-sm-6 mb-3">
         <div class="stat-card" onclick="window.location='{{ url_for('daily') }}'">
             <i class="fas fa-weight text-primary"></i>
             <div class="number">{{ "%.2f"|format(total_liters) }}</div>
             <div class="label">Today's Liters Collected</div>
             <small class="text-muted mt-2 d-block">
-                <i class="fas fa-arrow-right"></i> Click to view daily collections
+                <i class="fas fa-arrow-right"></i> Click to view
             </small>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-3 col-sm-6 mb-3">
         <div class="stat-card" onclick="window.location='{{ url_for('daily') }}'">
             <i class="fas fa-rupee-sign text-success"></i>
             <div class="number">₹ {{ total_amount }}</div>
             <div class="label">Today's Collection Amount</div>
             <small class="text-muted mt-2 d-block">
-                <i class="fas fa-arrow-right"></i> View detailed breakdown
+                <i class="fas fa-arrow-right"></i> View breakdown
             </small>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-3 col-sm-6 mb-3">
         <div class="stat-card" onclick="window.location='{{ url_for('daily') }}'">
             <i class="fas fa-percentage text-warning"></i>
             <div class="number">{{ "%.1f"|format(avg_fat) }}%</div>
             <div class="label">Average Fat Today</div>
             <small class="text-muted mt-2 d-block">
-                <i class="fas fa-arrow-right"></i> Check milk quality
+                <i class="fas fa-arrow-right"></i> Check quality
             </small>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-3 col-sm-6 mb-3">
         <div class="stat-card" onclick="window.location='{{ url_for('suppliers') }}'">
             <i class="fas fa-users text-info"></i>
             <div class="number">{{ suppliers|length }}</div>
@@ -98,8 +100,8 @@
 
 <!-- Quick Links -->
 <div class="row">
-    <div class="col-md-4">
-        <div class="card">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
             <div class="card-header bg-primary text-white">
                 <i class="fas fa-truck-loading"></i> Collections
             </div>
@@ -117,8 +119,8 @@
         </div>
     </div>
     
-    <div class="col-md-4">
-        <div class="card">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
             <div class="card-header bg-success text-white">
                 <i class="fas fa-shopping-cart"></i> Sales
             </div>
@@ -136,9 +138,9 @@
         </div>
     </div>
     
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header bg-warning text-white">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header bg-warning text-dark">
                 <i class="fas fa-cogs"></i> System
             </div>
             <div class="card-body">
@@ -160,4 +162,26 @@
         </div>
     </div>
 </div>
+
+<!-- Hidden flash messages for toast notifications -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="flash-message d-none" data-type="{{ category }}">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show flash messages as toast notifications
+    const flashMessages = document.querySelectorAll('.flash-message');
+    flashMessages.forEach(function(msg) {
+        const type = msg.dataset.type;
+        const message = msg.textContent;
+        if (type === 'success') toastr.success(message);
+        else if (type === 'danger') toastr.error(message);
+        else if (type === 'warning') toastr.warning(message);
+        else toastr.info(message);
+    });
+});
+</script>
 {% endblock %}

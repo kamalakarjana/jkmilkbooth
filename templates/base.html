@@ -2,19 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>{% block title %}RR Milk Management{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Toastr for beautiful notifications -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
-            --primary: #8B4513; /* Brown */
-            --secondary: #D4AF37; /* Gold */
-            --accent: #2E8B57; /* Green */
-            --light: #FFF8DC; /* Light cream */
-            --dark: #5D4037; /* Dark brown */
-            --light-brown: #A0522D;
+            --primary: #5f3bff;
+            --secondary: #42d6ff;
+            --accent: #ff6b6b;
+            --light: #f3f7ff;
+            --dark: #12174f;
+            --highlight: #8d5dff;
         }
         
         * {
@@ -27,57 +35,77 @@
         }
         
         body {
-            background-color: #f9f5f0;
+            background: radial-gradient(circle at top left, rgba(66,214,255,0.18), transparent 35%), linear-gradient(180deg, #f3f7ff 0%, #eef4ff 100%);
             font-family: 'Roboto', sans-serif;
             min-height: 100vh;
             padding-top: 70px;
         }
         
+        /* Toastr Customization */
+        .toast-success {
+            background: linear-gradient(135deg, #27ae60, #219653) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3) !important;
+        }
+        .toast-error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+            border-radius: 10px !important;
+        }
+        .toast-info {
+            background: linear-gradient(135deg, #3498db, #2980b9) !important;
+            border-radius: 10px !important;
+        }
+        .toast-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+            border-radius: 10px !important;
+        }
+        
         /* Navigation Bar */
         .navbar {
             background: linear-gradient(135deg, var(--dark), var(--primary));
-            box-shadow: 0 4px 20px rgba(139, 69, 19, 0.2);
-            padding: 12px 0;
+            box-shadow: 0 16px 40px rgba(29, 40, 112, 0.12);
+            padding: 14px 0;
             position: fixed;
             top: 0;
             width: 100%;
             z-index: 1000;
-            border-bottom: 3px solid var(--secondary);
+            border-bottom: 3px solid rgba(66,214,255,0.4);
         }
         
         .navbar-brand {
             font-family: 'Poppins', sans-serif;
             font-weight: 700;
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             color: white !important;
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 20px;
-            background: rgba(212, 175, 55, 0.1);
-            border-radius: 10px;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
             transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.12);
         }
         
         .navbar-brand:hover {
-            background: rgba(212, 175, 55, 0.2);
+            background: rgba(255,255,255,0.12);
             transform: translateY(-2px);
         }
         
         .navbar-brand i {
             color: var(--secondary);
-            font-size: 1.5rem;
+            font-size: 1.4rem;
         }
         
         .nav-link {
-            color: rgba(255,255,255,0.9) !important;
+            color: rgba(255,255,255,0.95) !important;
             font-weight: 500;
             margin: 0 5px;
-            padding: 10px 20px !important;
-            border-radius: 8px;
+            padding: 10px 15px !important;
+            border-radius: 10px;
             transition: all 0.3s ease;
             position: relative;
-            overflow: hidden;
+            font-size: 0.92rem;
         }
         
         .nav-link::before {
@@ -88,116 +116,104 @@
             transform: translateX(-50%);
             width: 0;
             height: 3px;
-            background: var(--secondary);
-            transition: width 0.3s ease;
+            background: rgba(255,255,255,0.8);
+            transition: width 0.25s ease;
         }
         
         .nav-link:hover {
             color: white !important;
-            background: rgba(212, 175, 55, 0.1);
+            background: rgba(255,255,255,0.12);
         }
         
         .nav-link:hover::before {
-            width: 80%;
+            width: 70%;
         }
         
         .nav-link i {
             margin-right: 8px;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
         
         /* Cards */
         .card {
             border: none;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(139, 69, 19, 0.1);
+            border-radius: 18px;
+            box-shadow: 0 20px 40px rgba(45, 55, 127, 0.08);
             margin-bottom: 25px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            background: white;
+            transition: transform 0.35s ease, box-shadow 0.35s ease;
+            background: rgba(255,255,255,0.96);
             overflow: hidden;
         }
         
         .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 35px rgba(139, 69, 19, 0.15);
+            transform: translateY(-6px);
+            box-shadow: 0 28px 60px rgba(45, 55, 127, 0.12);
         }
         
         .card-header {
-            background: linear-gradient(135deg, var(--primary), var(--dark));
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            border-radius: 15px 15px 0 0 !important;
+            border-radius: 18px 18px 0 0 !important;
             font-weight: 600;
-            padding: 20px;
-            border-bottom: 3px solid var(--secondary);
+            padding: 16px 22px;
+            border-bottom: 3px solid rgba(255,255,255,0.18);
         }
         
         /* Buttons */
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--light-brown));
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             border: none;
-            border-radius: 8px;
-            padding: 12px 25px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 22px;
+            font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.2);
+            box-shadow: 0 12px 25px rgba(95, 59, 255, 0.18);
+            color: white;
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--light-brown), var(--dark));
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(139, 69, 19, 0.3);
+            background: linear-gradient(135deg, #4e39ff, #33c8ff);
+            transform: translateY(-2px);
+            box-shadow: 0 16px 30px rgba(95, 59, 255, 0.22);
         }
         
         .btn-success {
-            background: linear-gradient(135deg, #27ae60, #219653);
+            background: linear-gradient(135deg, #24d39d, #28c76f);
             border: none;
-            border-radius: 8px;
-            padding: 12px 25px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 22px;
+            font-weight: 600;
             transition: all 0.3s ease;
+            color: white;
         }
         
         .btn-success:hover {
-            background: linear-gradient(135deg, #219653, #1e8449);
-            transform: translateY(-3px);
+            background: linear-gradient(135deg, #20b97c, #22a95f);
+            transform: translateY(-2px);
         }
         
         .btn-warning {
-            background: linear-gradient(135deg, var(--secondary), #e6b800);
+            background: linear-gradient(135deg, #ff8a5c, #ff6b6b);
             border: none;
-            border-radius: 8px;
-            padding: 12px 25px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 22px;
+            font-weight: 600;
             transition: all 0.3s ease;
+            color: white;
         }
         
         .btn-warning:hover {
-            background: linear-gradient(135deg, #e6b800, #d4af37);
-            transform: translateY(-3px);
-        }
-        
-        .btn-outline-primary {
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            border-radius: 8px;
-            padding: 10px 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-outline-primary:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-3px);
+            transform: translateY(-2px);
+            filter: brightness(1.05);
         }
         
         /* Tables */
         .table {
-            background-color: white;
-            border-radius: 12px;
+            background-color: rgba(255,255,255,0.98);
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border: 1px solid #f0e9d7;
+            box-shadow: 0 12px 30px rgba(45, 55, 127, 0.08);
+            border: 1px solid rgba(95, 59, 255, 0.1);
         }
         
         .table thead {
@@ -207,67 +223,69 @@
         
         .table th {
             border: none;
-            padding: 15px;
-            font-weight: 500;
+            padding: 14px;
+            font-weight: 600;
+            font-size: 0.92rem;
         }
         
         .table td {
-            padding: 15px;
-            border-color: #f0e9d7;
+            padding: 14px;
+            border-color: rgba(95, 59, 255, 0.08);
             vertical-align: middle;
+            font-size: 0.9rem;
         }
         
         .table tbody tr:hover {
-            background-color: rgba(139, 69, 19, 0.05);
+            background-color: rgba(95, 59, 255, 0.06);
         }
         
         /* Stat Cards */
         .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
+            background: rgba(255,255,255,0.98);
+            padding: 22px;
+            border-radius: 18px;
             text-align: center;
-            box-shadow: 0 8px 20px rgba(139, 69, 19, 0.1);
+            box-shadow: 0 18px 40px rgba(45, 55, 127, 0.08);
             cursor: pointer;
             transition: all 0.3s ease;
-            border-top: 5px solid var(--secondary);
+            border-top: 5px solid var(--primary);
             height: 100%;
         }
         
         .stat-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 30px rgba(139, 69, 19, 0.15);
+            transform: translateY(-6px);
+            box-shadow: 0 24px 50px rgba(45, 55, 127, 0.12);
         }
         
         .stat-card i {
-            font-size: 2.8rem;
-            margin-bottom: 15px;
+            font-size: 2rem;
+            margin-bottom: 12px;
             color: var(--primary);
-            background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(212, 175, 55, 0.1));
-            width: 80px;
-            height: 80px;
-            line-height: 80px;
+            background: linear-gradient(135deg, rgba(95, 59, 255, 0.12), rgba(66,214,255,0.14));
+            width: 60px;
+            height: 60px;
+            line-height: 60px;
             border-radius: 50%;
             display: inline-block;
         }
         
         .stat-card .number {
-            font-size: 2.2rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: var(--dark);
-            margin: 10px 0;
+            margin: 8px 0;
         }
         
         .stat-card .label {
             color: #666;
-            font-size: 1rem;
+            font-size: 0.85rem;
             font-weight: 500;
         }
         
         /* Supplier Cards */
         .supplier-card {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 12px;
             margin-bottom: 20px;
             border-left: 5px solid var(--primary);
@@ -276,7 +294,7 @@
         }
         
         .supplier-card:hover {
-            transform: translateX(8px);
+            transform: translateX(5px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
         
@@ -284,54 +302,47 @@
         .form-control, .form-select {
             border-radius: 8px;
             border: 2px solid #e0d6c2;
-            padding: 12px 15px;
-            font-size: 1rem;
+            padding: 10px 15px;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
             background: #FFFEF9;
         }
         
         .form-control:focus, .form-select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(139, 69, 19, 0.1);
+            box-shadow: 0 0 0 4px rgba(95, 59, 255, 0.14);
             background: white;
         }
         
         /* Footer */
         .footer {
             margin-top: 50px;
-            padding: 30px 0;
+            padding: 35px 0;
             background: linear-gradient(135deg, var(--dark), var(--primary));
             color: white;
             text-align: center;
-            border-top: 3px solid var(--secondary);
+            border-top: 3px solid rgba(66,214,255,0.35);
         }
         
         .footer p {
             margin-bottom: 0;
             opacity: 0.9;
+            font-size: 0.85rem;
         }
         
         /* Badges */
         .badge-custom {
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 20px;
             font-weight: 500;
-            font-size: 0.85rem;
-        }
-        
-        .badge-primary {
-            background: linear-gradient(135deg, var(--primary), var(--light-brown));
-        }
-        
-        .badge-success {
-            background: linear-gradient(135deg, #27ae60, #219653);
+            font-size: 0.75rem;
         }
         
         /* Alerts */
         .alert {
             border-radius: 10px;
             border: none;
-            padding: 15px 20px;
+            padding: 12px 20px;
             margin-bottom: 20px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
@@ -348,22 +359,16 @@
             border-left: 5px solid #e74c3c;
         }
         
-        .alert-info {
-            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
-            color: #0c5460;
-            border-left: 5px solid #3498db;
-        }
-        
         /* User Info */
         .user-info {
             color: rgba(255,255,255,0.9);
-            font-size: 0.9rem;
-            margin-right: 15px;
+            font-size: 0.85rem;
+            margin-right: 10px;
             display: flex;
             align-items: center;
             gap: 8px;
             background: rgba(212, 175, 55, 0.1);
-            padding: 8px 15px;
+            padding: 6px 12px;
             border-radius: 20px;
         }
         
@@ -385,21 +390,9 @@
         
         /* Container */
         .container {
-            padding: 0 20px;
-        }
-        
-        /* Page Header */
-        .page-header {
-            background: linear-gradient(135deg, rgba(139, 69, 19, 0.05), rgba(212, 175, 55, 0.05));
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            border-left: 5px solid var(--secondary);
-        }
-        
-        /* Loading Spinner */
-        .spinner-border {
-            color: var(--primary);
+            padding: 0 15px;
+            max-width: 1400px;
+            width: 100%;
         }
         
         /* Responsive Design */
@@ -409,48 +402,64 @@
             }
             
             .navbar-brand {
-                font-size: 1.5rem;
-                padding: 6px 15px;
+                font-size: 1.2rem;
+                padding: 6px 12px;
+            }
+            
+            .navbar-brand i {
+                font-size: 1.2rem;
+            }
+            
+            .nav-link {
+                padding: 8px 12px !important;
+                font-size: 0.85rem;
             }
             
             .stat-card {
-                padding: 20px;
+                padding: 15px;
                 margin-bottom: 15px;
             }
             
             .stat-card i {
-                font-size: 2.2rem;
-                width: 60px;
-                height: 60px;
-                line-height: 60px;
+                font-size: 1.5rem;
+                width: 50px;
+                height: 50px;
+                line-height: 50px;
             }
             
             .stat-card .number {
-                font-size: 1.8rem;
+                font-size: 1.2rem;
             }
             
             .container {
-                padding: 0 15px;
+                padding: 0 12px;
+            }
+            
+            .card-header {
+                padding: 12px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .table {
+                font-size: 0.8rem;
+            }
+            
+            .table th, .table td {
+                padding: 8px;
             }
         }
         
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* Desktop Optimization */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1300px;
+            }
         }
         
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--dark);
+        /* Table Responsive Wrapper */
+        .table-responsive-custom {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
         
         /* Animation */
@@ -467,6 +476,17 @@
         
         .animate-fade-in {
             animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Filter Buttons Active State */
+        .filter-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white;
+            border-color: var(--secondary);
+        }
+        
+        .filter-btn {
+            transition: all 0.3s ease;
         }
     </style>
 </head>
@@ -505,7 +525,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('customers') }}">
-                            <i class="fas fa-shopping-cart"></i> Sales Customers
+                            <i class="fas fa-shopping-cart"></i> Customers
                         </a>
                     </li>
                     <li class="nav-item">
@@ -534,8 +554,6 @@
                             <i class="fas fa-money-bill-wave"></i> Withdrawals
                         </a>
                     </li>
-                    {% endif %}
-                    {% if current_user.role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('manage_users') }}">
                             <i class="fas fa-users-cog"></i> Manage Users
@@ -569,28 +587,7 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container mt-4 animate-fade-in">
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">
-                        <div class="d-flex align-items-center">
-                            <i class="fas 
-                                {% if category == 'success' %}fa-check-circle{% endif %}
-                                {% if category == 'danger' %}fa-exclamation-circle{% endif %}
-                                {% if category == 'warning' %}fa-exclamation-triangle{% endif %}
-                                {% if category == 'info' %}fa-info-circle{% endif %}
-                                me-3"></i>
-                            <div>{{ message }}</div>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <!-- Page Content -->
+    <div class="container mt-3 animate-fade-in">
         {% block content %}{% endblock %}
     </div>
 
@@ -610,21 +607,38 @@
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Initialize tooltips
+        // Toastr configuration
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": true,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+        
+        // Show flash messages as toast notifications
         document.addEventListener('DOMContentLoaded', function() {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
+            // Check for flash messages in the DOM
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(function(msg) {
+                const type = msg.dataset.type || 'info';
+                const message = msg.textContent;
+                if (type === 'success') toastr.success(message);
+                else if (type === 'danger') toastr.error(message);
+                else if (type === 'warning') toastr.warning(message);
+                else toastr.info(message);
+                msg.remove();
             });
-            
-            // Auto-dismiss alerts after 5 seconds
-            setTimeout(function() {
-                var alerts = document.querySelectorAll('.alert');
-                alerts.forEach(function(alert) {
-                    var bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                });
-            }, 5000);
             
             // Add active class to current page nav link
             const currentPath = window.location.pathname;

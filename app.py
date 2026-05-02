@@ -51,7 +51,7 @@ NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
 BUFFALO_RATE_CHART = {      
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
-    6.0: 48.0, 6.1: 48.8, 6.2: 49.6, 6.3: 50.4, 6.4: 51.2,
+    6.0: 48.0, 6.1: 48.8, 6.2: 49.6, 6.3: 50.0, 6.4: 51.0,
     6.5: 52.0, 6.6: 52.8, 6.7: 53.6, 6.8: 54.4, 6.9: 55.2,
     7.0: 56.0, 7.1: 56.8, 7.2: 57.6, 7.3: 58.4, 7.4: 59.2,
     7.5: 60.0, 7.6: 60.8, 7.7: 61.6, 7.8: 62.4, 7.9: 63.2,
@@ -337,6 +337,7 @@ def utility_processor():
     }
 
 # ================== AUTHENTICATION ROUTES ==================
+# Update the login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page with username/password form"""
@@ -350,20 +351,23 @@ def login():
         
         if user and user.check_password(password):
             login_user(user)
-            flash(f'Welcome back, {user.username}!', 'success')
+            # Use flash for toast notification
+            flash(f'✨ Welcome back, {user.username}! You have successfully logged in.', 'success')
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password', 'danger')
+            flash('❌ Invalid username or password. Please try again.', 'danger')
     
     return render_template('login.html')
 
+# Update the logout route
 @app.route('/logout')
 @login_required
 def logout():
+    username = current_user.username
     logout_user()
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))  # Changed from 'login' to 'index'
+    flash(f'👋 Goodbye, {username}! You have been logged out successfully.', 'info')
+    return redirect(url_for('index'))
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
@@ -501,13 +505,28 @@ def add_collection_page():
     total_liters = sum(c.liters for c in today_collections)
     total_amount = sum(c.amount for c in today_collections)
     avg_fat = sum(c.fat for c in today_collections) / len(today_collections) if today_collections else 0
+
+    popup_data = None
+    if request.args.get('show_popup'):
+        popup_data = {
+            'supplier_id': request.args.get('supplier_id', ''),
+            'supplier_name': request.args.get('supplier_name', ''),
+            'milk_type': request.args.get('milk_type', ''),
+            'date': request.args.get('date', ''),
+            'session': request.args.get('session', ''),
+            'liters': request.args.get('liters', ''),
+            'fat': request.args.get('fat', ''),
+            'rate': request.args.get('rate', ''),
+            'amount': request.args.get('amount', '')
+        }
     
     return render_template('add_collection_page.html', 
                          suppliers=suppliers, 
                          today=today,
                          total_liters=total_liters,
                          total_amount=total_amount,
-                         avg_fat=avg_fat)
+                         avg_fat=avg_fat,
+                         popup_data=popup_data)
 
 # ================== SUPPLIER MANAGEMENT ==================
 @app.route('/suppliers', methods=['GET', 'POST'])
@@ -515,10 +534,10 @@ def add_collection_page():
 @role_required('admin', 'employee')
 def suppliers():
     if request.method == 'POST':
-        supplier_id = request.form.get('supplier_id').strip()
-        name = request.form.get('name').strip()
-        mobile = request.form.get('mobile').strip()
-        address = request.form.get('address').strip()
+        supplier_id = (request.form.get('supplier_id') or '').strip()
+        name = (request.form.get('name') or '').strip()
+        mobile = (request.form.get('mobile') or '').strip()
+        address = (request.form.get('address') or '').strip()
         
         if not supplier_id or not name:
             flash("Supplier ID and name are required", "danger")
@@ -529,14 +548,23 @@ def suppliers():
             return redirect(url_for('suppliers'))
         
         s = Supplier(supplier_id=supplier_id, name=name, mobile=mobile, address=address)
-        db.session.add(s)
-        db.session.commit()
+        try:
+            db.session.add(s)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("Failed to save supplier. Please try again.", "danger")
+            return redirect(url_for('suppliers'))
         
         flash(f"Supplier {supplier_id} - {name} added successfully", "success")
         return redirect(url_for('suppliers'))
     
-    all_suppliers = Supplier.query.all()
-    all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
+    try:
+        all_suppliers = Supplier.query.all()
+        all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
+    except Exception:
+        flash('Unable to load suppliers right now. Please refresh the page.', 'danger')
+        all_suppliers = []
     return render_template('suppliers.html', suppliers=all_suppliers)
 
 # ================== NEW: EDIT SUPPLIER ==================
@@ -761,7 +789,17 @@ def add_collection():
     # Show rate period in message
     rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
     flash(f"Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
-    return redirect(url_for('add_collection_page'))
+    return redirect(url_for('add_collection_page',
+                            show_popup=1,
+                            supplier_id=s.supplier_id,
+                            supplier_name=s.name,
+                            milk_type=milk_type,
+                            date=d,
+                            session=session,
+                            liters=liters,
+                            fat=round(fat, 1),
+                            rate=rate,
+                            amount=amt))
 
 @app.route('/quick_add_page')
 @login_required
@@ -814,7 +852,7 @@ def quick_add():
     
     rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
     flash(f"Quick collection added from {s.name} - ₹{amt} ({rate_period})", "success")
-    return redirect(url_for('add_collection_page'))
+    return redirect(url_for('daily', date=d))
 
 # ================== SALES (TO CUSTOMERS) ==================
 @app.route('/sales')
@@ -1267,9 +1305,11 @@ def monthly():
                          monthly_total_sales=monthly_total_sales)
 
 # ================== EXPORT CSV ==================
+# Update the export routes to ensure they work properly
 @app.route('/export_month_csv')
 @login_required
 def export_month_csv():
+    """Export monthly collections to CSV"""
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
@@ -1280,6 +1320,10 @@ def export_month_csv():
     ).join(Collection, Supplier.id == Collection.supplier_id)\
      .filter(Collection.date.like(like))\
      .order_by(Supplier.name, Collection.date).all()
+    
+    if not rows:
+        flash(f'No data found for {month}', 'warning')
+        return redirect(url_for('monthly', month=month))
     
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -1293,7 +1337,7 @@ def export_month_csv():
     
     buf.seek(0)
     return send_file(
-        io.BytesIO(buf.getvalue().encode('utf-8')),
+        io.BytesIO(buf.getvalue().encode('utf-8-sig')),  # Use utf-8-sig for Excel compatibility
         mimetype='text/csv',
         as_attachment=True,
         download_name=f"collections_{month}.csv"
@@ -1302,6 +1346,7 @@ def export_month_csv():
 @app.route('/export_month_summary_csv')
 @login_required
 def export_month_summary_csv():
+    """Export monthly summary to CSV"""
     month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
     like = month + '%'
     
@@ -1313,6 +1358,10 @@ def export_month_summary_csv():
     ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
      .outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
      .group_by(Supplier.id).all()
+    
+    if not rows:
+        flash(f'No data found for {month}', 'warning')
+        return redirect(url_for('monthly', month=month))
     
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -1330,7 +1379,7 @@ def export_month_summary_csv():
     
     buf.seek(0)
     return send_file(
-        io.BytesIO(buf.getvalue().encode('utf-8')),
+        io.BytesIO(buf.getvalue().encode('utf-8-sig')),
         mimetype='text/csv',
         as_attachment=True,
         download_name=f"summary_{month}.csv"

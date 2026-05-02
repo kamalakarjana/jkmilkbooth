@@ -991,6 +991,124 @@ def daily():
                          total_amount=total_amount,
                          avg_fat=avg_fat)
 
+@app.route('/export_daily_csv')
+@login_required
+def export_daily_csv():
+    """Export daily collections to CSV"""
+    req_date = request.args.get('date') or get_today_ist()
+    session_filter = request.args.get('session', 'all')
+    
+    query = Collection.query.filter_by(date=req_date)
+    if session_filter != 'all':
+        query = query.filter_by(session=session_filter)
+    
+    collections = query.order_by(Collection.supplier_id).all()
+    if not collections:
+        flash(f'No data found for {req_date}', 'warning')
+        return redirect(url_for('daily', date=req_date))
+    
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['Date', 'Supplier ID', 'Name', 'Session', 'Milk Type', 'Liters', 'Fat %', 'Rate/L', 'Amount (₹)'])
+    for c in collections:
+        writer.writerow([
+            c.date, c.supplier.supplier_id, c.supplier.name, c.session,
+            c.milk_type, c.liters, c.fat, c.rate_per_liter, c.amount
+        ])
+    buf.seek(0)
+    filename = f"daily_collections_{req_date}_{session_filter}.csv"
+    return send_file(
+        io.BytesIO(buf.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/export_daily_pdf')
+@login_required
+def export_daily_pdf():
+    """Export daily collections to PDF"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    
+    req_date = request.args.get('date') or get_today_ist()
+    session_filter = request.args.get('session', 'all')
+    
+    query = Collection.query.filter_by(date=req_date)
+    if session_filter != 'all':
+        query = query.filter_by(session=session_filter)
+    
+    collections = query.order_by(Collection.supplier_id).all()
+    if not collections:
+        flash(f'No data found for {req_date}', 'warning')
+        return redirect(url_for('daily', date=req_date))
+    
+    total_liters = sum(c.liters for c in collections)
+    total_amount = sum(c.amount for c in collections)
+    avg_fat = sum(c.fat for c in collections) / len(collections) if collections else 0
+    
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=18, alignment=1)
+    elements = [Paragraph("RR Milk Management System", title_style), Paragraph(f"Daily Collections Report - {req_date}", title_style)]
+    if session_filter != 'all':
+        elements.append(Paragraph(f"Session: {session_filter.title()}", styles['Heading3']))
+    elements.append(Spacer(1, 12))
+    summary_data = [
+        ['Total Liters', 'Total Amount', 'Average Fat %', 'Collections Count'],
+        [f"{total_liters:.2f}", f"₹ {total_amount:,.0f}", f"{avg_fat:.1f}%", str(len(collections))]
+    ]
+    summary_table = Table(summary_data, colWidths=[1.8*inch, 1.8*inch, 1.8*inch, 1.8*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f5f6fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 18))
+    data = [['Supplier ID', 'Name', 'Session', 'Milk Type', 'Liters', 'Fat %', 'Rate/L', 'Amount (₹)']]
+    for c in collections:
+        data.append([
+            c.supplier.supplier_id, c.supplier.name, (c.session or '-').title(),
+            (c.milk_type or '-').title(), f"{c.liters:.2f}", f"{c.fat:.1f}",
+            f"{c.rate_per_liter:.2f}", f"₹ {c.amount:,.0f}"
+        ])
+    table = Table(data, colWidths=[0.9*inch, 1.4*inch, 0.8*inch, 0.8*inch, 0.7*inch, 0.7*inch, 0.8*inch, 1*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
+        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8)
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 18))
+    elements.append(Paragraph(f"Generated on: {get_today_ist()}", styles['Normal']))
+    elements.append(Paragraph("RR Milk Management System", styles['Normal']))
+    doc.build(elements)
+    buf.seek(0)
+    filename = f"daily_collections_{req_date}_{session_filter}.pdf"
+    return send_file(
+        buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
 # ================== NEW: REFRESH RATES ROUTE ==================
 @app.route('/refresh_daily_rates/<date>', methods=['POST'])
 @login_required
@@ -1383,6 +1501,94 @@ def export_month_summary_csv():
         mimetype='text/csv',
         as_attachment=True,
         download_name=f"summary_{month}.csv"
+    )
+
+@app.route('/export_monthly_pdf')
+@login_required
+def export_monthly_pdf():
+    """Export monthly summary to PDF"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
+    like = month + '%'
+    
+    rows = db.session.query(
+        Supplier.supplier_id, Supplier.name,
+        func.coalesce(func.sum(Collection.amount), 0).label('total_amount'),
+        func.coalesce(func.sum(Collection.liters), 0).label('total_liters'),
+        func.coalesce(func.sum(Withdrawal.amount), 0).label('withdrawn')
+    ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
+     .outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
+     .group_by(Supplier.id).all()
+    
+    if not rows:
+        flash(f'No data found for {month}', 'warning')
+        return redirect(url_for('monthly', month=month))
+    
+    summary_total_liters = sum(float(r.total_liters or 0) for r in rows)
+    summary_total_amount = sum(int(r.total_amount or 0) for r in rows)
+    summary_total_withdrawn = sum(int(r.withdrawn or 0) for r in rows)
+    
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=18, alignment=1)
+    elements = [Paragraph("RR Milk Management System", title_style), Paragraph(f"Monthly Summary Report - {month}", title_style), Spacer(1, 12)]
+    
+    summary_data = [
+        ['Total Liters', 'Total Collections (₹)', 'Total Withdrawn (₹)', 'Net Balance (₹)'],
+        [f"{summary_total_liters:.2f}", f"₹ {summary_total_amount:,.0f}", f"₹ {summary_total_withdrawn:,.0f}", f"₹ {summary_total_amount - summary_total_withdrawn:,.0f}"]
+    ]
+    summary_table = Table(summary_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f5f6fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 20))
+    
+    detail_data = [['Supplier ID', 'Name', 'Total Liters', 'Collections (₹)', 'Withdrawn (₹)', 'Balance (₹)']]
+    for r in rows:
+        balance = int((r.total_amount or 0) - (r.withdrawn or 0))
+        detail_data.append([
+            r.supplier_id, r.name, f"{float(r.total_liters or 0):.2f}",
+            f"₹ {int(r.total_amount or 0):,}", f"₹ {int(r.withdrawn or 0):,}", f"₹ {balance:,}"
+        ])
+    detail_table = Table(detail_data, colWidths=[0.9*inch, 1.6*inch, 1.2*inch, 1.3*inch, 1.3*inch, 1.3*inch])
+    detail_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
+        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8)
+    ]))
+    elements.append(detail_table)
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(f"Generated on: {get_today_ist()}", styles['Normal']))
+    elements.append(Paragraph("RR Milk Management System", styles['Normal']))
+    doc.build(elements)
+    buf.seek(0)
+    filename = f"monthly_summary_{month}.pdf"
+    return send_file(
+        buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
     )
 
 # ================== DATABASE MIGRATION COMMANDS ==================

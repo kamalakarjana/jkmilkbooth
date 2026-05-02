@@ -224,10 +224,15 @@
             <li><a class="dropdown-item" href="#" onclick="exportToExcel('morning')"><i class="fas fa-sun text-warning"></i> Morning Only (Excel)</a></li>
             <li><a class="dropdown-item" href="#" onclick="exportToExcel('evening')"><i class="fas fa-moon text-info"></i> Evening Only (Excel)</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><h6 class="dropdown-header">📄 PDF Export</h6></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToPDF('all')"><i class="fas fa-file-pdf text-danger"></i> Full Data (PDF)</a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToPDF('morning')"><i class="fas fa-sun text-warning"></i> Morning Only (PDF)</a></li>
-            <li><a class="dropdown-item" href="#" onclick="exportToPDF('evening')"><i class="fas fa-moon text-info"></i> Evening Only (PDF)</a></li>
+            <li><h6 class="dropdown-header">📄 CSV Export</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_daily_csv', date=date, session='all') }}"><i class="fas fa-file-csv text-primary"></i> Full Data (CSV)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_daily_csv', date=date, session='morning') }}"><i class="fas fa-sun text-warning"></i> Morning Only (CSV)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_daily_csv', date=date, session='evening') }}"><i class="fas fa-moon text-info"></i> Evening Only (CSV)</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">📋 PDF Export</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_daily_pdf', date=date, session='all') }}"><i class="fas fa-file-pdf text-danger"></i> Full Data (PDF)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_daily_pdf', date=date, session='morning') }}"><i class="fas fa-sun text-warning"></i> Morning Only (PDF)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('export_daily_pdf', date=date, session='evening') }}"><i class="fas fa-moon text-info"></i> Evening Only (PDF)</a></li>
           </ul>
         </div>
         

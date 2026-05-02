@@ -17,12 +17,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
-            --primary: #8B4513;
-            --secondary: #D4AF37;
-            --accent: #2E8B57;
-            --light: #FFF8DC;
-            --dark: #5D4037;
-            --light-brown: #A0522D;
+            --primary: #5f3bff;
+            --secondary: #42d6ff;
+            --accent: #ff6b6b;
+            --light: #f3f7ff;
+            --dark: #12174f;
+            --highlight: #8d5dff;
         }
         
         * {
@@ -35,7 +35,7 @@
         }
         
         body {
-            background-color: #f9f5f0;
+            background: radial-gradient(circle at top left, rgba(66,214,255,0.18), transparent 35%), linear-gradient(180deg, #f3f7ff 0%, #eef4ff 100%);
             font-family: 'Roboto', sans-serif;
             min-height: 100vh;
             padding-top: 70px;
@@ -63,48 +63,49 @@
         /* Navigation Bar */
         .navbar {
             background: linear-gradient(135deg, var(--dark), var(--primary));
-            box-shadow: 0 4px 20px rgba(139, 69, 19, 0.2);
-            padding: 12px 0;
+            box-shadow: 0 16px 40px rgba(29, 40, 112, 0.12);
+            padding: 14px 0;
             position: fixed;
             top: 0;
             width: 100%;
             z-index: 1000;
-            border-bottom: 3px solid var(--secondary);
+            border-bottom: 3px solid rgba(66,214,255,0.4);
         }
         
         .navbar-brand {
             font-family: 'Poppins', sans-serif;
             font-weight: 700;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             color: white !important;
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 15px;
-            background: rgba(212, 175, 55, 0.1);
-            border-radius: 10px;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
             transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.12);
         }
         
         .navbar-brand:hover {
-            background: rgba(212, 175, 55, 0.2);
+            background: rgba(255,255,255,0.12);
             transform: translateY(-2px);
         }
         
         .navbar-brand i {
             color: var(--secondary);
-            font-size: 1.5rem;
+            font-size: 1.4rem;
         }
         
         .nav-link {
-            color: rgba(255,255,255,0.9) !important;
+            color: rgba(255,255,255,0.95) !important;
             font-weight: 500;
             margin: 0 5px;
             padding: 10px 15px !important;
-            border-radius: 8px;
+            border-radius: 10px;
             transition: all 0.3s ease;
             position: relative;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
         }
         
         .nav-link::before {
@@ -115,17 +116,17 @@
             transform: translateX(-50%);
             width: 0;
             height: 3px;
-            background: var(--secondary);
-            transition: width 0.3s ease;
+            background: rgba(255,255,255,0.8);
+            transition: width 0.25s ease;
         }
         
         .nav-link:hover {
             color: white !important;
-            background: rgba(212, 175, 55, 0.1);
+            background: rgba(255,255,255,0.12);
         }
         
         .nav-link:hover::before {
-            width: 80%;
+            width: 70%;
         }
         
         .nav-link i {
@@ -136,75 +137,83 @@
         /* Cards */
         .card {
             border: none;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(139, 69, 19, 0.1);
+            border-radius: 18px;
+            box-shadow: 0 20px 40px rgba(45, 55, 127, 0.08);
             margin-bottom: 25px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            background: white;
+            transition: transform 0.35s ease, box-shadow 0.35s ease;
+            background: rgba(255,255,255,0.96);
             overflow: hidden;
         }
         
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(139, 69, 19, 0.15);
+            transform: translateY(-6px);
+            box-shadow: 0 28px 60px rgba(45, 55, 127, 0.12);
         }
         
         .card-header {
-            background: linear-gradient(135deg, var(--primary), var(--dark));
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            border-radius: 15px 15px 0 0 !important;
+            border-radius: 18px 18px 0 0 !important;
             font-weight: 600;
-            padding: 15px 20px;
-            border-bottom: 3px solid var(--secondary);
+            padding: 16px 22px;
+            border-bottom: 3px solid rgba(255,255,255,0.18);
         }
         
         /* Buttons */
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--light-brown));
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 22px;
+            font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.2);
+            box-shadow: 0 12px 25px rgba(95, 59, 255, 0.18);
+            color: white;
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--light-brown), var(--dark));
+            background: linear-gradient(135deg, #4e39ff, #33c8ff);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(139, 69, 19, 0.3);
+            box-shadow: 0 16px 30px rgba(95, 59, 255, 0.22);
         }
         
         .btn-success {
-            background: linear-gradient(135deg, #27ae60, #219653);
+            background: linear-gradient(135deg, #24d39d, #28c76f);
             border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 22px;
+            font-weight: 600;
             transition: all 0.3s ease;
+            color: white;
         }
         
         .btn-success:hover {
-            background: linear-gradient(135deg, #219653, #1e8449);
+            background: linear-gradient(135deg, #20b97c, #22a95f);
             transform: translateY(-2px);
         }
         
         .btn-warning {
-            background: linear-gradient(135deg, var(--secondary), #e6b800);
+            background: linear-gradient(135deg, #ff8a5c, #ff6b6b);
             border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 22px;
+            font-weight: 600;
             transition: all 0.3s ease;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
         }
         
         /* Tables */
         .table {
-            background-color: white;
-            border-radius: 12px;
+            background-color: rgba(255,255,255,0.98);
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border: 1px solid #f0e9d7;
+            box-shadow: 0 12px 30px rgba(45, 55, 127, 0.08);
+            border: 1px solid rgba(95, 59, 255, 0.1);
         }
         
         .table thead {
@@ -214,45 +223,45 @@
         
         .table th {
             border: none;
-            padding: 12px;
-            font-weight: 500;
-            font-size: 0.85rem;
+            padding: 14px;
+            font-weight: 600;
+            font-size: 0.92rem;
         }
         
         .table td {
-            padding: 12px;
-            border-color: #f0e9d7;
+            padding: 14px;
+            border-color: rgba(95, 59, 255, 0.08);
             vertical-align: middle;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
         }
         
         .table tbody tr:hover {
-            background-color: rgba(139, 69, 19, 0.05);
+            background-color: rgba(95, 59, 255, 0.06);
         }
         
         /* Stat Cards */
         .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
+            background: rgba(255,255,255,0.98);
+            padding: 22px;
+            border-radius: 18px;
             text-align: center;
-            box-shadow: 0 8px 20px rgba(139, 69, 19, 0.1);
+            box-shadow: 0 18px 40px rgba(45, 55, 127, 0.08);
             cursor: pointer;
             transition: all 0.3s ease;
-            border-top: 5px solid var(--secondary);
+            border-top: 5px solid var(--primary);
             height: 100%;
         }
         
         .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(139, 69, 19, 0.15);
+            transform: translateY(-6px);
+            box-shadow: 0 24px 50px rgba(45, 55, 127, 0.12);
         }
         
         .stat-card i {
             font-size: 2rem;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             color: var(--primary);
-            background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(212, 175, 55, 0.1));
+            background: linear-gradient(135deg, rgba(95, 59, 255, 0.12), rgba(66,214,255,0.14));
             width: 60px;
             height: 60px;
             line-height: 60px;
@@ -301,18 +310,18 @@
         
         .form-control:focus, .form-select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(139, 69, 19, 0.1);
+            box-shadow: 0 0 0 4px rgba(95, 59, 255, 0.14);
             background: white;
         }
         
         /* Footer */
         .footer {
             margin-top: 50px;
-            padding: 30px 0;
+            padding: 35px 0;
             background: linear-gradient(135deg, var(--dark), var(--primary));
             color: white;
             text-align: center;
-            border-top: 3px solid var(--secondary);
+            border-top: 3px solid rgba(66,214,255,0.35);
         }
         
         .footer p {

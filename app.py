@@ -765,7 +765,7 @@ def add_collection():
     # Show rate period in message
     rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
     flash(f"Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
-    return redirect(url_for('add_collection_page'))
+    return redirect(url_for('daily', date=d))
 
 @app.route('/quick_add_page')
 @login_required
@@ -818,7 +818,7 @@ def quick_add():
     
     rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
     flash(f"Quick collection added from {s.name} - ₹{amt} ({rate_period})", "success")
-    return redirect(url_for('add_collection_page'))
+    return redirect(url_for('daily', date=d))
 
 # ================== SALES (TO CUSTOMERS) ==================
 @app.route('/sales')

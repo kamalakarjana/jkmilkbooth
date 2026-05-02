@@ -519,10 +519,10 @@ def add_collection_page():
 @role_required('admin', 'employee')
 def suppliers():
     if request.method == 'POST':
-        supplier_id = request.form.get('supplier_id').strip()
-        name = request.form.get('name').strip()
-        mobile = request.form.get('mobile').strip()
-        address = request.form.get('address').strip()
+        supplier_id = (request.form.get('supplier_id') or '').strip()
+        name = (request.form.get('name') or '').strip()
+        mobile = (request.form.get('mobile') or '').strip()
+        address = (request.form.get('address') or '').strip()
         
         if not supplier_id or not name:
             flash("Supplier ID and name are required", "danger")
@@ -533,14 +533,23 @@ def suppliers():
             return redirect(url_for('suppliers'))
         
         s = Supplier(supplier_id=supplier_id, name=name, mobile=mobile, address=address)
-        db.session.add(s)
-        db.session.commit()
+        try:
+            db.session.add(s)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("Failed to save supplier. Please try again.", "danger")
+            return redirect(url_for('suppliers'))
         
         flash(f"Supplier {supplier_id} - {name} added successfully", "success")
         return redirect(url_for('suppliers'))
     
-    all_suppliers = Supplier.query.all()
-    all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
+    try:
+        all_suppliers = Supplier.query.all()
+        all_suppliers = sort_by_id(all_suppliers, 'supplier_id')
+    except Exception:
+        flash('Unable to load suppliers right now. Please refresh the page.', 'danger')
+        all_suppliers = []
     return render_template('suppliers.html', suppliers=all_suppliers)
 
 # ================== NEW: EDIT SUPPLIER ==================

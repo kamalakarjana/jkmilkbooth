@@ -5,4 +5,6 @@ Flask-Migrate==4.0.4
 python-dotenv==1.0.0
 pytz==2023.3
 Werkzeug>=2.3.7
+openpyxl==3.10.10
+XlsxWriter==3.1.2
 

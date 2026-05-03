@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Milk Rates{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-chart-area"></i> Milk Rate Configuration</h2>
+
+<div class="alert alert-info">
+    <strong>Note:</strong> Buffalo rates apply from <strong>{{ new_rates_start_date }}</strong> onward. Cow rates are always used as shown.
+</div>
+
+<form action="{{ url_for('manage_rates') }}" method="post">
+    <div class="row gy-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-cow"></i> Buffalo Milk Rates
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Fat %</th>
+                                <th>Rate (₹/L)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fat, rate in buffalo_rows %}
+                            <tr>
+                                <td>{{ '%.1f' % fat }}</td>
+                                <td>
+                                    <input type="text" class="form-control" name="buffalo_{{ ('%.1f' % fat).replace('.', '_') }}" value="{{ '%.2f' % rate }}" />
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-tractor"></i> Cow Milk Rates
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Fat %</th>
+                                <th>Rate (₹/L)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fat, rate in cow_rows %}
+                            <tr>
+                                <td>{{ '%.1f' % fat }}</td>
+                                <td>
+                                    <input type="text" class="form-control" name="cow_{{ ('%.1f' % fat).replace('.', '_') }}" value="{{ '%.2f' % rate }}" />
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-success">
+            <i class="fas fa-save"></i> Save Rate Charts
+        </button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</form>
+{% endblock %}

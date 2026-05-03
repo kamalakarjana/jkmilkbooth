@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from sqlalchemy import func, or_
 from datetime import date, datetime
-import os, csv, io, math, pytz
+import os, csv, io, math, pytz, json
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -46,9 +46,9 @@ def get_last_day_of_month(year, month):
 # ================== RATE CHARTS ==================
 # Rate change date (when new rates started)
 NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
+RATE_FILE = os.path.join(basedir, 'milk_rates.json')
 
-# Buffalo milk rate chart (NEW RATES from 01-Feb-2026)
-BUFFALO_RATE_CHART = {      
+DEFAULT_BUFFALO_RATE_CHART = {      
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
     6.0: 48.0, 6.1: 48.8, 6.2: 49.6, 6.3: 50.0, 6.4: 51.0,
@@ -62,8 +62,7 @@ BUFFALO_RATE_CHART = {
     10.0: 80.0
 }
 
-# Cow milk rate chart (NO CHANGE - keep as is)
-COW_RATE_CHART = {
+DEFAULT_COW_RATE_CHART = {
     3.0: 25.30, 3.1: 25.53, 3.2: 25.76, 3.3: 25.99, 3.4: 26.22,
     3.5: 26.45, 3.6: 26.68, 3.7: 26.91, 3.8: 27.14, 3.9: 27.37,
     4.0: 27.60, 4.1: 27.83, 4.2: 28.06, 4.3: 28.29, 4.4: 28.52,
@@ -72,6 +71,42 @@ COW_RATE_CHART = {
     5.5: 31.05, 5.6: 31.28, 5.7: 31.51, 5.8: 31.74, 5.9: 31.97,
     6.0: 32.20
 }
+
+BUFFALO_RATE_CHART = {}
+COW_RATE_CHART = {}
+
+
+def load_rate_charts():
+    """Load rate charts from disk, falling back to defaults."""
+    global BUFFALO_RATE_CHART, COW_RATE_CHART
+    if os.path.exists(RATE_FILE):
+        try:
+            with open(RATE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            BUFFALO_RATE_CHART = {float(k): float(v) for k, v in data.get('buffalo', {}).items()}
+            COW_RATE_CHART = {float(k): float(v) for k, v in data.get('cow', {}).items()}
+            if BUFFALO_RATE_CHART and COW_RATE_CHART:
+                return
+        except Exception:
+            pass
+
+    BUFFALO_RATE_CHART = DEFAULT_BUFFALO_RATE_CHART.copy()
+    COW_RATE_CHART = DEFAULT_COW_RATE_CHART.copy()
+
+
+def save_rate_charts(buffalo_chart, cow_chart):
+    """Persist rate charts to disk."""
+    try:
+        payload = {
+            'buffalo': {f'{k:.1f}': round(v, 2) for k, v in sorted(buffalo_chart.items())},
+            'cow': {f'{k:.1f}': round(v, 2) for k, v in sorted(cow_chart.items())}
+        }
+        with open(RATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+
+load_rate_charts()
 
 def find_rate(fat, milk_type='buffalo', transaction_date=None):
     """
@@ -421,6 +456,49 @@ def register():
 def manage_users():
     users = User.query.all()
     return render_template('manage_users.html', users=users)
+
+@app.route('/manage_rates', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def manage_rates():
+    if request.method == 'POST':
+        buffalo_rates = {}
+        cow_rates = {}
+
+        for key, value in request.form.items():
+            if not value:
+                continue
+            if key.startswith('buffalo_'):
+                fat_str = key[len('buffalo_'):].replace('_', '.')
+                try:
+                    fat = float(fat_str)
+                    rate = float(value)
+                except ValueError:
+                    continue
+                buffalo_rates[fat] = rate
+            elif key.startswith('cow_'):
+                fat_str = key[len('cow_'):].replace('_', '.')
+                try:
+                    fat = float(fat_str)
+                    rate = float(value)
+                except ValueError:
+                    continue
+                cow_rates[fat] = rate
+
+        if buffalo_rates:
+            BUFFALO_RATE_CHART.clear()
+            BUFFALO_RATE_CHART.update(buffalo_rates)
+        if cow_rates:
+            COW_RATE_CHART.clear()
+            COW_RATE_CHART.update(cow_rates)
+
+        save_rate_charts(BUFFALO_RATE_CHART, COW_RATE_CHART)
+        flash('✅ Milk rate charts updated successfully', 'success')
+        return redirect(url_for('manage_rates'))
+
+    buffalo_rows = sorted(BUFFALO_RATE_CHART.items())
+    cow_rows = sorted(COW_RATE_CHART.items())
+    return render_template('manage_rates.html', buffalo_rows=buffalo_rows, cow_rows=cow_rows, new_rates_start_date=NEW_RATES_START_DATE)
 
 # ================== MAIN ROUTES ==================
 @app.route('/')
@@ -1029,7 +1107,7 @@ def export_daily_csv():
 def export_daily_pdf():
     """Export daily collections to PDF"""
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
@@ -1051,7 +1129,7 @@ def export_daily_pdf():
     avg_fat = sum(c.fat for c in collections) / len(collections) if collections else 0
     
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4)
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15, rightMargin=15, topMargin=15, bottomMargin=15)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=18, alignment=1)
     elements = [Paragraph("RR Milk Management System", title_style), Paragraph(f"Daily Collections Report - {req_date}", title_style)]
@@ -1062,7 +1140,7 @@ def export_daily_pdf():
         ['Total Liters', 'Total Amount', 'Average Fat %', 'Collections Count'],
         [f"{total_liters:.2f}", f"₹ {total_amount:,.0f}", f"{avg_fat:.1f}%", str(len(collections))]
     ]
-    summary_table = Table(summary_data, colWidths=[1.8*inch, 1.8*inch, 1.8*inch, 1.8*inch])
+    summary_table = Table(summary_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -1093,7 +1171,8 @@ def export_daily_pdf():
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
         ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8)
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('REPEATROWS', (0, 0), (-1, 0))
     ]))
     elements.append(table)
     elements.append(Spacer(1, 18))
@@ -1508,7 +1587,7 @@ def export_month_summary_csv():
 def export_monthly_pdf():
     """Export monthly summary to PDF"""
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
@@ -1534,7 +1613,7 @@ def export_monthly_pdf():
     summary_total_withdrawn = sum(int(r.withdrawn or 0) for r in rows)
     
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4)
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15, rightMargin=15, topMargin=15, bottomMargin=15)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=18, alignment=1)
     elements = [Paragraph("RR Milk Management System", title_style), Paragraph(f"Monthly Summary Report - {month}", title_style), Spacer(1, 12)]
@@ -1575,7 +1654,8 @@ def export_monthly_pdf():
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
         ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8)
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('REPEATROWS', (0, 0), (-1, 0))
     ]))
     elements.append(detail_table)
     elements.append(Spacer(1, 20))

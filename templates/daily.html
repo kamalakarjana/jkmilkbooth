@@ -333,8 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
   flashMessages.forEach(msg => {
     if (msg.dataset.type === 'success') {
       successPopupMessage.textContent = msg.textContent.trim();
-      successOverlay.classList.add('active');
-      setTimeout(() => successOverlay.classList.remove('active'), 2500);
+      setTimeout(() => successOverlay.classList.add('active'), 50);
+      setTimeout(() => successOverlay.classList.remove('active'), 1200);
     }
   });
 });

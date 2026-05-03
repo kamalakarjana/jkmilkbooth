@@ -39,27 +39,12 @@ def add_collection_page():
     total_amount = sum(c.amount for c in today_collections)
     avg_fat = sum(c.fat for c in today_collections) / len(today_collections) if today_collections else 0
 
-    popup_data = None
-    if request.args.get('show_popup'):
-        popup_data = {
-            'supplier_id': request.args.get('supplier_id', ''),
-            'supplier_name': request.args.get('supplier_name', ''),
-            'milk_type': request.args.get('milk_type', ''),
-            'date': request.args.get('date', ''),
-            'session': request.args.get('session', ''),
-            'liters': request.args.get('liters', ''),
-            'fat': request.args.get('fat', ''),
-            'rate': request.args.get('rate', ''),
-            'amount': request.args.get('amount', '')
-        }
-    
     return render_template('collections/add.html', 
                          suppliers=suppliers, 
                          today=today,
                          total_liters=total_liters,
                          total_amount=total_amount,
-                         avg_fat=avg_fat,
-                         popup_data=popup_data)
+                         avg_fat=avg_fat)
 
 @collection_bp.route('/add', methods=['POST'])
 @login_required
@@ -104,17 +89,7 @@ def add_collection():
     
     rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
     flash(f"✅ Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
-    return redirect(url_for('collections.add_collection_page',
-                            show_popup=1,
-                            supplier_id=s.supplier_id,
-                            supplier_name=s.name,
-                            milk_type=milk_type,
-                            date=d,
-                            session=session,
-                            liters=liters,
-                            fat=round(fat, 1),
-                            rate=rate,
-                            amount=amt))
+    return redirect(url_for('collections.add_collection_page'))
 
 @collection_bp.route('/edit/<int:cid>', methods=['GET', 'POST'])
 @login_required

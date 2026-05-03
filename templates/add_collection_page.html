@@ -230,99 +230,8 @@
     </div>
 </div>
 
-{% if popup_data %}
-<style>
-    .popup-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 2050;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-    }
-    .popup-card {
-        width: 100%;
-        max-width: 650px;
-        background: #ffffff;
-        border-radius: 20px;
-        padding: 30px;
-        text-align: center;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-        overflow: hidden;
-    }
-    .popup-step {
-        display: none;
-        animation: fadeInPopup 0.5s ease-in-out;
-    }
-    .popup-step.active {
-        display: block;
-    }
-    .popup-step h3 {
-        margin-bottom: 10px;
-        color: #2d3142;
-    }
-    .popup-step p {
-        color: #4f5665;
-        margin-bottom: 20px;
-    }
-    .popup-detail-list {
-        text-align: left;
-        margin: 0 auto;
-        max-width: 460px;
-    }
-    .popup-detail-list dt {
-        font-weight: 700;
-        margin-top: 12px;
-        color: #2d3142;
-    }
-    .popup-detail-list dd {
-        margin-left: 0;
-        margin-bottom: 10px;
-        color: #55606e;
-    }
-    @keyframes fadeInPopup {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-</style>
-
-<div id="collectionPopupOverlay" class="popup-overlay">
-    <div class="popup-card">
-        <div id="popupStep1" class="popup-step active">
-            <div class="mb-4">
-                <span class="badge bg-success rounded-pill py-2 px-3">Well done!</span>
-            </div>
-            <h3>Thank you, {{ popup_data.supplier_name or 'Supplier' }}!</h3>
-            <p>Your milk entry has been recorded successfully. Your dedication helps keep the farm running strong.</p>
-        </div>
-        <div id="popupStep2" class="popup-step">
-            <div class="mb-4">
-                <span class="badge bg-primary rounded-pill py-2 px-3">Milk Details</span>
-            </div>
-            <h3>Entry Summary</h3>
-            <dl class="popup-detail-list">
-                <dt>Supplier</dt><dd>{{ popup_data.supplier_id }} - {{ popup_data.supplier_name }}</dd>
-                <dt>Milk Type</dt><dd>{{ popup_data.milk_type|title }}</dd>
-                <dt>Date</dt><dd>{{ popup_data.date }}</dd>
-                <dt>Session</dt><dd>{{ popup_data.session|title }}</dd>
-                <dt>Liters</dt><dd>{{ popup_data.liters }}</dd>
-                <dt>Fat %</dt><dd>{{ popup_data.fat }}</dd>
-                <dt>Rate per Liter</dt><dd>₹ {{ popup_data.rate }}</dd>
-                <dt>Estimated Amount</dt><dd>₹ {{ popup_data.amount }}</dd>
-            </dl>
-        </div>
-    </div>
-</div>
-{% endif %}
-
 <script>
     const NEW_RATES_START_DATE = '{{ NEW_RATES_START_DATE }}';
-    const popupData = {{ popup_data|tojson() if popup_data else 'null' }};
     const BUFFALO_RATE_CHART = {
         5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
         5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
@@ -394,36 +303,10 @@
         document.getElementById('modalRateInfo').textContent = rateInfoText;
     }
 
-    function showSubmissionPopup() {
-        const overlay = document.getElementById('collectionPopupOverlay');
-        const step1 = document.getElementById('popupStep1');
-        const step2 = document.getElementById('popupStep2');
-
-        if (!overlay || !popupData) {
-            return;
-        }
-
-        overlay.style.display = 'flex';
-        step1.classList.add('active');
-        step2.classList.remove('active');
-
-        setTimeout(() => {
-            step1.classList.remove('active');
-            step2.classList.add('active');
-        }, 2200);
-
-        setTimeout(() => {
-            overlay.style.display = 'none';
-        }, 5200);
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
         updateSuggestion();
         const inputs = document.querySelectorAll('select[name="milk_type"], input[name="fat"], input[name="liters"], input[name="date"]');
         inputs.forEach(input => input.addEventListener('input', updateSuggestion));
-        if (popupData) {
-            showSubmissionPopup();
-        }
     });
 </script>
 

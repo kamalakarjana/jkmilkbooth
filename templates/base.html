@@ -15,6 +15,10 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <!-- html2pdf for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- Custom Modern CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
     <style>
         :root {
             --primary: #5f3bff;
@@ -552,6 +556,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('withdrawals') }}">
                             <i class="fas fa-money-bill-wave"></i> Withdrawals
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('manage_rates') }}">
+                            <i class="fas fa-chart-area"></i> Milk Rates
                         </a>
                     </li>
                     <li class="nav-item">

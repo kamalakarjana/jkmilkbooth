@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from sqlalchemy import func, or_
 from datetime import date, datetime
-import os, csv, io, math, pytz
+import os, csv, io, math, pytz, json
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -46,9 +46,9 @@ def get_last_day_of_month(year, month):
 # ================== RATE CHARTS ==================
 # Rate change date (when new rates started)
 NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
+RATE_FILE = os.path.join(basedir, 'milk_rates.json')
 
-# Buffalo milk rate chart (NEW RATES from 01-Feb-2026)
-BUFFALO_RATE_CHART = {      
+DEFAULT_BUFFALO_RATE_CHART = {      
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
     6.0: 48.0, 6.1: 48.8, 6.2: 49.6, 6.3: 50.0, 6.4: 51.0,
@@ -62,8 +62,7 @@ BUFFALO_RATE_CHART = {
     10.0: 80.0
 }
 
-# Cow milk rate chart (NO CHANGE - keep as is)
-COW_RATE_CHART = {
+DEFAULT_COW_RATE_CHART = {
     3.0: 25.30, 3.1: 25.53, 3.2: 25.76, 3.3: 25.99, 3.4: 26.22,
     3.5: 26.45, 3.6: 26.68, 3.7: 26.91, 3.8: 27.14, 3.9: 27.37,
     4.0: 27.60, 4.1: 27.83, 4.2: 28.06, 4.3: 28.29, 4.4: 28.52,
@@ -72,6 +71,42 @@ COW_RATE_CHART = {
     5.5: 31.05, 5.6: 31.28, 5.7: 31.51, 5.8: 31.74, 5.9: 31.97,
     6.0: 32.20
 }
+
+BUFFALO_RATE_CHART = {}
+COW_RATE_CHART = {}
+
+
+def load_rate_charts():
+    """Load rate charts from disk, falling back to defaults."""
+    global BUFFALO_RATE_CHART, COW_RATE_CHART
+    if os.path.exists(RATE_FILE):
+        try:
+            with open(RATE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            BUFFALO_RATE_CHART = {float(k): float(v) for k, v in data.get('buffalo', {}).items()}
+            COW_RATE_CHART = {float(k): float(v) for k, v in data.get('cow', {}).items()}
+            if BUFFALO_RATE_CHART and COW_RATE_CHART:
+                return
+        except Exception:
+            pass
+
+    BUFFALO_RATE_CHART = DEFAULT_BUFFALO_RATE_CHART.copy()
+    COW_RATE_CHART = DEFAULT_COW_RATE_CHART.copy()
+
+
+def save_rate_charts(buffalo_chart, cow_chart):
+    """Persist rate charts to disk."""
+    try:
+        payload = {
+            'buffalo': {f'{k:.1f}': round(v, 2) for k, v in sorted(buffalo_chart.items())},
+            'cow': {f'{k:.1f}': round(v, 2) for k, v in sorted(cow_chart.items())}
+        }
+        with open(RATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+
+load_rate_charts()
 
 def find_rate(fat, milk_type='buffalo', transaction_date=None):
     """
@@ -422,6 +457,49 @@ def manage_users():
     users = User.query.all()
     return render_template('manage_users.html', users=users)
 
+@app.route('/manage_rates', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def manage_rates():
+    if request.method == 'POST':
+        buffalo_rates = {}
+        cow_rates = {}
+
+        for key, value in request.form.items():
+            if not value:
+                continue
+            if key.startswith('buffalo_'):
+                fat_str = key[len('buffalo_'):].replace('_', '.')
+                try:
+                    fat = float(fat_str)
+                    rate = float(value)
+                except ValueError:
+                    continue
+                buffalo_rates[fat] = rate
+            elif key.startswith('cow_'):
+                fat_str = key[len('cow_'):].replace('_', '.')
+                try:
+                    fat = float(fat_str)
+                    rate = float(value)
+                except ValueError:
+                    continue
+                cow_rates[fat] = rate
+
+        if buffalo_rates:
+            BUFFALO_RATE_CHART.clear()
+            BUFFALO_RATE_CHART.update(buffalo_rates)
+        if cow_rates:
+            COW_RATE_CHART.clear()
+            COW_RATE_CHART.update(cow_rates)
+
+        save_rate_charts(BUFFALO_RATE_CHART, COW_RATE_CHART)
+        flash('✅ Milk rate charts updated successfully', 'success')
+        return redirect(url_for('manage_rates'))
+
+    buffalo_rows = sorted(BUFFALO_RATE_CHART.items())
+    cow_rows = sorted(COW_RATE_CHART.items())
+    return render_template('manage_rates.html', buffalo_rows=buffalo_rows, cow_rows=cow_rows, new_rates_start_date=NEW_RATES_START_DATE)
+
 # ================== MAIN ROUTES ==================
 @app.route('/')
 def index():
@@ -506,27 +584,12 @@ def add_collection_page():
     total_amount = sum(c.amount for c in today_collections)
     avg_fat = sum(c.fat for c in today_collections) / len(today_collections) if today_collections else 0
 
-    popup_data = None
-    if request.args.get('show_popup'):
-        popup_data = {
-            'supplier_id': request.args.get('supplier_id', ''),
-            'supplier_name': request.args.get('supplier_name', ''),
-            'milk_type': request.args.get('milk_type', ''),
-            'date': request.args.get('date', ''),
-            'session': request.args.get('session', ''),
-            'liters': request.args.get('liters', ''),
-            'fat': request.args.get('fat', ''),
-            'rate': request.args.get('rate', ''),
-            'amount': request.args.get('amount', '')
-        }
-    
     return render_template('add_collection_page.html', 
                          suppliers=suppliers, 
                          today=today,
                          total_liters=total_liters,
                          total_amount=total_amount,
-                         avg_fat=avg_fat,
-                         popup_data=popup_data)
+                         avg_fat=avg_fat)
 
 # ================== SUPPLIER MANAGEMENT ==================
 @app.route('/suppliers', methods=['GET', 'POST'])
@@ -789,17 +852,7 @@ def add_collection():
     # Show rate period in message
     rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
     flash(f"Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
-    return redirect(url_for('add_collection_page',
-                            show_popup=1,
-                            supplier_id=s.supplier_id,
-                            supplier_name=s.name,
-                            milk_type=milk_type,
-                            date=d,
-                            session=session,
-                            liters=liters,
-                            fat=round(fat, 1),
-                            rate=rate,
-                            amount=amt))
+    return redirect(url_for('add_collection_page'))
 
 @app.route('/quick_add_page')
 @login_required
@@ -990,6 +1043,125 @@ def daily():
                          total_liters=total_liters,
                          total_amount=total_amount,
                          avg_fat=avg_fat)
+
+@app.route('/export_daily_csv')
+@login_required
+def export_daily_csv():
+    """Export daily collections to CSV"""
+    req_date = request.args.get('date') or get_today_ist()
+    session_filter = request.args.get('session', 'all')
+    
+    query = Collection.query.filter_by(date=req_date)
+    if session_filter != 'all':
+        query = query.filter_by(session=session_filter)
+    
+    collections = query.order_by(Collection.supplier_id).all()
+    if not collections:
+        flash(f'No data found for {req_date}', 'warning')
+        return redirect(url_for('daily', date=req_date))
+    
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['Date', 'Supplier ID', 'Name', 'Session', 'Milk Type', 'Liters', 'Fat %', 'Rate/L', 'Amount (₹)'])
+    for c in collections:
+        writer.writerow([
+            c.date, c.supplier.supplier_id, c.supplier.name, c.session,
+            c.milk_type, c.liters, c.fat, c.rate_per_liter, c.amount
+        ])
+    buf.seek(0)
+    filename = f"daily_collections_{req_date}_{session_filter}.csv"
+    return send_file(
+        io.BytesIO(buf.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/export_daily_pdf')
+@login_required
+def export_daily_pdf():
+    """Export daily collections to PDF"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    
+    req_date = request.args.get('date') or get_today_ist()
+    session_filter = request.args.get('session', 'all')
+    
+    query = Collection.query.filter_by(date=req_date)
+    if session_filter != 'all':
+        query = query.filter_by(session=session_filter)
+    
+    collections = query.order_by(Collection.supplier_id).all()
+    if not collections:
+        flash(f'No data found for {req_date}', 'warning')
+        return redirect(url_for('daily', date=req_date))
+    
+    total_liters = sum(c.liters for c in collections)
+    total_amount = sum(c.amount for c in collections)
+    avg_fat = sum(c.fat for c in collections) / len(collections) if collections else 0
+    
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15, rightMargin=15, topMargin=15, bottomMargin=15)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=18, alignment=1)
+    elements = [Paragraph("RR Milk Management System", title_style), Paragraph(f"Daily Collections Report - {req_date}", title_style)]
+    if session_filter != 'all':
+        elements.append(Paragraph(f"Session: {session_filter.title()}", styles['Heading3']))
+    elements.append(Spacer(1, 12))
+    summary_data = [
+        ['Total Liters', 'Total Amount', 'Average Fat %', 'Collections Count'],
+        [f"{total_liters:.2f}", f"₹ {total_amount:,.0f}", f"{avg_fat:.1f}%", str(len(collections))]
+    ]
+    summary_table = Table(summary_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f5f6fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 18))
+    data = [['Supplier ID', 'Name', 'Session', 'Milk Type', 'Liters', 'Fat %', 'Rate/L', 'Amount (₹)']]
+    for c in collections:
+        data.append([
+            c.supplier.supplier_id, c.supplier.name, (c.session or '-').title(),
+            (c.milk_type or '-').title(), f"{c.liters:.2f}", f"{c.fat:.1f}",
+            f"{c.rate_per_liter:.2f}", f"₹ {c.amount:,.0f}"
+        ])
+    table = Table(data, colWidths=[0.9*inch, 1.4*inch, 0.8*inch, 0.8*inch, 0.7*inch, 0.7*inch, 0.8*inch, 1*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
+        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('REPEATROWS', (0, 0), (-1, 0))
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 18))
+    elements.append(Paragraph(f"Generated on: {get_today_ist()}", styles['Normal']))
+    elements.append(Paragraph("RR Milk Management System", styles['Normal']))
+    doc.build(elements)
+    buf.seek(0)
+    filename = f"daily_collections_{req_date}_{session_filter}.pdf"
+    return send_file(
+        buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
 # ================== NEW: REFRESH RATES ROUTE ==================
 @app.route('/refresh_daily_rates/<date>', methods=['POST'])
@@ -1383,6 +1555,95 @@ def export_month_summary_csv():
         mimetype='text/csv',
         as_attachment=True,
         download_name=f"summary_{month}.csv"
+    )
+
+@app.route('/export_monthly_pdf')
+@login_required
+def export_monthly_pdf():
+    """Export monthly summary to PDF"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    
+    month = request.args.get('month') or datetime.now(IST).strftime("%Y-%m")
+    like = month + '%'
+    
+    rows = db.session.query(
+        Supplier.supplier_id, Supplier.name,
+        func.coalesce(func.sum(Collection.amount), 0).label('total_amount'),
+        func.coalesce(func.sum(Collection.liters), 0).label('total_liters'),
+        func.coalesce(func.sum(Withdrawal.amount), 0).label('withdrawn')
+    ).outerjoin(Collection, (Supplier.id == Collection.supplier_id) & (Collection.date.like(like)))\
+     .outerjoin(Withdrawal, (Supplier.id == Withdrawal.supplier_id) & (Withdrawal.date.like(like)))\
+     .group_by(Supplier.id).all()
+    
+    if not rows:
+        flash(f'No data found for {month}', 'warning')
+        return redirect(url_for('monthly', month=month))
+    
+    summary_total_liters = sum(float(r.total_liters or 0) for r in rows)
+    summary_total_amount = sum(int(r.total_amount or 0) for r in rows)
+    summary_total_withdrawn = sum(int(r.withdrawn or 0) for r in rows)
+    
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=15, rightMargin=15, topMargin=15, bottomMargin=15)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=18, alignment=1)
+    elements = [Paragraph("RR Milk Management System", title_style), Paragraph(f"Monthly Summary Report - {month}", title_style), Spacer(1, 12)]
+    
+    summary_data = [
+        ['Total Liters', 'Total Collections (₹)', 'Total Withdrawn (₹)', 'Net Balance (₹)'],
+        [f"{summary_total_liters:.2f}", f"₹ {summary_total_amount:,.0f}", f"₹ {summary_total_withdrawn:,.0f}", f"₹ {summary_total_amount - summary_total_withdrawn:,.0f}"]
+    ]
+    summary_table = Table(summary_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f5f6fa')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 20))
+    
+    detail_data = [['Supplier ID', 'Name', 'Total Liters', 'Collections (₹)', 'Withdrawn (₹)', 'Balance (₹)']]
+    for r in rows:
+        balance = int((r.total_amount or 0) - (r.withdrawn or 0))
+        detail_data.append([
+            r.supplier_id, r.name, f"{float(r.total_liters or 0):.2f}",
+            f"₹ {int(r.total_amount or 0):,}", f"₹ {int(r.withdrawn or 0):,}", f"₹ {balance:,}"
+        ])
+    detail_table = Table(detail_data, colWidths=[0.9*inch, 1.6*inch, 1.2*inch, 1.3*inch, 1.3*inch, 1.3*inch])
+    detail_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
+        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('REPEATROWS', (0, 0), (-1, 0))
+    ]))
+    elements.append(detail_table)
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(f"Generated on: {get_today_ist()}", styles['Normal']))
+    elements.append(Paragraph("RR Milk Management System", styles['Normal']))
+    doc.build(elements)
+    buf.seek(0)
+    filename = f"monthly_summary_{month}.pdf"
+    return send_file(
+        buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
     )
 
 # ================== DATABASE MIGRATION COMMANDS ==================

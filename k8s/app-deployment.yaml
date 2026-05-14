@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: milkbooth-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: milkbooth
+  template:
+    metadata:
+      labels:
+        app: milkbooth
+    spec:
+      containers:
+      - name: milkbooth
+        image: milkbooth:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: milkbooth-secrets
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: milkbooth-secrets
+              key: SECRET_KEY
+        - name: PORT
+          value: "5000"
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20

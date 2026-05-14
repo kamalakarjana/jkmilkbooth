@@ -8,4 +8,6 @@ Werkzeug>=2.3.7
 openpyxl==3.10.10
 XlsxWriter==3.1.2
 reportlab==4.0.7
+psycopg-binary==3.3.1
+gunicorn==22.2.0
 

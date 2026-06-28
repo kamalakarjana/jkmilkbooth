@@ -1,10 +1,562 @@
-<!doctype html>
-<html>
-<head>
-  <title>Daily Collections - {{ date }}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
+{% extends "base.html" %}
+
+{% block title %}Daily Collections - {{ date }}{% endblock %}
+
+{% block content %}
+<style>
+    .stat-card {
+        background: rgba(255,255,255,0.98);
+        padding: 22px;
+        border-radius: 18px;
+        box-shadow: 0 20px 40px rgba(45, 55, 127, 0.08);
+        text-align: center;
+        cursor: pointer;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid rgba(95, 59, 255, 0.1);
+    }
+    .stat-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 28px 60px rgba(45, 55, 127, 0.12);
+    }
+    .stat-card .number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin: 12px 0;
+    }
+    .stat-card .label {
+        font-size: 0.9rem;
+        color: #666;
+        font-weight: 500;
+    }
+    .filter-btn {
+        transition: all 0.3s ease;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    .filter-btn.active {
+        background: linear-gradient(135deg, #8B4513, #5D4037) !important;
+        color: white !important;
+        border-color: #D4AF37 !important;
+        box-shadow: 0 8px 20px rgba(139, 69, 19, 0.3);
+    }
+    .sortable-header {
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+    }
+    .sortable-header:hover {
+        background-color: rgba(95, 59, 255, 0.12) !important;
+    }
+    .sort-icon {
+        margin-left: 8px;
+        font-size: 0.8rem;
+        opacity: 0.6;
+    }
+    .rate-period-badge {
+        font-size: 0.75rem;
+        margin-left: 10px;
+        vertical-align: middle;
+        padding: 4px 8px;
+    }
+    .export-dropdown .dropdown-menu {
+        min-width: 240px;
+        border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(45, 55, 127, 0.12);
+    }
+    .export-dropdown .dropdown-item {
+        padding: 10px 16px;
+        border-radius: 8px;
+        margin: 4px 8px;
+        transition: all 0.2s ease;
+    }
+    .export-dropdown .dropdown-item:hover {
+        background: linear-gradient(135deg, rgba(95, 59, 255, 0.1), rgba(66, 214, 255, 0.1));
+    }
+    .export-dropdown .dropdown-item i {
+        width: 20px;
+        margin-right: 8px;
+    }
+    .table-responsive-custom {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 12px 30px rgba(45, 55, 127, 0.08);
+    }
+    .popup-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(18, 23, 79, 0.88);
+        backdrop-filter: blur(6px);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .popup-overlay.active {
+        display: flex;
+    }
+    .popup-content {
+        max-width: 520px;
+        width: 100%;
+        background: linear-gradient(135deg, rgba(95, 59, 255, 0.95), rgba(66, 214, 255, 0.98));
+        border-radius: 24px;
+        box-shadow: 0 30px 80px rgba(15, 23, 73, 0.32);
+        padding: 32px 28px;
+        text-align: center;
+        color: white;
+        border: 1px solid rgba(255,255,255,0.18);
+    }
+    .popup-content i {
+        font-size: 3rem;
+        margin-bottom: 18px;
+        color: #ffffff;
+        text-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    }
+    .popup-content h2 {
+        margin-bottom: 12px;
+        font-size: 2rem;
+        letter-spacing: 0.5px;
+    }
+    .popup-content p {
+        font-size: 1rem;
+        opacity: 0.95;
+        margin-bottom: 0;
+    }
+    .no-collection {
+        color: #999;
+        font-style: italic;
+    }
+    @media (max-width: 768px) {
+        .stat-card .number { font-size: 1.3rem; }
+        .btn-group { flex-wrap: wrap; }
+        .btn-group .btn { font-size: 0.8rem; padding: 6px 12px; }
+    }
+</style>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="flash-message d-none" data-type="{{ category }}">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
+
+<!-- Success Popup -->
+<div id="successPopupOverlay" class="popup-overlay">
+    <div class="popup-content">
+        <i class="fas fa-check-circle"></i>
+        <h2>Success</h2>
+        <p id="successPopupMessage">Your entry was recorded successfully.</p>
+    </div>
+</div>
+
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+    <div>
+        <h2 class="mb-1">
+            <i class="fas fa-calendar-day"></i> Daily Collections
+        </h2>
+        <p class="text-muted mb-0">Date: <strong>{{ date }}</strong>
+            {% if date >= NEW_RATES_START_DATE %}
+            <span class="badge bg-info rate-period-badge">New Rates Period (Feb 2026+)</span>
+            {% else %}
+            <span class="badge bg-secondary rate-period-badge">Old Rates Period</span>
+            {% endif %}
+        </p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Dashboard
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card" onclick="filterTable('all')">
+            <i class="fas fa-weight text-primary fa-2x mb-2"></i>
+            <div class="number" id="totalLiters">0.00</div>
+            <div class="label">Total Liters</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card" onclick="filterTable('all')">
+            <i class="fas fa-rupee-sign text-success fa-2x mb-2"></i>
+            <div class="number" id="totalAmount">₹ 0</div>
+            <div class="label">Total Amount</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card" onclick="filterTable('all')">
+            <i class="fas fa-percentage text-warning fa-2x mb-2"></i>
+            <div class="number" id="avgFat">0.0%</div>
+            <div class="label">Average Fat</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card" onclick="filterTable('all')">
+            <i class="fas fa-list text-info fa-2x mb-2"></i>
+            <div class="number" id="collectionCount">0</div>
+            <div class="label">Collections</div>
+        </div>
+    </div>
+</div>
+
+<!-- Date and Filter Controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <form method="get" class="d-flex gap-2" id="dateForm">
+                    <input type="date" name="date" value="{{ date }}" class="form-control" id="dateInput">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-calendar-alt"></i>
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-9">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary filter-btn active" id="filterAll" onclick="filterTable('all')">
+                        <i class="fas fa-list"></i> All Suppliers
+                    </button>
+                    <button class="btn btn-outline-warning filter-btn" id="filterMorning" onclick="filterTable('morning')">
+                        <i class="fas fa-sun"></i> Morning
+                    </button>
+                    <button class="btn btn-outline-info filter-btn" id="filterEvening" onclick="filterTable('evening')">
+                        <i class="fas fa-moon"></i> Evening
+                    </button>
+                    
+                    <!-- Export Dropdown -->
+                    <div class="dropdown export-dropdown">
+                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">📊 Excel Export</h6></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportToExcel('all')"><i class="fas fa-file-excel text-success"></i> Full Data</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportToExcel('morning')"><i class="fas fa-sun text-warning"></i> Morning</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportToExcel('evening')"><i class="fas fa-moon text-info"></i> Evening</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">📄 CSV Export</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_daily_csv', date=date, session='all') }}"><i class="fas fa-file-csv text-primary"></i> Full Data CSV</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">📋 PDF Export</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_daily_pdf', date=date, session='all') }}"><i class="fas fa-file-pdf text-danger"></i> Full Data PDF</a></li>
+                        </ul>
+                    </div>
+                    
+                    {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
+                        <i class="fas fa-sync-alt"></i> Refresh Rates
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Collections Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive-custom">
+            <table class="table table-hover table-striped mb-0" id="daily-collections">
+                <thead>
+                    <tr>
+                        <th class="sortable-header" onclick="sortTable('supplier-id', 'smart-numeric')">
+                            Supplier ID <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable-header" onclick="sortTable('supplier-name', 'text')">
+                            Name <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th>Type</th>
+                        <th>Session</th>
+                        <th class="sortable-header text-end" onclick="sortTable('liters', 'number')">
+                            Liters <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable-header text-end" onclick="sortTable('fat', 'number')">
+                            Fat % <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable-header text-end" onclick="sortTable('amount', 'number')">
+                            Amount (₹) <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        {% if current_user.role in ['admin', 'employee'] %}
+                        <th class="text-end">Rate/L</th>
+                        <th class="text-center">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    {% for r in rows %}
+                    <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
+                        <td><strong>{{ r.supplier.supplier_id }}</strong></td>
+                        <td>{{ r.supplier.name }}</td>
+                        <td>
+                            {% if r.milk_type %}
+                            <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
+                                {{ r.milk_type|title }}
+                                {% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}
+                                <span class="badge bg-dark">NEW</span>
+                                {% endif %}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">No Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r.session %}
+                            <span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ r.session|title }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="liters-cell text-end">
+                            {% if r.liters > 0 %}{{ "%.2f"|format(r.liters) }}{% else %}<span class="text-muted">-</span>{% endif %}
+                        </td>
+                        <td class="fat-cell text-end">
+                            {% if r.fat > 0 %}{{ "%.1f"|format(r.fat) }}{% else %}<span class="text-muted">-</span>{% endif %}
+                        </td>
+                        <td class="amount-cell text-end" data-amount="{{ r.amount }}">
+                            {% if r.amount > 0 %}<strong>₹ {{ "{:,.0f}".format(r.amount) }}</strong>{% else %}<span class="text-muted">-</span>{% endif %}
+                        </td>
+                        {% if current_user.role in ['admin', 'employee'] %}
+                        <td class="text-end">
+                            {% if r.rate_per_liter > 0 %}{{ "%.2f"|format(r.rate_per_liter) }}{% else %}<span class="text-muted">-</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if r.id %}
+                            <div class="btn-group btn-group-sm">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_collection', cid=r.id) }}" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="post" action="{{ url_for('delete_collection', cid=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this collection?')">
+                                    <button class="btn btn-sm btn-danger" type="submit" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <a href="{{ url_for('quick_add_page') }}?supplier_id={{ r.supplier.supplier_id }}&date={{ date }}" class="btn btn-sm btn-success">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block opacity-50"></i>
+                                <p>No suppliers found</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="mt-4 d-flex gap-2">
+    <a href="{{ url_for('quick_add_page') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Collection
+    </a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- Refresh Rates Modal -->
+<div class="modal fade" id="refreshRatesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Rates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This will recalculate buffalo milk rates for <strong>{{ date }}</strong> using new 2026 rates.
+                </div>
+                <ul class="mb-0">
+                    <li>✅ Buffalo milk rates will be updated</li>
+                    <li>✅ Amounts will be recalculated</li>
+                    <li>⏺️ Cow milk rates will NOT change</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}" style="display:inline">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> Refresh Rates Now
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script>
+let allRows = [];
+let currentFilter = 'all';
+let currentSortColumn = null;
+let currentSortDirection = 'asc';
+
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('#table-body tr');
+    rows.forEach(row => { 
+        if (row.querySelector('.liters-cell')) allRows.push(row); 
+    });
+    updateStatistics('all');
+    sortTableBody('supplier-id', 'smart-numeric');
+    
+    // Handle success messages
+    const successOverlay = document.getElementById('successPopupOverlay');
+    const successPopupMessage = document.getElementById('successPopupMessage');
+    const flashMessages = document.querySelectorAll('.flash-message');
+    flashMessages.forEach(msg => {
+        if (msg.dataset.type === 'success') {
+            successPopupMessage.textContent = msg.textContent.trim();
+            setTimeout(() => successOverlay.classList.add('active'), 50);
+            setTimeout(() => successOverlay.classList.remove('active'), 1200);
+        }
+    });
+});
+
+function filterTable(session) {
+    currentFilter = session;
+    document.getElementById('filterAll').classList.remove('active');
+    document.getElementById('filterMorning').classList.remove('active');
+    document.getElementById('filterEvening').classList.remove('active');
+    
+    if (session === 'all') document.getElementById('filterAll').classList.add('active');
+    else if (session === 'morning') document.getElementById('filterMorning').classList.add('active');
+    else if (session === 'evening') document.getElementById('filterEvening').classList.add('active');
+    
+    allRows.forEach(row => {
+        const rowSession = row.getAttribute('data-session');
+        row.style.display = (session === 'all' || rowSession === session) ? '' : 'none';
+    });
+    updateStatistics(session);
+}
+
+function updateStatistics(session) {
+    let totalLiters = 0, totalAmount = 0, totalFat = 0, count = 0;
+    const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
+    
+    visibleRows.forEach(row => {
+        const litersCell = row.querySelector('.liters-cell');
+        const amountCell = row.querySelector('.amount-cell');
+        const fatCell = row.querySelector('.fat-cell');
+        
+        if (litersCell && litersCell.textContent.trim() !== '-') { 
+            let l = parseFloat(litersCell.textContent); 
+            if (!isNaN(l)) totalLiters += l; 
+        }
+        if (amountCell && amountCell.getAttribute('data-amount')) { 
+            let a = parseFloat(amountCell.getAttribute('data-amount')); 
+            if (!isNaN(a)) totalAmount += a; 
+        }
+        if (fatCell && fatCell.textContent.trim() !== '-') { 
+            let f = parseFloat(fatCell.textContent.trim()); 
+            if (!isNaN(f)) { totalFat += f; count++; } 
+        }
+    });
+    
+    document.getElementById('totalLiters').innerHTML = totalLiters.toFixed(2);
+    document.getElementById('totalAmount').innerHTML = '₹ ' + totalAmount.toLocaleString('en-IN');
+    document.getElementById('avgFat').innerHTML = (count > 0 ? (totalFat / count).toFixed(1) : '0.0') + '%';
+    document.getElementById('collectionCount').innerHTML = visibleRows.length;
+}
+
+function exportToExcel(filter) {
+    const rows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
+    const exportData = [['Supplier ID', 'Name', 'Milk Type', 'Session', 'Liters', 'Fat %', 'Amount (₹)']];
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 7) {
+            let amount = cells[6].getAttribute('data-amount') || cells[6].textContent.trim().replace('₹', '').trim();
+            exportData.push([
+                cells[0].textContent.trim(),
+                cells[1].textContent.trim(),
+                cells[2].textContent.trim(),
+                cells[3].textContent.trim(),
+                cells[4].textContent.trim(),
+                cells[5].textContent.trim(),
+                amount
+            ]);
+        }
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Daily Collections');
+    XLSX.writeFile(wb, `daily_collections_${document.getElementById('dateInput').value}_${filter}.xlsx`);
+}
+
+function getCellValue(row, columnType) {
+    if (columnType === 'supplier-id') return row.querySelector('td:nth-child(1)').textContent.trim();
+    if (columnType === 'supplier-name') return row.querySelector('td:nth-child(2)').textContent.trim();
+    if (columnType === 'liters') { 
+        let cell = row.querySelector('.liters-cell'); 
+        return parseFloat(cell ? cell.textContent : '0') || 0; 
+    }
+    if (columnType === 'fat') { 
+        let cell = row.querySelector('.fat-cell'); 
+        return parseFloat(cell ? cell.textContent : '0') || 0; 
+    }
+    if (columnType === 'amount') { 
+        let cell = row.querySelector('.amount-cell'); 
+        return parseFloat(cell ? cell.getAttribute('data-amount') : '0') || 0; 
+    }
+    return '';
+}
+
+function sortTableBody(columnType, sortType) {
+    const tbody = document.getElementById('table-body');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    rows.sort((a, b) => {
+        let valA = getCellValue(a, columnType);
+        let valB = getCellValue(b, columnType);
+        let comparison = 0;
+        
+        if (sortType === 'smart-numeric') {
+            let aNum = parseFloat(valA), bNum = parseFloat(valB);
+            comparison = (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
+        } else if (sortType === 'number') {
+            comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0);
+        } else if (sortType === 'text') {
+            comparison = valA.toString().localeCompare(valB.toString());
+        }
+        
+        return currentSortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    tbody.innerHTML = '';
+    rows.forEach(row => tbody.appendChild(row));
+    filterTable(currentFilter);
+}
+
+function sortTable(columnType, sortType) {
+    if (currentSortColumn === columnType) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortColumn = columnType;
+        currentSortDirection = 'asc';
+    }
+    sortTableBody(columnType, sortType);
+}
+</script>
+{% endblock %}
     .stat-card {
       background: white;
       padding: 15px;

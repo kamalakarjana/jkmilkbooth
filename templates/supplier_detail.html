@@ -452,85 +452,38 @@ function downloadCompleteExcel() {
 
 function downloadCyclePDF(cycle) {
     const rows = document.querySelectorAll('#monthly-collections-table .collection-row');
-    const dailySummary = new Map();
-    let morningAmount = 0;
-    let eveningAmount = 0;
-    let finalAmount = 0;
-    let morningLiters = 0;
-    let eveningLiters = 0;
-    let finalLiters = 0;
-    let morningCount = 0;
-    let eveningCount = 0;
-
+    let tableRows = '';
+    let totalAmount = 0;
+    let totalLiters = 0;
+    
     rows.forEach(row => {
         const rowCycle = row.getAttribute('data-cycle');
-        if (rowCycle !== cycle) {
-            return;
+        if (rowCycle === cycle) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 5) {
+                const amount = parseFloat(cells[4].textContent.replace('₹', '').trim()) || 0;
+                const liters = parseFloat(cells[2].textContent) || 0;
+                totalAmount += amount;
+                totalLiters += liters;
+                tableRows += `
+                    <tr>
+                        <td style="border:1px solid #ddd;padding:8px;">${cells[0].textContent.trim()}</td>
+                        <td style="border:1px solid #ddd;padding:8px;">${cells[1].textContent.trim()}</td>
+                        <td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[2].textContent.trim()}</td>
+                        <td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[3].textContent.trim()}</td>
+                        <td style="border:1px solid #ddd;padding:8px;text-align:right;">₹ ${amount}</td>
+                    </tr>
+                `;
+            }
         }
-
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 5) {
-            return;
-        }
-
-        const date = cells[0].textContent.trim();
-        const session = cells[1].textContent.trim();
-        const liters = parseFloat(cells[2].textContent) || 0;
-        const fat = cells[3].textContent.trim();
-        const amount = parseFloat(cells[4].textContent.replace('₹', '').trim()) || 0;
-
-        if (!dailySummary.has(date)) {
-            dailySummary.set(date, {
-                date,
-                morning: { liters: 0, fat: '-', amount: 0, count: 0 },
-                evening: { liters: 0, fat: '-', amount: 0, count: 0 }
-            });
-        }
-
-        const entry = dailySummary.get(date);
-        if (session.toLowerCase() === 'morning') {
-            entry.morning.liters += liters;
-            entry.morning.amount += amount;
-            entry.morning.count += 1;
-            entry.morning.fat = fat;
-            morningAmount += amount;
-            morningLiters += liters;
-            morningCount += 1;
-        } else {
-            entry.evening.liters += liters;
-            entry.evening.amount += amount;
-            entry.evening.count += 1;
-            entry.evening.fat = fat;
-            eveningAmount += amount;
-            eveningLiters += liters;
-            eveningCount += 1;
-        }
-
-        finalAmount += amount;
-        finalLiters += liters;
     });
-
-    const entries = Array.from(dailySummary.values()).sort((a, b) => a.date.localeCompare(b.date));
-    if (!entries.length) {
+    
+    if (!tableRows) {
         alert('No data found for this cycle');
         return;
     }
-
+    
     const cycleName = cycle === 'cycle1' ? 'Cycle 1 (1st-15th)' : 'Cycle 2 (16th-End)';
-    const tableRows = entries.map(entry => `
-        <tr>
-            <td style="border:1px solid #ddd;padding:4px;">${entry.date}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">${entry.morning.count}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">${entry.morning.liters.toFixed(2)}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">${entry.morning.fat}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">₹ ${entry.morning.amount.toFixed(2)}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">${entry.evening.count}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">${entry.evening.liters.toFixed(2)}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">${entry.evening.fat}</td>
-            <td style="border:1px solid #ddd;padding:4px;text-align:right;">₹ ${entry.evening.amount.toFixed(2)}</td>
-        </tr>
-    `).join('');
-
     const printContent = `
         <!DOCTYPE html>
         <html>
@@ -538,20 +491,17 @@ function downloadCyclePDF(cycle) {
             <meta charset="UTF-8">
             <title>${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'} Report</title>
             <style>
-                @page { size: landscape; margin: 6mm; }
-                body { font-family: Arial, sans-serif; margin: 8px; color: #222; }
-                .header { text-align: center; margin-bottom: 10px; border-bottom: 2px solid #8B4513; padding-bottom: 8px; }
-                .header h1 { color: #8B4513; margin: 0; font-size: 18px; }
-                .header h2 { color: #5D4037; margin: 4px 0 2px; font-size: 13px; }
-                .header h3 { color: #666; margin: 0; font-size: 11px; }
-                .summary { margin: 8px 0 10px; display: flex; justify-content: space-around; gap: 8px; flex-wrap: wrap; }
-                .box { border: 1px solid #8B4513; border-radius: 6px; padding: 6px 8px; min-width: 140px; text-align: center; background: #f9f5ee; }
-                .label { font-size: 9px; color: #666; }
-                .value { font-size: 12px; font-weight: bold; color: #2c3e50; margin-top: 2px; }
-                .data-table { width: 100%; border-collapse: collapse; font-size: 8px; }
-                .data-table th { background: #f3e6d3; color: #5D4037; padding: 4px; border: 1px solid #ddd; }
-                .data-table td { border: 1px solid #ddd; padding: 4px; }
-                .footer { text-align: center; margin-top: 8px; font-size: 8px; color: #666; }
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
+                .header h1 { color: #8B4513; margin: 0; }
+                .header h2 { color: #5D4037; margin: 10px 0; }
+                .summary { margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 5px; display: flex; justify-content: space-around; }
+                .summary-item { text-align: center; }
+                .summary-number { font-size: 1.5rem; font-weight: bold; color: #2c3e50; }
+                .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                .data-table th { background-color: #8B4513; color: white; padding: 10px; border: 1px solid #ddd; }
+                .data-table td { border: 1px solid #ddd; padding: 8px; }
+                .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; color: #666; }
             </style>
         </head>
         <body>
@@ -561,23 +511,20 @@ function downloadCyclePDF(cycle) {
                 <h3>${cycleName} - {{ selected_month }}</h3>
             </div>
             <div class="summary">
-                <div class="box"><div class="label">Morning Total</div><div class="value">₹ ${morningAmount.toFixed(2)}</div></div>
-                <div class="box"><div class="label">Evening Total</div><div class="value">₹ ${eveningAmount.toFixed(2)}</div></div>
-                <div class="box"><div class="label">Final Total</div><div class="value">₹ ${finalAmount.toFixed(2)}</div></div>
+                <div class="summary-item">
+                    <div class="summary-number">${totalLiters.toFixed(2)} L</div>
+                    <div>Total Liters</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">₹ ${totalAmount.toFixed(0)}</div>
+                    <div>Total Amount</div>
+                </div>
             </div>
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th rowspan="2">Date</th>
-                        <th colspan="4" style="background:#d68910;color:white;">Morning</th>
-                        <th colspan="4" style="background:#2c7fb8;color:white;">Evening</th>
-                    </tr>
-                    <tr>
-                        <th>Count</th>
-                        <th>Liters</th>
-                        <th>Fat %</th>
-                        <th>Amount</th>
-                        <th>Count</th>
+                        <th>Date</th>
+                        <th>Session</th>
                         <th>Liters</th>
                         <th>Fat %</th>
                         <th>Amount</th>
@@ -592,15 +539,15 @@ function downloadCyclePDF(cycle) {
         </body>
         </html>
     `;
-
+    
     const opt = {
-        margin: [0.15, 0.15, 0.15, 0.15],
+        margin: [0.5, 0.5, 0.5, 0.5],
         filename: `supplier_{{ supplier.supplier_id }}_{{ selected_month }}_${cycle}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, scrollX: 0, scrollY: 0 },
-        jsPDF: { unit: 'in', format: 'a3', orientation: 'landscape' }
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
-
+    
     html2pdf().set(opt).from(printContent).save();
     alert(`Generating PDF for ${cycle === 'cycle1' ? 'Cycle 1' : 'Cycle 2'}...`);
 }

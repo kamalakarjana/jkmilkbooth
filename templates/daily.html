@@ -962,81 +962,183 @@ function exportToExcel(filter) {
 
 function exportToPDF(filter) {
   if (filter !== 'all') filterTable(filter);
-  
+
   const date = document.getElementById('dateInput').value;
   const totalLitersElem = document.getElementById('totalLiters');
   const totalAmountElem = document.getElementById('totalAmount');
   const avgFatElem = document.getElementById('avgFat');
   const collectionCountElem = document.getElementById('collectionCount');
-  
+
   const totalLiters = totalLitersElem ? totalLitersElem.textContent : '0';
   const totalAmount = totalAmountElem ? totalAmountElem.textContent : '₹ 0';
   const avgFat = avgFatElem ? avgFatElem.textContent : '0%';
   const collectionCount = collectionCountElem ? collectionCountElem.textContent : '0';
-  
+
   const filterText = filter === 'all' ? 'All Collections' : filter === 'morning' ? 'Morning Session' : 'Evening Session';
-  
+
   const visibleRows = document.querySelectorAll('#table-body tr:not([style*="display: none"])');
   let tableRows = '';
   visibleRows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 7) {
-      // Get amount properly formatted
       let amountText = cells[6].textContent.trim().replace('₹', '').trim();
       let amountNum = parseFloat(amountText.replace(/,/g, '')) || 0;
-      
+
       tableRows += `<tr>
-        <td style="border:1px solid #ddd;padding:8px;">${cells[0].textContent.trim()}</td>
-        <td style="border:1px solid #ddd;padding:8px;">${cells[1].textContent.trim()}</td>
-        <td style="border:1px solid #ddd;padding:8px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
-        <td style="border:1px solid #ddd;padding:8px;">${cells[3].textContent.trim()}</td>
-        <td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[4].textContent.trim()}</td>
-        <td style="border:1px solid #ddd;padding:8px;text-align:right;">${cells[5].textContent.trim()}</td>
-        <td style="border:1px solid #ddd;padding:8px;text-align:right;">₹ ${amountNum.toLocaleString('en-IN')}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;">${cells[0].textContent.trim()}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;">${cells[1].textContent.trim()}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;">${cells[2].textContent.trim().replace(/\n/g, ' ')}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;">${cells[3].textContent.trim()}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;text-align:right;">${cells[4].textContent.trim()}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;text-align:right;">${cells[5].textContent.trim()}</td>
+        <td style="border:1px solid #e2e8f0;padding:10px;text-align:right;">₹ ${amountNum.toLocaleString('en-IN')}</td>
       </tr>`;
     }
   });
-  
+
   const printContent = `
     <!DOCTYPE html>
     <html>
-    <head><meta charset="UTF-8"><title>Daily Collections Report - ${date}</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 20px; }
-      .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #8B4513; padding-bottom: 20px; }
-      .header h1 { color: #8B4513; margin: 0; }
-      .summary { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; display: flex; justify-content: space-around; }
-      .summary-item { text-align: center; }
-      .summary-number { font-size: 1.5rem; font-weight: bold; }
-      .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-      .data-table th { background: #8B4513; color: white; padding: 10px; border: 1px solid #ddd; }
-      .data-table td { border: 1px solid #ddd; padding: 8px; }
-      .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; }
-    </style>
+    <head>
+      <meta charset="UTF-8">
+      <title>Daily Collections Report - ${date}</title>
+      <style>
+        :root {
+          --brand-primary: #1f3b6f;
+          --brand-secondary: #3b82f6;
+          --surface: #f8fbff;
+          --border: #e2e8f0;
+          --text: #1f2937;
+          --muted: #64748b;
+        }
+        body {
+          margin: 24px;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          color: var(--text);
+          background: #ffffff;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 24px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid var(--border);
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          color: var(--brand-primary);
+        }
+        .header h2 {
+          margin: 8px 0 0;
+          font-size: 18px;
+          color: var(--muted);
+        }
+        .header p {
+          margin: 8px 0 0;
+          color: var(--muted);
+          font-size: 13px;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+          margin: 22px 0;
+        }
+        .summary-card {
+          background: #ffffff;
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 16px 18px;
+          box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+          text-align: center;
+        }
+        .summary-card .title {
+          font-size: 0.85rem;
+          color: var(--muted);
+          margin-bottom: 8px;
+        }
+        .summary-card .value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--brand-primary);
+        }
+        .table-wrapper {
+          overflow-x: auto;
+        }
+        .data-table {
+          width: 100%;
+          min-width: 760px;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+        .data-table th,
+        .data-table td {
+          padding: 12px 14px;
+          border: 1px solid var(--border);
+        }
+        .data-table th {
+          background: var(--brand-primary);
+          color: #ffffff;
+          font-weight: 700;
+          text-align: left;
+        }
+        .data-table tr:nth-child(even) {
+          background: var(--surface);
+        }
+        .footer {
+          margin-top: 30px;
+          padding-top: 18px;
+          border-top: 1px solid var(--border);
+          text-align: center;
+          font-size: 11px;
+          color: var(--muted);
+        }
+      </style>
     </head>
     <body>
-      <div class="header"><h1>RR Milk Management System</h1><h2>Daily Collections Report</h2><h3>Date: ${date} | Filter: ${filterText}</h3></div>
-      <div class="summary">
-        <div class="summary-item"><div class="summary-number">${totalLiters}</div><div>Total Liters</div></div>
-        <div class="summary-item"><div class="summary-number">${totalAmount}</div><div>Total Amount</div></div>
-        <div class="summary-item"><div class="summary-number">${avgFat}</div><div>Average Fat</div></div>
-        <div class="summary-item"><div class="summary-number">${collectionCount}</div><div>Collections</div></div>
+      <div class="header">
+        <h1>RR Milk Management System</h1>
+        <h2>Daily Collections Report</h2>
+        <p>Date: ${date} | Filter: ${filterText}</p>
       </div>
-      <table class="data-table">
-        <thead><tr><th>Supplier ID</th><th>Name</th><th>Type</th><th>Session</th><th>Liters</th><th>Fat %</th><th>Amount (₹)</th></tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-      <div class="footer"><p>Generated on: ${new Date().toLocaleString()}</p><p>RR Milk Management System</p></div>
+
+      <div class="summary-grid">
+        <div class="summary-card"><div class="title">Total Liters</div><div class="value">${totalLiters}</div></div>
+        <div class="summary-card"><div class="title">Total Amount</div><div class="value">${totalAmount}</div></div>
+        <div class="summary-card"><div class="title">Average Fat</div><div class="value">${avgFat}</div></div>
+        <div class="summary-card"><div class="title">Collections</div><div class="value">${collectionCount}</div></div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Supplier ID</th>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Session</th>
+              <th>Liters</th>
+              <th>Fat %</th>
+              <th>Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer">Generated on: ${new Date().toLocaleString()} · RR Milk Management System</div>
     </body>
     </html>
   `;
-  
-  const opt = { 
-    margin: [0.5, 0.5, 0.5, 0.5], 
-    filename: `daily_collections_${date}_${filter}.pdf`, 
-    image: { type: 'jpeg', quality: 0.98 }, 
-    html2canvas: { scale: 2 }, 
-    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } 
+
+  const opt = {
+    margin: [0.5, 0.5, 0.5, 0.5],
+    filename: `daily_collections_${date}_${filter}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
   html2pdf().set(opt).from(printContent).save();
   alert(`Generating PDF with ${filterText}`);

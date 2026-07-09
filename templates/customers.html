@@ -135,22 +135,22 @@ function exportCustomersToPDF() {
   const rows = table.querySelectorAll('tbody tr');
   const totalCustomers = rows.length;
   const currentDate = new Date().toLocaleDateString();
-  
+
   let tableRows = '';
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 4 && !row.querySelector('td[colspan]')) {
       tableRows += `
         <tr>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[0].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[1].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[2].textContent.trim()}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${cells[3].textContent.trim()}</td>
+          <td style="border: 1px solid #e2e8f0; padding: 10px;">${cells[0].textContent.trim()}</td>
+          <td style="border: 1px solid #e2e8f0; padding: 10px;">${cells[1].textContent.trim()}</td>
+          <td style="border: 1px solid #e2e8f0; padding: 10px;">${cells[2].textContent.trim()}</td>
+          <td style="border: 1px solid #e2e8f0; padding: 10px;">${cells[3].textContent.trim()}</td>
         </tr>
       `;
     }
   });
-  
+
   const printContent = `
     <!DOCTYPE html>
     <html>
@@ -158,99 +158,144 @@ function exportCustomersToPDF() {
       <meta charset="UTF-8">
       <title>Customers Report</title>
       <style>
+        :root {
+          --brand-primary: #1f3b6f;
+          --brand-secondary: #3b82f6;
+          --bg-surface: #f3f7ff;
+          --text-primary: #1f2937;
+          --text-muted: #64748b;
+          --border: #e2e8f0;
+        }
         body {
-          font-family: Arial, sans-serif;
-          margin: 20px;
-          padding: 0;
+          margin: 24px;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          color: var(--text-primary);
+          background: #ffffff;
+        }
+        .container {
+          max-width: 1100px;
+          margin: 0 auto;
         }
         .header {
           text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 2px solid #8B4513;
           padding-bottom: 20px;
+          border-bottom: 1px solid var(--border);
+          margin-bottom: 26px;
         }
         .header h1 {
-          color: #8B4513;
           margin: 0;
-          font-size: 24px;
+          font-size: 28px;
+          color: var(--brand-primary);
         }
         .header h2 {
-          color: #5D4037;
-          margin: 10px 0;
+          margin: 8px 0 0;
           font-size: 18px;
+          color: var(--text-muted);
+        }
+        .header p {
+          margin: 8px 0 0;
+          color: var(--text-muted);
+          font-size: 13px;
         }
         .summary {
-          margin: 20px 0;
-          padding: 15px;
-          background-color: #f5f5f5;
-          border-radius: 5px;
-          text-align: center;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          margin-bottom: 24px;
         }
-        .summary-number {
-          font-size: 1.5rem;
-          font-weight: bold;
-          color: #2c3e50;
+        .card {
+          background: #ffffff;
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 18px 20px;
+          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+        }
+        .card-title {
+          font-size: 0.88rem;
+          color: var(--text-muted);
+          margin-bottom: 8px;
+        }
+        .card-value {
+          font-size: 1.7rem;
+          font-weight: 700;
+          color: var(--brand-primary);
+        }
+        .table-wrapper {
+          overflow-x: auto;
         }
         .data-table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 20px;
-          font-size: 12px;
+          min-width: 720px;
+        }
+        .data-table th,
+        .data-table td {
+          padding: 12px 14px;
+          border: 1px solid var(--border);
         }
         .data-table th {
-          background-color: #8B4513;
-          color: white;
-          padding: 10px;
-          border: 1px solid #ddd;
-          text-align: center;
+          background: var(--brand-primary);
+          color: #ffffff;
+          text-align: left;
+          font-weight: 700;
+        }
+        .data-table tr:nth-child(even) {
+          background: var(--bg-surface);
         }
         .data-table td {
-          border: 1px solid #ddd;
-          padding: 8px;
+          color: var(--text-primary);
         }
         .footer {
           text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #ddd;
-          font-size: 10px;
-          color: #666;
+          margin-top: 32px;
+          padding-top: 18px;
+          border-top: 1px solid var(--border);
+          font-size: 11px;
+          color: var(--text-muted);
         }
       </style>
     </head>
     <body>
-      <div class="header">
-        <h1>RR Milk Management System</h1>
-        <h2>Customers Report</h2>
-        <h3>Generated on: ${currentDate}</h3>
-      </div>
-      
-      <div class="summary">
-        <div class="summary-number">${totalCustomers}</div>
-        <div>Total Customers</div>
-      </div>
-      
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Customer ID</th>
-            <th>Name</th>
-            <th>Mobile</th>
-            <th>Address</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>RR Milk Management System - Premium Dairy Solution</p>
+      <div class="container">
+        <div class="header">
+          <h1>RR Milk Management System</h1>
+          <h2>Customers Report</h2>
+          <p>Generated on: ${currentDate}</p>
+        </div>
+
+        <div class="summary">
+          <div class="card">
+            <div class="card-title">Total Customers</div>
+            <div class="card-value">${totalCustomers}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Export Date</div>
+            <div class="card-value">${currentDate}</div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer ID</th>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Address</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">RR Milk Management System — Premium Dairy Report</div>
       </div>
     </body>
     </html>
   `;
-  
+
   const opt = {
     margin: [0.5, 0.5, 0.5, 0.5],
     filename: `customers_list_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -258,9 +303,9 @@ function exportCustomersToPDF() {
     html2canvas: { scale: 2 },
     jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
-  
+
   html2pdf().set(opt).from(printContent).save();
-  
+
   if (typeof toastr !== 'undefined') {
     toastr.success('Generating Customers PDF report...', 'Export Started');
   }

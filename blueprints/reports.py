@@ -8,7 +8,7 @@ from sqlalchemy import or_, func
 import io
 import csv
 from models import db, Supplier, Customer, Collection, Sale, Withdrawal
-from utils import get_today_ist, sort_by_id
+from utils import get_today_ist, sort_by_id, PDF_PALETTE, pdf_paragraph_styles, pdf_table_style, add_pdf_footer
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
@@ -333,179 +333,119 @@ def export_daily_pdf():
     """Export daily collections to PDF with two-column layout (morning left, afternoon/evening right)"""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import landscape, A4
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageTemplate, Frame, KeepTogether
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.units import inch
-    
+
     req_date = request.args.get('date') or get_today_ist()
     session_filter = request.args.get('session', 'all')
-    
-    # Get all collections for the date
+
     all_collections = Collection.query.filter_by(date=req_date).order_by(Collection.supplier_id).all()
-    
     if not all_collections:
         flash(f'No data found for {req_date}', 'warning')
         return redirect(url_for('reports.daily', date=req_date))
-    
-    # Separate collections by session
+
     morning_collections = [c for c in all_collections if c.session and c.session.lower() == 'morning']
     other_collections = [c for c in all_collections if not c.session or c.session.lower() != 'morning']
-    
-    # Apply session filter if not 'all'
+
     if session_filter != 'all':
         collections = [c for c in all_collections if c.session and c.session.lower() == session_filter.lower()]
     else:
         collections = all_collections
-    
-    # Calculate totals for all sessions
+
     total_liters = sum(c.liters for c in collections)
     total_amount = sum(c.amount for c in collections)
     avg_fat = sum(c.fat for c in collections) / len(collections) if collections else 0
-    
-    # Create PDF in landscape mode
+
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=10, rightMargin=10, topMargin=20, bottomMargin=20)
-    styles = getSampleStyleSheet()
-    
-    # Title style
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=14,
-        spaceAfter=12,
-        alignment=1
-    )
-    
-    section_style = ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Heading2'],
-        fontSize=11,
-        spaceAfter=8,
-        textColor=colors.white,
-        backgroundColor=colors.HexColor('#2c3e50'),
-        leftIndent=5
-    )
-    
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=18, rightMargin=18, topMargin=22, bottomMargin=28)
+
     elements = []
-    
-    # Header
-    elements.append(Paragraph("RR Milk Management System - Daily Collections Report", title_style))
-    elements.append(Paragraph(f"Date: {req_date}", styles['Normal']))
-    elements.append(Spacer(1, 10))
-    
-    # Create two-column layout for morning and afternoon/evening
+    styles = pdf_paragraph_styles()
+    elements.append(Paragraph('RR Milk Management System', styles['ReportTitle']))
+    elements.append(Paragraph('Daily Collections Report', styles['ReportSubtitle']))
+    elements.append(Paragraph(f'Date: {req_date} • Filter: {session_filter.title()}', styles['MetaText']))
+    elements.append(Spacer(1, 14))
+
     if session_filter == 'all':
-        # Morning data on left, Afternoon/Evening on right
         morning_data = [['ID', 'Name', 'Liters', 'Fat %', 'Rate', 'Amount (₹)']]
         for c in morning_collections:
             morning_data.append([
-                c.supplier.supplier_id, c.supplier.name[:12], f"{c.liters:.2f}", f"{c.fat:.1f}", 
-                f"{c.rate_per_liter:.2f}", f"{c.amount:,.0f}"
+                c.supplier.supplier_id,
+                c.supplier.name[:14],
+                f'{c.liters:.2f}',
+                f'{c.fat:.1f}',
+                f'{c.rate_per_liter:.2f}',
+                f'₹ {c.amount:,.0f}'
             ])
-        
+
         other_data = [['ID', 'Name', 'Session', 'Liters', 'Fat %', 'Rate', 'Amount (₹)']]
         for c in other_collections:
             other_data.append([
-                c.supplier.supplier_id, c.supplier.name[:10], c.session.title() if c.session else '-', 
-                f"{c.liters:.2f}", f"{c.fat:.1f}", f"{c.rate_per_liter:.2f}", f"{c.amount:,.0f}"
+                c.supplier.supplier_id,
+                c.supplier.name[:12],
+                c.session.title() if c.session else '-',
+                f'{c.liters:.2f}',
+                f'{c.fat:.1f}',
+                f'{c.rate_per_liter:.2f}',
+                f'₹ {c.amount:,.0f}'
             ])
-        
-        # Create morning table
-        morning_table = Table(morning_data, colWidths=[0.5*inch, 1.2*inch, 0.6*inch, 0.5*inch, 0.5*inch, 0.8*inch])
-        morning_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-        ]))
-        
-        # Create afternoon/evening table
-        other_table = Table(other_data, colWidths=[0.5*inch, 1*inch, 0.7*inch, 0.6*inch, 0.5*inch, 0.5*inch, 0.8*inch])
-        other_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-        ]))
-        
-        # Create two-column layout table
+
+        morning_table = Table(morning_data, colWidths=[0.6*inch, 1.4*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.9*inch])
+        morning_table.setStyle(TableStyle(pdf_table_style()))
+        morning_table.setStyle([('ALIGN', (2, 1), (-1, -1), 'RIGHT')])
+
+        other_table = Table(other_data, colWidths=[0.6*inch, 1.2*inch, 0.8*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.9*inch])
+        other_table.setStyle(TableStyle(pdf_table_style()))
+        other_table.setStyle([('ALIGN', (3, 1), (-1, -1), 'RIGHT')])
+
         layout_data = [
-            [Paragraph("<b>MORNING SESSION</b>", section_style), Paragraph("<b>AFTERNOON/EVENING SESSION</b>", section_style)],
+            [Paragraph('<b>MORNING SESSION</b>', styles['SectionHeader']), Paragraph('<b>AFTERNOON/EVENING SESSION</b>', styles['SectionHeader'])],
             [morning_table, other_table]
         ]
-        
-        layout_table = Table(layout_data, colWidths=[3.5*inch, 3.5*inch])
-        layout_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ]))
+        layout_table = Table(layout_data, colWidths=[4.0*inch, 4.0*inch], hAlign='CENTER')
+        layout_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
         elements.append(layout_table)
     else:
-        # Show single session data
         data = [['Supplier ID', 'Name', 'Milk Type', 'Liters', 'Fat %', 'Rate/L', 'Amount (₹)']]
         for c in collections:
             data.append([
-                c.supplier.supplier_id, c.supplier.name, c.milk_type.title() if c.milk_type else '-', 
-                f"{c.liters:.2f}", f"{c.fat:.1f}", f"{c.rate_per_liter:.2f}", f"₹ {c.amount:,.0f}"
+                c.supplier.supplier_id,
+                c.supplier.name,
+                c.milk_type.title() if c.milk_type else '-',
+                f'{c.liters:.2f}',
+                f'{c.fat:.1f}',
+                f'{c.rate_per_liter:.2f}',
+                f'₹ {c.amount:,.0f}'
             ])
-        
-        table = Table(data, colWidths=[0.8*inch, 1.4*inch, 0.8*inch, 0.7*inch, 0.6*inch, 0.7*inch, 1*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ALIGN', (3, 1), (6, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ]))
+
+        table = Table(data, colWidths=[0.8*inch, 1.6*inch, 0.9*inch, 0.7*inch, 0.7*inch, 0.8*inch, 0.9*inch])
+        table.setStyle(TableStyle(pdf_table_style()))
+        table.setStyle([('ALIGN', (3, 1), (-1, -1), 'RIGHT')])
         elements.append(table)
-    
-    elements.append(Spacer(1, 15))
-    
-    # Summary and totals at bottom
+
+    elements.append(Spacer(1, 16))
+
     summary_data = [
         ['Total Liters', 'Total Amount', 'Average Fat %', 'Total Collections'],
-        [f"{total_liters:.2f}", f"₹ {total_amount:,.0f}", f"{avg_fat:.1f}%", str(len(collections))]
+        [f'{total_liters:.2f} L', f'₹ {total_amount:,.0f}', f'{avg_fat:.1f}%', str(len(collections))]
     ]
-    
-    summary_table = Table(summary_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
+    summary_table = Table(summary_data, colWidths=[2.0*inch, 2.3*inch, 2.3*inch, 2.2*inch])
     summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+        ('BACKGROUND', (0, 0), (-1, 0), PDF_PALETTE['accent']),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#fff3cd')),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ('BACKGROUND', (0, 1), (-1, -1), PDF_PALETTE['card_bg']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), PDF_PALETTE['text']),
+        ('GRID', (0, 0), (-1, -1), 0.5, PDF_PALETTE['grid_color'])
     ]))
     elements.append(summary_table)
-    
-    # Footer
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"Generated on: {get_today_ist()}", styles['Normal']))
-    
-    doc.build(elements)
+
+    doc.build(elements, onFirstPage=add_pdf_footer, onLaterPages=add_pdf_footer)
     buf.seek(0)
-    
-    filename = f"daily_collections_{req_date}_{session_filter}.pdf"
+
+    filename = f'daily_collections_{req_date}_{session_filter}.pdf'
     return send_file(
         buf,
         mimetype='application/pdf',
@@ -568,69 +508,78 @@ def export_monthly_pdf():
     
     # Header
     elements = []
-    elements.append(Paragraph("RR Milk Management System - Monthly Summary Report", title_style))
-    elements.append(Paragraph(f"Period: {selected_month}", styles['Normal']))
-    elements.append(Spacer(1, 12))
-    
-    # Suppliers table
+    styles = pdf_paragraph_styles()
+    elements.append(Paragraph('RR Milk Management System', styles['ReportTitle']))
+    elements.append(Paragraph('Monthly Summary Report', styles['ReportSubtitle']))
+    elements.append(Paragraph(f'Period: {selected_month}', styles['MetaText']))
+    elements.append(Spacer(1, 14))
+
+    summary_cards = [
+        Paragraph(f"<b>{total_liters:.2f} L</b><br/><font size=8>Total Liters</font>", styles['MetaText']),
+        Paragraph(f"<b>₹ {total_amount:,.0f}</b><br/><font size=8>Total Collections</font>", styles['MetaText']),
+        Paragraph(f"<b>₹ {total_withdrawn:,.0f}</b><br/><font size=8>Total Withdrawals</font>", styles['MetaText']),
+        Paragraph(f"<b>₹ {net_balance:,.0f}</b><br/><font size=8>Net Balance</font>", styles['MetaText'])
+    ]
+    summary_table = Table([summary_cards], colWidths=[2.0*inch]*4)
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), PDF_PALETTE['card_bg']),
+        ('BOX', (0, 0), (-1, -1), 0.75, PDF_PALETTE['grid_color']),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, PDF_PALETTE['grid_color']),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 16))
+
     supplier_data = [['ID', 'Supplier Name', 'Mobile', 'Liters', 'Collections (₹)', 'Withdrawn (₹)', 'Balance (₹)']]
     for r in supplier_results:
         withdrawn = withdraw_map.get(r.supplier_id, 0) or 0
         balance = (r.total_amount or 0) - withdrawn
         supplier_data.append([
-            r.supplier_id, r.name, r.mobile or '-', 
-            f"{r.total_liters or 0:.2f}", f"{r.total_amount or 0:,.0f}", 
-            f"{withdrawn:,.0f}", f"{balance:,.0f}"
+            r.supplier_id,
+            r.name,
+            r.mobile or '-',
+            f'{r.total_liters or 0:.2f}',
+            f'{r.total_amount or 0:,.0f}',
+            f'{withdrawn:,.0f}',
+            f'{balance:,.0f}'
         ])
-    
-    supplier_table = Table(supplier_data, colWidths=[0.6*inch, 1.4*inch, 1*inch, 0.7*inch, 1.1*inch, 1.1*inch, 1.1*inch])
-    supplier_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 0.75, colors.grey),
-        ('ALIGN', (3, 1), (6, -1), 'RIGHT'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
-    ]))
+
+    supplier_table = Table(supplier_data, colWidths=[0.6*inch, 1.4*inch, 1.0*inch, 0.8*inch, 1.0*inch, 1.0*inch, 1.0*inch])
+    supplier_table.setStyle(TableStyle(pdf_table_style()))
+    supplier_table.setStyle([('ALIGN', (3, 1), (-1, -1), 'RIGHT')])
     elements.append(supplier_table)
-    
-    # Totals section at bottom
-    elements.append(Spacer(1, 15))
-    
-    # Summary totals
+    elements.append(Spacer(1, 16))
+
     total_data = [
         ['TOTAL LITERS', 'TOTAL COLLECTIONS', 'TOTAL WITHDRAWN', 'NET BALANCE'],
-        [f"{total_liters:.2f} L", f"₹ {total_amount:,.0f}", f"₹ {total_withdrawn:,.0f}", f"₹ {net_balance:,.0f}"]
+        [f'{total_liters:.2f} L', f'₹ {total_amount:,.0f}', f'₹ {total_withdrawn:,.0f}', f'₹ {net_balance:,.0f}']
     ]
-    
-    total_table = Table(total_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
+    total_table = Table(total_data, colWidths=[2.1*inch]*4)
     total_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+        ('BACKGROUND', (0, 0), (-1, 0), PDF_PALETTE['accent']),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#fff3cd')),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), PDF_PALETTE['card_bg']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), PDF_PALETTE['text']),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, -1), 11),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.5, PDF_PALETTE['grid_color'])
     ]))
     elements.append(total_table)
-    
-    # Footer
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"Generated on: {get_today_ist()}", styles['Normal']))
-    
-    doc.build(elements)
+    elements.append(Paragraph(f'Generated on: {get_today_ist()}', styles['MetaText']))
+
+    doc.build(elements, onFirstPage=add_pdf_footer, onLaterPages=add_pdf_footer)
     buf.seek(0)
-    
-    filename = f"monthly_summary_{selected_month}.pdf"
+    filename = f'monthly_summary_{selected_month}.pdf'
     return send_file(
         buf,
         mimetype='application/pdf',

@@ -132,3 +132,140 @@ def sort_by_id(items, id_field='supplier_id'):
         return sorted(items, key=lambda x: int(x.get(id_field, 0)) if str(x.get(id_field, '0')).isdigit() else 999999)
     else:
         return sorted(items, key=lambda x: int(getattr(x, id_field)) if getattr(x, id_field).isdigit() else 999999)
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.styles import ParagraphStyle
+
+PDF_PALETTE = {
+    'page_bg': colors.HexColor('#f5f7fb'),
+    'header_bg': colors.HexColor('#1f3b6f'),
+    'section_bg': colors.HexColor('#30508a'),
+    'card_bg': colors.HexColor('#eef4fb'),
+    'card_border': colors.HexColor('#c8d7ea'),
+    'table_header': colors.HexColor('#1f3b6f'),
+    'table_row_alt': colors.HexColor('#f3f7ff'),
+    'grid_color': colors.HexColor('#d8e2ef'),
+    'text': colors.HexColor('#1f2937'),
+    'muted': colors.HexColor('#5f6e85'),
+    'accent': colors.HexColor('#3b82f6'),
+    'footer_bg': colors.HexColor('#e8eef9')
+}
+
+
+def pdf_paragraph_styles(stylesheet=None):
+    if stylesheet is None:
+        from reportlab.lib.styles import getSampleStyleSheet
+        stylesheet = getSampleStyleSheet()
+
+    return {
+        'ReportTitle': ParagraphStyle(
+            'ReportTitle',
+            parent=stylesheet['Heading1'],
+            fontName='Helvetica-Bold',
+            fontSize=18,
+            leading=22,
+            alignment=TA_CENTER,
+            textColor=PDF_PALETTE['header_bg'],
+            spaceAfter=6
+        ),
+        'ReportSubtitle': ParagraphStyle(
+            'ReportSubtitle',
+            parent=stylesheet['Normal'],
+            fontName='Helvetica',
+            fontSize=10,
+            leading=13,
+            alignment=TA_CENTER,
+            textColor=PDF_PALETTE['muted'],
+            spaceAfter=12
+        ),
+        'MetaText': ParagraphStyle(
+            'MetaText',
+            parent=stylesheet['Normal'],
+            fontName='Helvetica',
+            fontSize=9,
+            leading=12,
+            alignment=TA_CENTER,
+            textColor=PDF_PALETTE['muted']
+        ),
+        'SectionHeader': ParagraphStyle(
+            'SectionHeader',
+            parent=stylesheet['Heading2'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            leading=12,
+            alignment=TA_LEFT,
+            textColor=colors.white,
+            backColor=PDF_PALETTE['section_bg'],
+            spaceAfter=8,
+            leftIndent=4,
+            rightIndent=4
+        ),
+        'FooterSmall': ParagraphStyle(
+            'FooterSmall',
+            parent=stylesheet['Normal'],
+            fontName='Helvetica',
+            fontSize=8,
+            leading=10,
+            alignment=TA_CENTER,
+            textColor=PDF_PALETTE['muted']
+        )
+    }
+
+
+def pdf_table_style(
+    header_bg=None,
+    header_text=None,
+    row_bg1=None,
+    row_bg2=None,
+    grid_color=None,
+    header_font_size=9,
+    body_font_size=8,
+    header_bold=True
+):
+    header_bg = header_bg or PDF_PALETTE['table_header']
+    header_text = header_text or colors.white
+    row_bg1 = row_bg1 or PDF_PALETTE['card_bg']
+    row_bg2 = row_bg2 or colors.white
+    grid_color = grid_color or PDF_PALETTE['grid_color']
+
+    style = [
+        ('BACKGROUND', (0, 0), (-1, 0), header_bg),
+        ('TEXTCOLOR', (0, 0), (-1, 0), header_text),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold' if header_bold else 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, 0), header_font_size),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, -1), row_bg1),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [row_bg1, row_bg2]),
+        ('GRID', (0, 0), (-1, -1), 0.5, grid_color),
+        ('BOX', (0, 0), (-1, -1), 0.75, grid_color),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5)
+    ]
+    return style
+
+
+def add_pdf_footer(canvas, doc, palette=None):
+    if palette is None:
+        palette = PDF_PALETTE
+
+    canvas.saveState()
+    width, height = doc.pagesize
+    y = doc.bottomMargin - 12
+    if y < 10:
+        y = 10
+
+    canvas.setStrokeColor(palette['grid_color'])
+    canvas.setLineWidth(0.5)
+    canvas.line(doc.leftMargin, y + 14, width - doc.rightMargin, y + 14)
+
+    canvas.setFont('Helvetica', 8)
+    canvas.setFillColor(palette['muted'])
+    timestamp = get_ist_datetime().strftime('%Y-%m-%d %I:%M %p IST')
+    canvas.drawString(doc.leftMargin, y, f"Generated on: {timestamp}  •  www.rrmilkbooth.com")
+    canvas.drawRightString(width - doc.rightMargin, y, f"Page {canvas.getPageNumber()}")
+    canvas.restoreState()

@@ -593,7 +593,7 @@ function downloadCyclePDF(cycle) {
         filename: `supplier_{{ supplier.supplier_id }}_{{ selected_month }}_${cycle}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
     };
 
     html2pdf().set(opt).from(printContent).save();
@@ -706,7 +706,7 @@ function downloadFullReportPDF() {
         filename: `supplier_{{ supplier.supplier_id }}_{{ selected_month }}_full_report.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
     };
     
     html2pdf().set(opt).from(printContent).save();

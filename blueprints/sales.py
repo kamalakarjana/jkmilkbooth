@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 import math
 from models import db, Customer, Sale
-from utils import get_today_ist, sort_by_id, find_rate, NEW_RATES_START_DATE
+from utils import get_today_ist, sort_by_id, find_rate
 
 sales_bp = Blueprint('sales', __name__, url_prefix='/sales')
 
@@ -87,7 +87,7 @@ def add_sale():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    rate_period = "current rates"
     flash(f"✅ Sale recorded to {c.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('sales.view_sales'))
 

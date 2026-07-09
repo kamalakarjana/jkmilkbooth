@@ -21,8 +21,6 @@ def get_last_day_of_month(year, month):
     return monthrange(year, month)[1]
 
 # ================== RATE CHARTS ==================
-NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
-
 BUFFALO_RATE_CHART = {      
     5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
     5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
@@ -49,10 +47,8 @@ COW_RATE_CHART = {
 
 def find_rate(fat, milk_type='buffalo', transaction_date=None):
     """
-    Find rate based on date
-    - For buffalo milk: New rates from 01-Feb-2026
-    - For cow milk: Always use same rates (no change)
-    - If no date provided, use today's date
+    Find rate for the given fat and milk type using current charts.
+    For `cow` use `COW_RATE_CHART`, otherwise use `BUFFALO_RATE_CHART`.
     """
     if fat is None:
         return None
@@ -63,14 +59,8 @@ def find_rate(fat, milk_type='buffalo', transaction_date=None):
     if milk_type == 'cow':
         return COW_RATE_CHART.get(k)
     
-    # For buffalo milk, check date
-    if transaction_date:
-        if transaction_date >= NEW_RATES_START_DATE:
-            return BUFFALO_RATE_CHART.get(k)
-        else:
-            return BUFFALO_RATE_CHART.get(k)
-    else:
-        return BUFFALO_RATE_CHART.get(k)
+    # For buffalo milk, always use current buffalo chart
+    return BUFFALO_RATE_CHART.get(k)
 
 # ================== PAYMENT CYCLES ==================
 def calculate_payment_cycles(collections, year, month):

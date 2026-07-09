@@ -5,9 +5,7 @@
 {% block content %}
 <h2 class="mb-4"><i class="fas fa-chart-area"></i> Milk Rate Configuration</h2>
 
-<div class="alert alert-info">
-    <strong>Note:</strong> Buffalo rates apply from <strong>{{ new_rates_start_date }}</strong> onward. Cow rates are always used as shown.
-</div>
+<!-- Rate period note removed: rates are now shown as configured in the rate tables -->
 
 <form action="{{ url_for('manage_rates') }}" method="post">
     <div class="row gy-4">

@@ -7,7 +7,7 @@ from functools import wraps
 import math
 from sqlalchemy import or_
 from models import db, Supplier, Collection
-from utils import get_today_ist, get_ist_datetime, sort_by_id, find_rate, NEW_RATES_START_DATE
+from utils import get_today_ist, get_ist_datetime, sort_by_id, find_rate
 
 collection_bp = Blueprint('collections', __name__, url_prefix='/collections')
 
@@ -87,7 +87,7 @@ def add_collection():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    rate_period = "current rates"
     flash(f"✅ Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('collections.add_collection_page'))
 
@@ -123,7 +123,7 @@ def edit_collection(cid):
         
         db.session.commit()
         
-        rate_period = "new rates (from Feb 2026)" if date_str >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+        rate_period = "current rates"
         flash(f"✅ Collection updated successfully ({rate_period})", "success")
         return redirect(url_for('reports.daily', date=date_str))
     
@@ -191,57 +191,8 @@ def quick_add():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    rate_period = "current rates"
     flash(f"✅ Quick collection added from {s.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('reports.daily', date=d))
 
-@collection_bp.route('/refresh_rates/<date>', methods=['POST'])
-@login_required
-@role_required('admin')
-def refresh_daily_rates(date):
-    """Refresh rates for all collections on a specific date"""
-    if date < NEW_RATES_START_DATE:
-        flash(f"⚠️ Cannot refresh rates for {date}. New buffalo rates apply from February 2026 only.", "warning")
-        return redirect(url_for('reports.daily', date=date))
-    
-    collections = Collection.query.filter_by(date=date).all()
-    
-    if not collections:
-        flash(f"ℹ️ No collections found for {date}", "warning")
-        return redirect(url_for('reports.daily', date=date))
-    
-    updated_count = 0
-    total_difference = 0
-    buffalo_updates = 0
-    cow_updates = 0
-    
-    for coll in collections:
-        old_amount = coll.amount
-        old_rate = coll.rate_per_liter
-        
-        new_rate = find_rate(coll.fat, coll.milk_type, date)
-        
-        if new_rate and new_rate != old_rate:
-            new_amount = math.floor(coll.liters * new_rate)
-            
-            coll.rate_per_liter = new_rate
-            coll.amount = new_amount
-            
-            updated_count += 1
-            total_difference += (new_amount - old_amount)
-            
-            if coll.milk_type == 'buffalo':
-                buffalo_updates += 1
-            else:
-                cow_updates += 1
-    
-    if updated_count > 0:
-        db.session.commit()
-        
-        flash(f"✅ Updated rates for {updated_count} collections on {date}. "
-              f"Buffalo: {buffalo_updates}, Cow: {cow_updates}. "
-              f"Total difference: ₹{total_difference}", "success")
-    else:
-        flash(f"ℹ️ No rate changes needed for {date}. Rates are already up-to-date.", "info")
-    
-    return redirect(url_for('reports.daily', date=date))
+# refresh_daily_rates route removed - obsolete after removing new-rates branching

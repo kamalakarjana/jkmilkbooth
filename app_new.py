@@ -71,7 +71,7 @@ app.register_blueprint(dashboard_bp)
 @app.context_processor
 def utility_processor():
     """Make utility functions available to all templates"""
-    from utils import get_today_ist, NEW_RATES_START_DATE
+    from utils import get_today_ist
     
     def today_date():
         return get_today_ist()
@@ -86,8 +86,7 @@ def utility_processor():
         'today_date': today_date,
         'current_year': current_year,
         'current_month': current_month,
-        'now': datetime.now(pytz.timezone('Asia/Kolkata')),
-        'NEW_RATES_START_DATE': NEW_RATES_START_DATE
+        'now': datetime.now(pytz.timezone('Asia/Kolkata'))
     }
 
 # ================== EXPORT ROUTES ==================

@@ -116,6 +116,67 @@
     </div>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i>Monthly Comparison</h6>
+                    <span class="badge bg-primary">{{ comparison_metrics.current_month_label }}</span>
+                </div>
+                <div class="row text-center g-2">
+                    <div class="col-6">
+                        <div class="small text-muted">Liters</div>
+                        <div class="fw-bold">{{ "%.2f"|format(comparison_metrics.current_month_liters) }}</div>
+                        <div class="small {% if comparison_metrics.month_difference_liters >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%+.2f"|format(comparison_metrics.month_difference_liters) }} vs {{ comparison_metrics.previous_month_label }}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="small text-muted">Money</div>
+                        <div class="fw-bold">₹ {{ "{:,}".format(comparison_metrics.current_month_amount) }}</div>
+                        <div class="small {% if comparison_metrics.month_difference_amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%+d"|format(comparison_metrics.month_difference_amount) }} vs {{ comparison_metrics.previous_month_label }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0 text-info"><i class="fas fa-bullseye me-2"></i>Highest Record Month</h6>
+                    <span class="badge bg-info">{{ comparison_metrics.highest_month_label }}</span>
+                </div>
+                <div class="text-center">
+                    <div class="fw-bold fs-4">₹ {{ "{:,}".format(comparison_metrics.highest_month_amount) }}</div>
+                    <div class="small text-muted">Highest monthly collections</div>
+                    <div class="mt-2 small text-muted">{{ "%.2f"|format(comparison_metrics.highest_month_liters) }} liters • Avg Fat {{ "%.1f"|format(comparison_metrics.highest_month_avg_fat) }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0 text-warning"><i class="fas fa-percentage me-2"></i>Average Fat Metric</h6>
+                    <span class="badge bg-warning text-dark">{{ comparison_metrics.current_month_label }}</span>
+                </div>
+                <div class="text-center">
+                    <div class="fw-bold fs-4">{{ "%.1f"|format(comparison_metrics.current_month_avg_fat) }}%</div>
+                    <div class="small text-muted">Average fat for this month</div>
+                    <div class="mt-2 small {% if comparison_metrics.month_difference_avg_fat >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%+.1f"|format(comparison_metrics.month_difference_avg_fat) }}% vs {{ comparison_metrics.previous_month_label }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Month Selection and Export -->
 <div class="card mb-4">
     <div class="card-body">

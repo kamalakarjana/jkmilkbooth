@@ -43,6 +43,56 @@ def get_last_day_of_month(year, month):
     """Get the last day of a month"""
     return monthrange(year, month)[1]
 
+
+def build_monthly_comparison_metrics(month_rows, selected_month):
+    """Build comparison metrics for the monthly page."""
+    current_row = next((row for row in month_rows if row['month'] == selected_month), None)
+    if not current_row:
+        current_row = {'month': selected_month, 'liters': 0.0, 'amount': 0, 'avg_fat': 0.0}
+
+    current_year, current_month_num = map(int, selected_month.split('-'))
+    prev_month_num = current_month_num - 1
+    prev_year = current_year
+    if prev_month_num == 0:
+        prev_year -= 1
+        prev_month_num = 12
+    prev_month = f'{prev_year:04d}-{prev_month_num:02d}'
+
+    prev_row = next((row for row in month_rows if row['month'] == prev_month), None)
+    if not prev_row:
+        prev_row = {'month': prev_month, 'liters': 0.0, 'amount': 0, 'avg_fat': 0.0}
+
+    current_days = monthrange(current_year, current_month_num)[1]
+    prev_days = monthrange(prev_year, prev_month_num)[1]
+
+    current_avg_per_day = current_row['liters'] / current_days if current_days else current_row['liters']
+    prev_avg_per_day = prev_row['liters'] / prev_days if prev_days else prev_row['liters']
+
+    highest_row = max(month_rows, key=lambda row: (row['amount'], row['liters'], row['avg_fat'])) if month_rows else current_row
+
+    return {
+        'current_month': selected_month,
+        'current_month_label': datetime.strptime(selected_month, '%Y-%m').strftime('%b %Y'),
+        'previous_month': prev_month,
+        'previous_month_label': datetime.strptime(prev_month, '%Y-%m').strftime('%b %Y'),
+        'current_month_liters': float(current_row['liters'] or 0),
+        'current_month_amount': int(current_row['amount'] or 0),
+        'current_month_avg_per_day': current_avg_per_day,
+        'current_month_avg_fat': float(current_row['avg_fat'] or 0),
+        'month_difference_liters': float(current_row['liters'] or 0) - float(prev_row['liters'] or 0),
+        'month_difference_amount': int(current_row['amount'] or 0) - int(prev_row['amount'] or 0),
+        'month_difference_avg_per_day': current_avg_per_day - prev_avg_per_day,
+        'month_difference_avg_fat': float(current_row['avg_fat'] or 0) - float(prev_row['avg_fat'] or 0),
+        'previous_month_liters': float(prev_row['liters'] or 0),
+        'previous_month_amount': int(prev_row['amount'] or 0),
+        'previous_month_avg_fat': float(prev_row['avg_fat'] or 0),
+        'highest_month': highest_row['month'],
+        'highest_month_label': datetime.strptime(highest_row['month'], '%Y-%m').strftime('%b %Y'),
+        'highest_month_liters': float(highest_row['liters'] or 0),
+        'highest_month_amount': int(highest_row['amount'] or 0),
+        'highest_month_avg_fat': float(highest_row['avg_fat'] or 0),
+    }
+
 # ================== RATE CHARTS ==================
 # Rate change date (when new rates started)
 NEW_RATES_START_DATE = '2026-02-01'  # February 1, 2026
@@ -1556,6 +1606,30 @@ def monthly():
     monthly_total_amount = sum(d['total_amount'] for d in supplier_data)
     monthly_total_withdrawn = sum(d['withdrawn'] for d in supplier_data)
     monthly_total_sales = sum(d['total_amount'] for d in customer_data)
+
+    month_buckets = {}
+    for coll in Collection.query.all():
+        month_key = coll.date[:7] if coll.date else None
+        if not month_key:
+            continue
+        month_entry = month_buckets.setdefault(month_key, {'month': month_key, 'liters': 0.0, 'amount': 0, 'fat_total': 0.0, 'count': 0})
+        month_entry['liters'] += float(coll.liters or 0)
+        month_entry['amount'] += int(coll.amount or 0)
+        month_entry['fat_total'] += float(coll.fat or 0)
+        month_entry['count'] += 1
+
+    month_rows = []
+    for month_key in sorted(month_buckets):
+        entry = month_buckets[month_key]
+        avg_fat = entry['fat_total'] / entry['count'] if entry['count'] else 0.0
+        month_rows.append({
+            'month': month_key,
+            'liters': entry['liters'],
+            'amount': entry['amount'],
+            'avg_fat': avg_fat,
+        })
+
+    comparison_metrics = build_monthly_comparison_metrics(month_rows, month)
     
     return render_template('monthly.html', 
                          supplier_data=supplier_data,
@@ -1564,7 +1638,8 @@ def monthly():
                          monthly_total_liters=monthly_total_liters,
                          monthly_total_amount=monthly_total_amount,
                          monthly_total_withdrawn=monthly_total_withdrawn,
-                         monthly_total_sales=monthly_total_sales)
+                         monthly_total_sales=monthly_total_sales,
+                         comparison_metrics=comparison_metrics)
 
 # ================== EXPORT CSV ==================
 # Update the export routes to ensure they work properly

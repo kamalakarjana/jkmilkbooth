@@ -159,11 +159,6 @@
             <i class="fas fa-calendar-day"></i> Daily Collections
         </h2>
         <p class="text-muted mb-0">Date: <strong>{{ date }}</strong>
-            {% if date >= NEW_RATES_START_DATE %}
-            <span class="badge bg-info rate-period-badge">New Rates Period (Feb 2026+)</span>
-            {% else %}
-            <span class="badge bg-secondary rate-period-badge">Old Rates Period</span>
-            {% endif %}
         </p>
     </div>
     <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
@@ -832,7 +827,7 @@ function sortTable(columnType, sortType) {
         <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
           <td class="supplier-id"><strong>{{ r.supplier.supplier_id }}</strong></td>
           <td>{{ r.supplier.name }}</span></td>
-          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}{% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}<span class="badge bg-dark">NEW</span>{% endif %}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</span></td>
+          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</span></td>
           <td>{% if r.session %}<span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %} session-badge">{{ r.session|title }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
           <td class="liters-cell">{% if r.liters > 0 %}{{ "%.2f"|format(r.liters) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
           <td class="fat-cell">{% if r.fat > 0 %}{{ "%.1f"|format(r.fat) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>

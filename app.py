@@ -565,26 +565,39 @@ def dashboard():
     today = get_today_ist()
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
-    
-    # Get today's collections from suppliers
+
     today_collections = Collection.query.filter_by(date=today).all()
     total_liters = sum(c.liters for c in today_collections)
     total_amount = sum(c.amount for c in today_collections)
     avg_fat = sum(c.fat for c in today_collections) / len(today_collections) if today_collections else 0
-    
-    return render_template('index.html', 
-                         suppliers=suppliers, 
+
+    current_month = today[:7]
+    month_like = current_month + '%'
+    month_collections = Collection.query.filter(Collection.date.like(month_like)).all()
+    month_sales = Sale.query.filter(Sale.date.like(month_like)).all()
+    month_withdrawals = Withdrawal.query.filter(Withdrawal.date.like(month_like)).all()
+    month_liters = sum(c.liters for c in month_collections)
+    month_amount = sum(c.amount for c in month_collections)
+    month_sales_amount = sum(s.amount for s in month_sales)
+    month_withdrawn = sum(w.amount for w in month_withdrawals)
+    month_avg_fat = sum(c.fat for c in month_collections) / len(month_collections) if month_collections else 0
+    month_net_payable = month_amount - month_withdrawn
+    month_profit = month_sales_amount - month_net_payable
+
+    return render_template('index.html',
+                         suppliers=suppliers,
                          today=today,
                          total_liters=total_liters,
                          total_amount=total_amount,
-                         avg_fat=avg_fat)
-
-@app.route('/my_account')
-@login_required
-def my_account():
-    if current_user.role == 'supplier' and current_user.supplier:
-        # Supplier portal
-        supplier = current_user.supplier
+                         avg_fat=avg_fat,
+                         current_month=current_month,
+                         month_liters=month_liters,
+                         month_amount=month_amount,
+                         month_sales_amount=month_sales_amount,
+                         month_withdrawn=month_withdrawn,
+                         month_avg_fat=month_avg_fat,
+                         month_net_payable=month_net_payable,
+                         month_profit=month_profit)
         cols = Collection.query.filter_by(supplier_id=supplier.id)\
                               .order_by(Collection.date.desc())\
                               .limit(50).all()
@@ -1541,6 +1554,78 @@ def withdrawals():
                          current_month=current_month)
 
 # ================== MONTHLY REPORTS ==================
+@app.route('/monthly-analysis')
+@login_required
+def monthly_analysis():
+    month = request.args.get('month') or datetime.now(IST).strftime('%Y-%m')
+    like = month + '%'
+
+    monthly_collections = Collection.query.filter(Collection.date.like(like)).all()
+    monthly_sales = Sale.query.filter(Sale.date.like(like)).all()
+    monthly_withdrawals = Withdrawal.query.filter(Withdrawal.date.like(like)).all()
+
+    monthly_total_liters = sum(c.liters for c in monthly_collections)
+    monthly_total_amount = sum(c.amount for c in monthly_collections)
+    monthly_total_withdrawn = sum(w.amount for w in monthly_withdrawals)
+    monthly_total_sales = sum(s.amount for s in monthly_sales)
+    monthly_avg_fat = sum(c.fat for c in monthly_collections) / len(monthly_collections) if monthly_collections else 0
+    monthly_net_payable = monthly_total_amount - monthly_total_withdrawn
+    monthly_profit = monthly_total_sales - monthly_net_payable
+
+    month_buckets = {}
+    for coll in Collection.query.all():
+        month_key = coll.date[:7] if coll.date else None
+        if not month_key:
+            continue
+        entry = month_buckets.setdefault(month_key, {'month': month_key, 'liters': 0.0, 'amount': 0, 'fat_total': 0.0, 'count': 0})
+        entry['liters'] += float(coll.liters or 0)
+        entry['amount'] += int(coll.amount or 0)
+        entry['fat_total'] += float(coll.fat or 0)
+        entry['count'] += 1
+
+    month_rows = []
+    for month_key in sorted(month_buckets):
+        entry = month_buckets[month_key]
+        month_rows.append({
+            'month': month_key,
+            'liters': entry['liters'],
+            'amount': entry['amount'],
+            'avg_fat': entry['fat_total'] / entry['count'] if entry['count'] else 0.0,
+        })
+
+    comparison_metrics = build_monthly_comparison_metrics(month_rows, month)
+
+    milk_type_buckets = {}
+    for coll in monthly_collections:
+        key = (coll.milk_type or 'unknown').title()
+        bucket = milk_type_buckets.setdefault(key, {'name': key, 'liters': 0.0})
+        bucket['liters'] += float(coll.liters or 0)
+
+    trend_rows = month_rows[-6:]
+    trend_labels = [row['month'] for row in trend_rows]
+    trend_amounts = [int(row['amount']) for row in trend_rows]
+    milk_type_labels = [item['name'] for item in sorted(milk_type_buckets.values(), key=lambda i: i['liters'], reverse=True)]
+    milk_type_values = [round(item['liters'], 2) for item in sorted(milk_type_buckets.values(), key=lambda i: i['liters'], reverse=True)]
+
+    return render_template('monthly_analysis.html',
+                         month=month,
+                         comparison_metrics=comparison_metrics,
+                         monthly_status={
+                             'liters': monthly_total_liters,
+                             'amount': monthly_total_amount,
+                             'withdrawn': monthly_total_withdrawn,
+                             'net_payable': monthly_net_payable,
+                             'sales': monthly_total_sales,
+                             'avg_fat': monthly_avg_fat,
+                             'profit': monthly_profit,
+                         },
+                         trend_labels=trend_labels,
+                         trend_amounts=trend_amounts,
+                         milk_type_labels=milk_type_labels,
+                         milk_type_values=milk_type_values,
+                         supplier_count=Supplier.query.count(),
+                         customer_count=Customer.query.count())
+
 @app.route('/monthly')
 @login_required
 def monthly():

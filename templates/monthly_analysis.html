@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Analysis - {{ month }}{% endblock %}
+
+{% block content %}
+<style>
+    .metric-card { border-radius: 18px; box-shadow: 0 12px 30px rgba(45,55,127,0.08); }
+    .metric-icon { font-size: 1.5rem; }
+    .chart-card { border-radius: 18px; box-shadow: 0 12px 30px rgba(45,55,127,0.08); }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="fas fa-chart-bar"></i> Monthly Analysis</h2>
+        <p class="text-muted mb-0">{{ month }} overview with comparison, status, and charts</p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Dashboard</a>
+</div>
+
+<div class="card mb-4 metric-card">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Select Month</label>
+                <input type="month" name="month" value="{{ month }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search"></i> View</button>
+            </div>
+            <div class="col-md-6 text-end">
+                <a href="{{ url_for('monthly') }}?month={{ month }}" class="btn btn-outline-primary"><i class="fas fa-table"></i> Go to Monthly Report</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="metric-icon text-primary"><i class="fas fa-weight"></i></span>
+                    <span class="badge bg-primary">Milk</span>
+                </div>
+                <h4 class="mb-1">{{ "%.2f"|format(monthly_status.liters) }}</h4>
+                <div class="text-muted">Total Liters</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="metric-icon text-success"><i class="fas fa-rupee-sign"></i></span>
+                    <span class="badge bg-success">Money</span>
+                </div>
+                <h4 class="mb-1">₹ {{ "{:,}".format(monthly_status.amount) }}</h4>
+                <div class="text-muted">Collection Amount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="metric-icon text-warning"><i class="fas fa-percentage"></i></span>
+                    <span class="badge bg-warning text-dark">Fat</span>
+                </div>
+                <h4 class="mb-1">{{ "%.1f"|format(monthly_status.avg_fat) }}%</h4>
+                <div class="text-muted">Average Fat</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="metric-icon text-info"><i class="fas fa-balance-scale"></i></span>
+                    <span class="badge bg-info">Status</span>
+                </div>
+                <h4 class="mb-1">₹ {{ "{:,}".format(monthly_status.net_payable) }}</h4>
+                <div class="text-muted">Net Payable</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card chart-card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-chart-line me-2"></i>Monthly Comparison</h5>
+                <div class="text-center py-3">
+                    <div class="fw-bold fs-4">{{ "%.2f"|format(comparison_metrics.current_month_liters) }} L</div>
+                    <div class="text-muted">Current month liters</div>
+                    <div class="mt-2 small {% if comparison_metrics.month_difference_liters >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%+.2f"|format(comparison_metrics.month_difference_liters) }} vs previous month</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card chart-card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-trophy me-2"></i>Highest Record Month</h5>
+                <div class="text-center py-3">
+                    <div class="fw-bold fs-4">{{ comparison_metrics.highest_month_label }}</div>
+                    <div class="text-muted">₹ {{ "{:,}".format(comparison_metrics.highest_month_amount) }} • {{ "%.2f"|format(comparison_metrics.highest_month_liters) }} L</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card chart-card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-signal me-2"></i>Monthly Status</h5>
+                <div class="text-center py-3">
+                    <div class="fw-bold fs-4">₹ {{ "{:,}".format(monthly_status.profit) }}</div>
+                    <div class="text-muted">Profit / Loss</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card chart-card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-chart-area me-2"></i>Monthly Trend</h5>
+                <canvas id="monthlyTrendChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card chart-card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-chart-pie me-2"></i>Milk Type Share</h5>
+                <canvas id="milkTypeChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const trendLabels = {{ trend_labels|tojson }};
+const trendAmounts = {{ trend_amounts|tojson }};
+const milkTypeLabels = {{ milk_type_labels|tojson }};
+const milkTypeValues = {{ milk_type_values|tojson }};
+
+new Chart(document.getElementById('monthlyTrendChart'), {
+    type: 'bar',
+    data: {
+        labels: trendLabels,
+        datasets: [{
+            label: 'Collection Amount (₹)',
+            data: trendAmounts,
+            backgroundColor: '#4f46e5'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+
+new Chart(document.getElementById('milkTypeChart'), {
+    type: 'pie',
+    data: {
+        labels: milkTypeLabels,
+        datasets: [{
+            data: milkTypeValues,
+            backgroundColor: ['#4f46e5', '#22c55e', '#f59e0b', '#06b6d4']
+        }]
+    },
+    options: { responsive: true }
+});
+</script>
+{% endblock %}

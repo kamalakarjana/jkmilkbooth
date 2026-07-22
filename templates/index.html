@@ -17,7 +17,7 @@
 <!-- Main Action Buttons -->
 <div class="row mb-4">
     <div class="col-md-4 mb-3">
-        <div class="card text-center h-100">
+        <div class="card text-center h-100 border-primary">
             <div class="card-body">
                 <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
                 <h4>Add Collection</h4>
@@ -29,7 +29,7 @@
         </div>
     </div>
     <div class="col-md-4 mb-3">
-        <div class="card text-center h-100">
+        <div class="card text-center h-100 border-warning">
             <div class="card-body">
                 <i class="fas fa-bolt fa-3x text-warning mb-3"></i>
                 <h4>Quick Add</h4>
@@ -41,7 +41,7 @@
         </div>
     </div>
     <div class="col-md-4 mb-3">
-        <div class="card text-center h-100">
+        <div class="card text-center h-100 border-success">
             <div class="card-body">
                 <i class="fas fa-shopping-cart fa-3x text-success mb-3"></i>
                 <h4>Record Sale</h4>
@@ -94,6 +94,67 @@
             <small class="text-muted mt-2 d-block">
                 <i class="fas fa-arrow-right"></i> Manage suppliers
             </small>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly & Business Overview -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100 border-info">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-calendar-alt"></i> Monthly Overview - {{ current_month }}
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Liters</div>
+                        <div class="fw-bold fs-5">{{ "%.2f"|format(month_liters) }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Collection Amount</div>
+                        <div class="fw-bold fs-5">₹ {{ "{:,}".format(month_amount) }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Avg Fat</div>
+                        <div class="fw-bold fs-5">{{ "%.1f"|format(month_avg_fat) }}%</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Net Payable</div>
+                        <div class="fw-bold fs-5">₹ {{ "{:,}".format(month_net_payable) }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('monthly_analysis') }}?month={{ current_month }}" class="btn btn-outline-info w-100">
+                    <i class="fas fa-chart-bar"></i> Open Monthly Analysis
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100 border-success">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-chart-pie"></i> Business Status
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Sales Income</div>
+                        <div class="fw-bold fs-5">₹ {{ "{:,}".format(month_sales_amount) }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Withdrawn</div>
+                        <div class="fw-bold fs-5">₹ {{ "{:,}".format(month_withdrawn) }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Profit/Loss</div>
+                        <div class="fw-bold fs-5">₹ {{ "{:,}".format(month_profit) }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Active Records</div>
+                        <div class="fw-bold fs-5">{{ suppliers|length }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

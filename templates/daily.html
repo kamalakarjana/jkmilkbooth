@@ -645,8 +645,6 @@ function sortTable(columnType, sortType) {
       margin-bottom: 0;
     }
   </style>
-</head>
-<body class="p-3">
 <div class="container-fluid" style="max-width: 1400px;">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}
@@ -969,8 +967,6 @@ function exportToPDF(filter) {
         <tbody>${tableRows}</tbody>
       </table>
       <div class="footer"><p>Generated on: ${new Date().toLocaleString()}</p><p>RR Milk Management System</p></div>
-    </body>
-    </html>
   `;
   
   const opt = { 
@@ -1017,5 +1013,4 @@ function sortTableBody(columnType, sortType) {
 }
 function sortTable(columnType, sortType) { sortTableBody(columnType, sortType); }
 </script>
-</body>
-</html>
+{% endblock %}

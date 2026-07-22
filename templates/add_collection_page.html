@@ -231,7 +231,6 @@
 </div>
 
 <script>
-    const NEW_RATES_START_DATE = '{{ NEW_RATES_START_DATE }}';
     const BUFFALO_RATE_CHART = {
         5.0: 40.0, 5.1: 40.8, 5.2: 41.6, 5.3: 42.4, 5.4: 43.2,
         5.5: 44.0, 5.6: 44.8, 5.7: 45.6, 5.8: 46.4, 5.9: 47.2,
@@ -259,7 +258,7 @@
         return value !== null && value !== undefined && !isNaN(value) ? '₹ ' + value.toFixed(0) : 'N/A';
     }
 
-    function findSuggestedRate(milkType, fat, dateStr) {
+    function findSuggestedRate(milkType, fat) {
         const fatKey = (Math.round(fat * 10) / 10).toFixed(1);
         const chart = milkType === 'cow' ? COW_RATE_CHART : BUFFALO_RATE_CHART;
         const rate = chart[fatKey];
@@ -281,18 +280,15 @@
         document.getElementById('previewFat').textContent = fat ? fat.toFixed(1) + '%' : '—';
         document.getElementById('previewLiters').textContent = liters ? liters.toFixed(2) : '0.00';
 
-        const rate = findSuggestedRate(milkType, fat, dateValue);
+        const rate = findSuggestedRate(milkType, fat);
         document.getElementById('previewRate').textContent = rate ? formatRupees(rate) : 'N/A';
 
         const expectedAmount = rate && liters ? Math.floor(liters * rate) : 0;
         document.getElementById('previewAmount').textContent = formatRupees(expectedAmount);
 
-        const isNewRatePeriod = dateValue >= NEW_RATES_START_DATE && milkType === 'buffalo';
-        const rateInfoText = isNewRatePeriod
-            ? 'Using new buffalo rates from 01-Feb-2026.'
-            : milkType === 'cow'
-                ? 'Using fixed cow milk rates.'
-                : 'Using current standard buffalo rates.';
+        const rateInfoText = milkType === 'cow'
+            ? 'Using fixed cow milk rates.'
+            : 'Using buffalo rate chart.';
 
         document.getElementById('previewRateInfo').textContent = rateInfoText;
         document.getElementById('modalMilkType').textContent = milkType === 'cow' ? 'Cow Milk' : 'Buffalo Milk';

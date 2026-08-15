@@ -119,33 +119,31 @@
     </div>
 </div>
 
-<!-- Yearly Monthly Analysis -->
+<!-- Monthly Collections Analysis -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card dashboard-card-panel h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-chart-area"></i> {{ current_year }} Monthly Milk Analytics</h5>
-                <span class="badge bg-light text-dark">YTD</span>
+                <h5 class="mb-0"><i class="fas fa-chart-area"></i> {{ current_year }} Monthly Collection Analysis</h5>
+                <span class="badge bg-light text-dark">Collections</span>
             </div>
             <div class="card-body">
                 <div class="analytics-mini-grid">
                     <div class="mini-box">
-                        <small>Collections</small>
+                        <small>Current Month</small>
                         <h4 class="text-success">₹ {{ "{:,.0f}".format(yearly_total_collections) }}</h4>
                     </div>
                     <div class="mini-box">
-                        <small>Sales</small>
-                        <h4 class="text-primary">₹ {{ "{:,.0f}".format(yearly_total_sales) }}</h4>
+                        <small>Annual Total</small>
+                        <h4 class="text-primary">₹ {{ "{:,.0f}".format(yearly_total_collections) }}</h4>
                     </div>
                     <div class="mini-box">
-                        <small>Withdrawals</small>
-                        <h4 class="text-danger">₹ {{ "{:,.0f}".format(yearly_total_withdrawn) }}</h4>
+                        <small>Monthly Avg</small>
+                        <h4 class="text-warning">₹ {{ "{:,.0f}".format(yearly_total_collections / 12) }}</h4>
                     </div>
                     <div class="mini-box">
-                        <small>Profit / Loss</small>
-                        <h4 class="{% if yearly_profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            ₹ {{ "{:,.0f}".format(yearly_profit_loss) }}
-                        </h4>
+                        <small>Total Liters</small>
+                        <h4 class="text-info">{{ "%.2f"|format(yearly_summary|sum(attribute='liters')) }}</h4>
                     </div>
                 </div>
 
@@ -156,9 +154,6 @@
                                 <th>Month</th>
                                 <th class="text-end">Liters</th>
                                 <th class="text-end">Collections</th>
-                                <th class="text-end">Sales</th>
-                                <th class="text-end">Withdrawn</th>
-                                <th class="text-end">Profit/Loss</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -167,11 +162,6 @@
                                 <td>{{ item.label }}</td>
                                 <td class="text-end">{{ "%.2f"|format(item.liters) }}</td>
                                 <td class="text-end">₹ {{ "{:,.0f}".format(item.collections) }}</td>
-                                <td class="text-end">₹ {{ "{:,.0f}".format(item.sales) }}</td>
-                                <td class="text-end">₹ {{ "{:,.0f}".format(item.withdrawals) }}</td>
-                                <td class="text-end fw-bold {% if item.profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                    ₹ {{ "{:,.0f}".format(item.profit_loss) }}
-                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -187,7 +177,7 @@
     <div class="col-lg-8 mb-3">
         <div class="card dashboard-card-panel h-100">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Monthly Collections vs Sales</h5>
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Monthly Collection Trend</h5>
             </div>
             <div class="card-body">
                 <canvas id="monthlyAnalyticsChart" height="120"></canvas>
@@ -197,7 +187,7 @@
     <div class="col-lg-4 mb-3">
         <div class="card dashboard-card-panel h-100">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Monthly Collection Analysis</h5>
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Monthly Collection Share</h5>
             </div>
             <div class="card-body">
                 <canvas id="yearSummaryChart" height="170"></canvas>
@@ -294,39 +284,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const monthlyLabels = {{ yearly_summary|map(attribute='label')|list|tojson }};
     const monthlyCollections = {{ yearly_summary|map(attribute='collections')|list|tojson }};
-    const monthlySales = {{ yearly_summary|map(attribute='sales')|list|tojson }};
-    const monthlyProfit = {{ yearly_summary|map(attribute='profit_loss')|list|tojson }};
-
     new Chart(document.getElementById('monthlyAnalyticsChart'), {
         type: 'bar',
         data: {
             labels: monthlyLabels,
-            datasets: [
-                {
-                    label: 'Collections',
-                    data: monthlyCollections,
-                    backgroundColor: '#28a745',
-                    borderRadius: 6
-                },
-                {
-                    label: 'Sales',
-                    data: monthlySales,
-                    backgroundColor: '#007bff',
-                    borderRadius: 6
-                },
-                {
-                    label: 'Profit / Loss',
-                    data: monthlyProfit,
-                    backgroundColor: '#ffc107',
-                    borderRadius: 6
-                }
-            ]
+            datasets: [{
+                label: 'Monthly Collections',
+                data: monthlyCollections,
+                backgroundColor: ['#5f3bff', '#7c4dff', '#10b981', '#14b8a6', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#f97316', '#22c55e', '#eab308', '#0ea5e9'],
+                borderRadius: 8,
+                borderSkipped: false
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' }
+                legend: { display: false }
             },
             scales: {
                 y: {

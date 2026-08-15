@@ -145,33 +145,18 @@ load_rate_charts()
 
 def find_rate(fat, milk_type='buffalo', transaction_date=None):
     """
-    Find rate based on date
-    - For buffalo milk: New rates from 01-Feb-2026
-    - For cow milk: Always use same rates (no change)
-    - If no date provided, use today's date
+    Use the latest buffalo rate chart for all dates.
+    The 2026-02-01 change is informational only for labels/messages.
     """
     if fat is None:
         return None
-    
+
     k = round(fat * 10) / 10.0
-    
-    # For cow milk, always use same chart
+
     if milk_type == 'cow':
         return COW_RATE_CHART.get(k)
-    
-    # For buffalo milk, check date
-    if transaction_date:
-        # If date is from Feb 1, 2026 onwards, use new buffalo rates
-        if transaction_date >= NEW_RATES_START_DATE:
-            return BUFFALO_RATE_CHART.get(k)
-        else:
-            # Before Feb 1, 2026 - this is the problem area
-            # We need to get the OLD buffalo rate somehow
-            # For now, use new rates (we'll fix with migration)
-            return BUFFALO_RATE_CHART.get(k)
-    else:
-        # No date provided, use current rates
-        return BUFFALO_RATE_CHART.get(k)
+
+    return BUFFALO_RATE_CHART.get(k)
 
 def calculate_payment_cycles(collections, year, month):
     """Calculate payment cycles for a given month"""

@@ -240,11 +240,6 @@
                         </ul>
                     </div>
                     
-                    {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
-                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
-                        <i class="fas fa-sync-alt"></i> Refresh Rates
-                    </button>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -290,9 +285,6 @@
                             {% if r.milk_type %}
                             <span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">
                                 {{ r.milk_type|title }}
-                                {% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}
-                                <span class="badge bg-dark">NEW</span>
-                                {% endif %}
                             </span>
                             {% else %}
                             <span class="badge bg-secondary">No Data</span>
@@ -376,7 +368,7 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This will recalculate buffalo milk rates for <strong>{{ date }}</strong> using new 2026 rates.
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This will recalculate buffalo milk rates for <strong>{{ date }}</strong>.
                 </div>
                 <ul class="mb-0">
                     <li>✅ Buffalo milk rates will be updated</li>

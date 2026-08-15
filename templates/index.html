@@ -78,7 +78,12 @@
         <div class="panel-box mb-4">
             <div class="panel-box-header">
                 <h5><i class="fas fa-chart-area"></i> Monthly Collection Analysis</h5>
-                <span>{{ current_year }}</span>
+                <div class="panel-header-actions">
+                    <span>{{ current_year }}</span>
+                    <button type="button" class="btn btn-sm btn-primary toggle-table-btn" data-target="monthlyCollectionTable">
+                        <i class="fas fa-table"></i> View Table
+                    </button>
+                </div>
             </div>
             <div class="panel-box-body">
                 <div class="mini-stat-grid">
@@ -100,7 +105,23 @@
                     </div>
                 </div>
 
-                <div class="table-responsive mt-3">
+                <div class="smart-chart-wrap mt-3">
+                    <div class="chart-box">
+                        <canvas id="yearSummaryChart" height="220"></canvas>
+                    </div>
+                    <div class="chart-side-info">
+                        <div class="side-total-box">
+                            <small>Total</small>
+                            <strong>₹ {{ "{:,.0f}".format(yearly_total_collections) }}</strong>
+                        </div>
+                        <div class="top-month-box">
+                            <small>Top Month</small>
+                            <strong>{{ best_month_label }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="monthlyCollectionTable" class="table-responsive mt-3 hidden-table">
                     <table class="table table-sm table-bordered mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -120,15 +141,6 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-
-        <div class="panel-box mb-0 single-pie-panel">
-            <div class="panel-box-header">
-                <h5><i class="fas fa-chart-pie"></i> Monthly Collection Share</h5>
-            </div>
-            <div class="panel-box-body chart-body single-chart-box">
-                <canvas id="yearSummaryChart" height="260"></canvas>
             </div>
         </div>
     </div>
@@ -222,6 +234,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const monthlyLabels = {{ yearly_summary|map(attribute='label')|list|tojson }};
     const monthlyCollections = {{ yearly_summary|map(attribute='collections')|list|tojson }};
+    const totalCollections = monthlyCollections.reduce((sum, value) => sum + value, 0);
+
+    const centerTextPlugin = {
+        id: 'centerTextPlugin',
+        afterDraw(chart) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+
+            const centerX = (chartArea.left + chartArea.right) / 2;
+            const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#1f2d3d';
+            ctx.font = '700 14px Arial';
+            ctx.fillText('Total', centerX, centerY - 12);
+            ctx.font = '800 20px Arial';
+            ctx.fillText('₹ ' + Number(totalCollections).toLocaleString(), centerX, centerY + 18);
+            ctx.restore();
+        }
+    };
 
     const yearSummaryChart = new Chart(document.getElementById('yearSummaryChart'), {
         type: 'doughnut',
@@ -232,21 +266,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 backgroundColor: [
                     '#5f3bff', '#7c4dff', '#8a5cf6', '#10b981', '#14b8a6', '#f59e0b',
                     '#f97316', '#ef4444', '#ec4899', '#3b82f6', '#22c55e', '#eab308'
-                ]
+                ],
+                borderWidth: 2,
+                borderColor: '#ffffff'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '42%',
+            cutout: '58%',
+            layout: { padding: 12 },
             plugins: {
                 legend: {
-                    position: 'right',
+                    position: 'bottom',
                     labels: {
                         boxWidth: 12,
                         usePointStyle: true,
                         pointStyle: 'circle',
-                        color: '#334155'
+                        color: '#334155',
+                        padding: 12
                     }
                 },
                 tooltip: {
@@ -257,7 +295,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }
-        }
+        },
+        plugins: [centerTextPlugin]
+    });
+
+    document.querySelectorAll('.toggle-table-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const targetId = this.dataset.target;
+            const table = document.getElementById(targetId);
+            const isHidden = table.classList.toggle('hidden-table');
+            this.innerHTML = isHidden
+                ? '<i class="fas fa-table"></i> View Table'
+                : '<i class="fas fa-eye-slash"></i> Hide Table';
+        });
     });
 });
 </script>

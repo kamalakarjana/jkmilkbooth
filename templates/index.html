@@ -284,10 +284,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         usePointStyle: true,
                         pointStyle: 'circle',
                         color: '#334155',
-                        padding: 12
+                        padding: 12,
+                        font: { weight: '600' }
                     }
                 },
                 tooltip: {
+                    backgroundColor: '#1f2937',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    padding: 10,
                     callbacks: {
                         label: function(context) {
                             return `${context.label}: ₹${Number(context.parsed).toLocaleString()}`;

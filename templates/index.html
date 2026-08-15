@@ -92,11 +92,11 @@
                     </div>
                     <div class="mini-stat-box">
                         <small>Total Liters</small>
-                        <h4>{{ "%.2f"|format(yearly_summary|sum(attribute='liters')) }}</h4>
+                        <h4>{{ "%.2f"|format(yearly_total_liters) }}</h4>
                     </div>
                     <div class="mini-stat-box">
                         <small>Best Month</small>
-                        <h4>{{ yearly_summary|sort(attribute='collections')|last.label if yearly_summary else 'N/A' }}</h4>
+                        <h4>{{ best_month_label }}</h4>
                     </div>
                 </div>
 

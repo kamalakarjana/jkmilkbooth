@@ -547,8 +547,10 @@ def dashboard():
     yearly_total_collections = sum(item['collections'] for item in yearly_summary)
     yearly_total_sales = sum(item['sales'] for item in yearly_summary)
     yearly_total_withdrawn = sum(item['withdrawals'] for item in yearly_summary)
+    yearly_total_liters = sum(item['liters'] for item in yearly_summary)
     yearly_net_supplier_cost = yearly_total_collections - yearly_total_withdrawn
     yearly_profit_loss = yearly_total_sales - yearly_net_supplier_cost
+    best_month_label = max(yearly_summary, key=lambda x: x['collections'])['label'] if yearly_summary else 'N/A'
 
     return render_template('index.html',
                          suppliers=suppliers,
@@ -558,10 +560,12 @@ def dashboard():
                          avg_fat=avg_fat,
                          yearly_summary=yearly_summary,
                          yearly_total_collections=yearly_total_collections,
+                         yearly_total_liters=yearly_total_liters,
                          yearly_total_sales=yearly_total_sales,
                          yearly_total_withdrawn=yearly_total_withdrawn,
                          yearly_net_supplier_cost=yearly_net_supplier_cost,
                          yearly_profit_loss=yearly_profit_loss,
+                         best_month_label=best_month_label,
                          current_year=current_year)
 
 @app.route('/my_account')

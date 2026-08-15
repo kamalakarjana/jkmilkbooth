@@ -98,6 +98,77 @@
     </div>
 </div>
 
+<!-- Yearly Monthly Analysis -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-area"></i> {{ current_year }} Monthly Milk Analytics</h5>
+                <span class="badge bg-light text-dark">YTD</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <small class="text-muted d-block mb-1">Collections</small>
+                            <h4 class="mb-0 text-success">₹ {{ "{:,.0f}".format(yearly_total_collections) }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <small class="text-muted d-block mb-1">Sales</small>
+                            <h4 class="mb-0 text-primary">₹ {{ "{:,.0f}".format(yearly_total_sales) }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <small class="text-muted d-block mb-1">Withdrawals</small>
+                            <h4 class="mb-0 text-danger">₹ {{ "{:,.0f}".format(yearly_total_withdrawn) }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="border rounded p-3 bg-light h-100">
+                            <small class="text-muted d-block mb-1">Profit / Loss</small>
+                            <h4 class="mb-0 {% if yearly_profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ₹ {{ "{:,.0f}".format(yearly_profit_loss) }}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Month</th>
+                                <th class="text-end">Liters</th>
+                                <th class="text-end">Collections</th>
+                                <th class="text-end">Sales</th>
+                                <th class="text-end">Withdrawn</th>
+                                <th class="text-end">Profit/Loss</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in yearly_summary %}
+                            <tr>
+                                <td>{{ item.label }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.liters) }}</td>
+                                <td class="text-end">₹ {{ "{:,.0f}".format(item.collections) }}</td>
+                                <td class="text-end">₹ {{ "{:,.0f}".format(item.sales) }}</td>
+                                <td class="text-end">₹ {{ "{:,.0f}".format(item.withdrawals) }}</td>
+                                <td class="text-end fw-bold {% if item.profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ₹ {{ "{:,.0f}".format(item.profit_loss) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Links -->
 <div class="row">
     <div class="col-md-4 mb-3">

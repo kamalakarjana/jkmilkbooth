@@ -94,6 +94,41 @@ def load_rate_charts():
     COW_RATE_CHART = DEFAULT_COW_RATE_CHART.copy()
 
 
+def build_yearly_monthly_summary(year=None):
+    """Build monthly supplier/sales analytics for a complete year."""
+    if year is None:
+        year = datetime.now(IST).year
+
+    monthly_summary = []
+    for month in range(1, 13):
+        month_key = f"{year}-{month:02d}"
+        month_label = datetime(year, month, 1).strftime('%b')
+
+        monthly_collections = Collection.query.filter(Collection.date.like(f"{month_key}%")).all()
+        monthly_sales = Sale.query.filter(Sale.date.like(f"{month_key}%")).all()
+        monthly_withdrawals = Withdrawal.query.filter(Withdrawal.date.like(f"{month_key}%")).all()
+
+        total_collections = sum(c.amount for c in monthly_collections)
+        total_liters = sum(c.liters for c in monthly_collections)
+        total_sales = sum(s.amount for s in monthly_sales)
+        total_withdrawn = sum(w.amount for w in monthly_withdrawals)
+        net_supplier_cost = total_collections - total_withdrawn
+        profit_loss = total_sales - net_supplier_cost
+
+        monthly_summary.append({
+            'month': month_key,
+            'label': month_label,
+            'liters': total_liters,
+            'collections': total_collections,
+            'withdrawals': total_withdrawn,
+            'sales': total_sales,
+            'net_supplier_cost': net_supplier_cost,
+            'profit_loss': profit_loss
+        })
+
+    return monthly_summary
+
+
 def save_rate_charts(buffalo_chart, cow_chart):
     """Persist rate charts to disk."""
     try:
@@ -513,21 +548,36 @@ def index():
 def dashboard():
     """Dashboard for logged-in users"""
     today = get_today_ist()
+    current_year = datetime.now(IST).year
     suppliers = Supplier.query.all()
     suppliers = sort_by_id(suppliers, 'supplier_id')
-    
+
     # Get today's collections from suppliers
     today_collections = Collection.query.filter_by(date=today).all()
     total_liters = sum(c.liters for c in today_collections)
     total_amount = sum(c.amount for c in today_collections)
     avg_fat = sum(c.fat for c in today_collections) / len(today_collections) if today_collections else 0
-    
-    return render_template('index.html', 
-                         suppliers=suppliers, 
+
+    yearly_summary = build_yearly_monthly_summary(current_year)
+    yearly_total_collections = sum(item['collections'] for item in yearly_summary)
+    yearly_total_sales = sum(item['sales'] for item in yearly_summary)
+    yearly_total_withdrawn = sum(item['withdrawals'] for item in yearly_summary)
+    yearly_net_supplier_cost = yearly_total_collections - yearly_total_withdrawn
+    yearly_profit_loss = yearly_total_sales - yearly_net_supplier_cost
+
+    return render_template('index.html',
+                         suppliers=suppliers,
                          today=today,
                          total_liters=total_liters,
                          total_amount=total_amount,
-                         avg_fat=avg_fat)
+                         avg_fat=avg_fat,
+                         yearly_summary=yearly_summary,
+                         yearly_total_collections=yearly_total_collections,
+                         yearly_total_sales=yearly_total_sales,
+                         yearly_total_withdrawn=yearly_total_withdrawn,
+                         yearly_net_supplier_cost=yearly_net_supplier_cost,
+                         yearly_profit_loss=yearly_profit_loss,
+                         current_year=current_year)
 
 @app.route('/my_account')
 @login_required
@@ -850,7 +900,7 @@ def add_collection():
     db.session.commit()
     
     # Show rate period in message
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    rate_period = "current rates"
     flash(f"Collection added from {s.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('add_collection_page'))
 
@@ -903,7 +953,7 @@ def quick_add():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    rate_period = "current rates"
     flash(f"Quick collection added from {s.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('daily', date=d))
 
@@ -972,7 +1022,7 @@ def add_sale():
     db.session.add(entry)
     db.session.commit()
     
-    rate_period = "new rates (from Feb 2026)" if d >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+    rate_period = "current rates"
     flash(f"Sale recorded to {c.name} - ₹{amt} ({rate_period})", "success")
     return redirect(url_for('sales'))
 
@@ -1374,7 +1424,7 @@ def edit_collection(cid):
         db.session.commit()
         
         # Show rate period in message
-        rate_period = "new rates (from Feb 2026)" if date_str >= NEW_RATES_START_DATE and milk_type == 'buffalo' else "standard rates"
+        rate_period = "current rates"
         flash(f"Collection updated successfully ({rate_period})", "success")
         return redirect(url_for('daily', date=date_str))
     

@@ -158,13 +158,7 @@
         <h2 class="mb-1">
             <i class="fas fa-calendar-day"></i> Daily Collections
         </h2>
-        <p class="text-muted mb-0">Date: <strong>{{ date }}</strong>
-            {% if date >= NEW_RATES_START_DATE %}
-            <span class="badge bg-info rate-period-badge">New Rates Period (Feb 2026+)</span>
-            {% else %}
-            <span class="badge bg-secondary rate-period-badge">Old Rates Period</span>
-            {% endif %}
-        </p>
+        <p class="text-muted mb-0">Date: <strong>{{ date }}</strong></p>
     </div>
     <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Dashboard
@@ -704,11 +698,6 @@ function sortTable(columnType, sortType) {
   </div>
   <h3 class="mb-3">
     <i class="fas fa-calendar-day text-primary"></i> Daily Collections — {{ date }}
-    {% if date >= NEW_RATES_START_DATE %}
-    <span class="badge bg-info rate-period-badge">New Buffalo Rates Period (Feb 2026+)</span>
-    {% else %}
-    <span class="badge bg-secondary rate-period-badge">Old Buffalo Rates Period</span>
-    {% endif %}
   </h3>
   
   <!-- Statistics Row -->
@@ -788,11 +777,6 @@ function sortTable(columnType, sortType) {
           </ul>
         </div>
         
-        {% if current_user.role in ['admin'] and date >= NEW_RATES_START_DATE %}
-        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#refreshRatesModal">
-          <i class="fas fa-sync-alt"></i> Refresh Buffalo Rates
-        </button>
-        {% endif %}
       </div>
     </div>
   </div>
@@ -832,7 +816,7 @@ function sortTable(columnType, sortType) {
         <tr class="{% if not r.id %}no-collection{% endif %}" data-session="{{ r.session }}" data-supplier-id="{{ r.supplier.supplier_id }}">
           <td class="supplier-id"><strong>{{ r.supplier.supplier_id }}</strong></td>
           <td>{{ r.supplier.name }}</span></td>
-          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}{% if r.milk_type == 'buffalo' and date >= NEW_RATES_START_DATE %}<span class="badge bg-dark">NEW</span>{% endif %}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</span></td>
+          <td>{% if r.milk_type %}<span class="badge {% if r.milk_type == 'cow' %}bg-info{% else %}bg-warning{% endif %}">{{ r.milk_type|title }}</span>{% else %}<span class="badge bg-secondary">No Data</span>{% endif %}</span></td>
           <td>{% if r.session %}<span class="badge {% if r.session == 'morning' %}bg-warning{% else %}bg-info{% endif %} session-badge">{{ r.session|title }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
           <td class="liters-cell">{% if r.liters > 0 %}{{ "%.2f"|format(r.liters) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
           <td class="fat-cell">{% if r.fat > 0 %}{{ "%.1f"|format(r.fat) }}{% else %}<span class="text-muted">-</span>{% endif %}</span></td>
@@ -857,7 +841,7 @@ function sortTable(columnType, sortType) {
 
 <!-- Refresh Rates Modal -->
 <div class="modal fade no-print" id="refreshRatesModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This action will recalculate rates for <strong>buffalo milk collections only</strong> on {{ date }} using new rates (from February 2026).</div><ul><li>✅ <strong>Buffalo milk rates</strong> will be updated to new 2026 rates</li><li>✅ Amounts will be recalculated for buffalo milk</li><li>⏺️ <strong>Cow milk rates will NOT change</strong></li></ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}"><button type="submit" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Refresh Buffalo Rates Now</button></form></div></div></div>
+  <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="fas fa-sync-alt text-info me-2"></i>Refresh Buffalo Milk Rates for {{ date }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This action will recalculate rates for <strong>buffalo milk collections only</strong> on {{ date }} using the current chart.</div><ul><li>✅ <strong>Buffalo milk rates</strong> will be updated from the current chart</li><li>✅ Amounts will be recalculated for buffalo milk</li><li>⏺️ <strong>Cow milk rates will NOT change</strong></li></ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><form method="post" action="{{ url_for('refresh_daily_rates', date=date) }}"><button type="submit" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Recalculate Buffalo Rates</button></form></div></div></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

@@ -122,7 +122,7 @@
                     <p class="mb-1"><strong>Rate per Liter:</strong> <span id="previewRate">₹ 48.0</span></p>
                     <p class="mb-1"><strong>Liters:</strong> <span id="previewLiters">0.00</span></p>
                     <p class="mb-1"><strong>Expected Amount:</strong> <span id="previewAmount">₹ 0</span></p>
-                    <p class="mb-1"><strong>Rate Info:</strong> <span id="previewRateInfo">Use new rates from 01-Feb-2026 for buffalo milk.</span></p>
+                    <p class="mb-1"><strong>Rate Info:</strong> <span id="previewRateInfo">Current buffalo and cow rates are applied for the selected date.</span></p>
                 </div>
             </div>
             <div class="col-md-6">
@@ -130,7 +130,7 @@
                 <ul>
                     <li>Enter supplier, milk type, fat and liters.</li>
                     <li>The preview updates automatically.</li>
-                    <li>For buffalo milk, rates change from 01-Feb-2026.</li>
+                    <li>Rates are matched to the selected entry date automatically.</li>
                     <li>The actual saved amount may be rounded down to the nearest rupee.</li>
                 </ul>
             </div>
@@ -287,12 +287,9 @@
         const expectedAmount = rate && liters ? Math.floor(liters * rate) : 0;
         document.getElementById('previewAmount').textContent = formatRupees(expectedAmount);
 
-        const isNewRatePeriod = dateValue >= NEW_RATES_START_DATE && milkType === 'buffalo';
-        const rateInfoText = isNewRatePeriod
-            ? 'Using new buffalo rates from 01-Feb-2026.'
-            : milkType === 'cow'
-                ? 'Using fixed cow milk rates.'
-                : 'Using current standard buffalo rates.';
+        const rateInfoText = milkType === 'cow'
+            ? 'Using fixed cow milk rates.'
+            : 'Using current buffalo milk rates for the selected date.';
 
         document.getElementById('previewRateInfo').textContent = rateInfoText;
         document.getElementById('modalMilkType').textContent = milkType === 'cow' ? 'Cow Milk' : 'Buffalo Milk';

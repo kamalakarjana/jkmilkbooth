@@ -3,151 +3,104 @@
 {% block title %}Dashboard - Milk Booth{% endblock %}
 
 {% block content %}
-<div class="dashboard-shell">
-    <div class="welcome-panel">
-        <div class="welcome-copy">
-            <span class="eyebrow">Operations overview</span>
-            <h2><i class="fas fa-chart-line text-primary me-2"></i>Milk Booth Dashboard</h2>
-            <p>Welcome, {{ current_user.username }}! Today is {{ today_date() }}</p>
+<div class="dashboard-page-shell">
+    <div class="dashboard-topbar">
+        <div class="dashboard-brand">
+            <span class="brand-mark"><i class="fas fa-cow"></i></span>
+            <span>Milk Booth Dashboard</span>
         </div>
-        <div class="welcome-metrics">
-            <div class="mini-stat">
-                <small>Liters</small>
-                <strong>{{ "%.2f"|format(total_liters) }}</strong>
-            </div>
-            <div class="mini-stat">
-                <small>Collections</small>
-                <strong>₹ {{ "{:,.0f}".format(total_amount) }}</strong>
-            </div>
-            <div class="mini-stat">
-                <small>Avg Fat</small>
-                <strong>{{ "%.1f"|format(avg_fat) }}%</strong>
-            </div>
+        <div class="dashboard-summary-chips">
+            <span class="chip chip-primary">Today: {{ today_date() }}</span>
+            <span class="chip chip-success">₹ {{ "{:,.0f}".format(total_amount) }}</span>
+            <span class="chip chip-warning">{{ "%.2f"|format(total_liters) }} L</span>
         </div>
     </div>
-</div>
 
-<!-- Main Action Buttons -->
-<div class="row mb-4">
-    <div class="col-md-4 mb-3">
-        <div class="card quick-action-card text-center h-100">
-            <div class="card-body">
-                <div class="quick-action-icon"><i class="fas fa-plus-circle"></i></div>
-                <h4>Add Collection</h4>
-                <p>Record milk collection from suppliers</p>
-                <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary w-100">
-                    <i class="fas fa-plus"></i> Add Collection
-                </a>
+    <div class="dashboard-panel">
+        <div class="row g-3 mb-4 action-row">
+            <div class="col-md-4">
+                <div class="action-card primary">
+                    <div class="action-icon"><i class="fas fa-plus-circle"></i></div>
+                    <h4>Add Collection</h4>
+                    <p>Record daily milk from suppliers</p>
+                    <a href="{{ url_for('add_collection_page') }}" class="btn btn-primary w-100">Add Collection</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="action-card warning">
+                    <div class="action-icon"><i class="fas fa-bolt"></i></div>
+                    <h4>Quick Add</h4>
+                    <p>Fast entry for daily collection</p>
+                    <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning w-100 text-white">Quick Add</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="action-card success">
+                    <div class="action-icon"><i class="fas fa-shopping-cart"></i></div>
+                    <h4>Record Sale</h4>
+                    <p>Track customer milk sales</p>
+                    <a href="{{ url_for('sales') }}" class="btn btn-success w-100">Record Sale</a>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card quick-action-card text-center h-100">
-            <div class="card-body">
-                <div class="quick-action-icon"><i class="fas fa-bolt"></i></div>
-                <h4>Quick Add</h4>
-                <p>Fast collection entry</p>
-                <a href="{{ url_for('quick_add_page') }}" class="btn btn-warning w-100 text-white">
-                    <i class="fas fa-bolt"></i> Quick Add
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card quick-action-card text-center h-100">
-            <div class="card-body">
-                <div class="quick-action-icon"><i class="fas fa-shopping-cart"></i></div>
-                <h4>Record Sale</h4>
-                <p>Sell milk to customers</p>
-                <a href="{{ url_for('sales') }}" class="btn btn-success w-100">
-                    <i class="fas fa-cash-register"></i> Record Sale
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Today's Statistics -->
-<div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stat-card stat-card-primary" onclick="window.location='{{ url_for('daily') }}'">
-            <div>
-                <i class="fas fa-weight"></i>
+        <div class="row g-3 mb-4 stats-row">
+            <div class="col-md-3 col-sm-6">
+                <div class="metric-card metric-primary" onclick="window.location='{{ url_for('daily') }}'">
+                    <div class="metric-icon"><i class="fas fa-weight"></i></div>
+                    <div class="metric-value">{{ "%.2f"|format(total_liters) }}</div>
+                    <div class="metric-label">Today's Liters</div>
+                </div>
             </div>
-            <div>
-                <div class="number">{{ "%.2f"|format(total_liters) }}</div>
-                <div class="label">Today's Liters Collected</div>
+            <div class="col-md-3 col-sm-6">
+                <div class="metric-card metric-success" onclick="window.location='{{ url_for('daily') }}'">
+                    <div class="metric-icon"><i class="fas fa-rupee-sign"></i></div>
+                    <div class="metric-value">₹ {{ "{:,.0f}".format(total_amount) }}</div>
+                    <div class="metric-label">Collection Amount</div>
+                </div>
             </div>
-            <small><i class="fas fa-arrow-right"></i> Click to view</small>
+            <div class="col-md-3 col-sm-6">
+                <div class="metric-card metric-warning" onclick="window.location='{{ url_for('daily') }}'">
+                    <div class="metric-icon"><i class="fas fa-percentage"></i></div>
+                    <div class="metric-value">{{ "%.1f"|format(avg_fat) }}%</div>
+                    <div class="metric-label">Avg Fat</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="metric-card metric-purple" onclick="window.location='{{ url_for('suppliers') }}'">
+                    <div class="metric-icon"><i class="fas fa-users"></i></div>
+                    <div class="metric-value">{{ suppliers|length }}</div>
+                    <div class="metric-label">Suppliers</div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stat-card stat-card-success" onclick="window.location='{{ url_for('daily') }}'">
-            <div>
-                <i class="fas fa-rupee-sign"></i>
-            </div>
-            <div>
-                <div class="number">₹ {{ "{:,.0f}".format(total_amount) }}</div>
-                <div class="label">Today's Collection Amount</div>
-            </div>
-            <small><i class="fas fa-arrow-right"></i> View breakdown</small>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stat-card stat-card-warning" onclick="window.location='{{ url_for('daily') }}'">
-            <div>
-                <i class="fas fa-percentage"></i>
-            </div>
-            <div>
-                <div class="number">{{ "%.1f"|format(avg_fat) }}%</div>
-                <div class="label">Average Fat Today</div>
-            </div>
-            <small><i class="fas fa-arrow-right"></i> Check quality</small>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stat-card stat-card-secondary" onclick="window.location='{{ url_for('suppliers') }}'">
-            <div>
-                <i class="fas fa-users"></i>
-            </div>
-            <div>
-                <div class="number">{{ suppliers|length }}</div>
-                <div class="label">Total Suppliers</div>
-            </div>
-            <small><i class="fas fa-arrow-right"></i> Manage suppliers</small>
-        </div>
-    </div>
-</div>
 
-<!-- Monthly Collections Analysis -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card dashboard-card-panel h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-chart-area"></i> {{ current_year }} Monthly Collection Analysis</h5>
-                <span class="badge bg-light text-dark">Collections</span>
+        <div class="panel-box mb-4">
+            <div class="panel-box-header">
+                <h5><i class="fas fa-chart-area"></i> Monthly Collection Analysis</h5>
+                <span>{{ current_year }}</span>
             </div>
-            <div class="card-body">
-                <div class="analytics-mini-grid">
-                    <div class="mini-box">
-                        <small>Current Month</small>
-                        <h4 class="text-success">₹ {{ "{:,.0f}".format(yearly_total_collections) }}</h4>
-                    </div>
-                    <div class="mini-box">
+            <div class="panel-box-body">
+                <div class="mini-stat-grid">
+                    <div class="mini-stat-box">
                         <small>Annual Total</small>
-                        <h4 class="text-primary">₹ {{ "{:,.0f}".format(yearly_total_collections) }}</h4>
+                        <h4>₹ {{ "{:,.0f}".format(yearly_total_collections) }}</h4>
                     </div>
-                    <div class="mini-box">
+                    <div class="mini-stat-box">
                         <small>Monthly Avg</small>
-                        <h4 class="text-warning">₹ {{ "{:,.0f}".format(yearly_total_collections / 12) }}</h4>
+                        <h4>₹ {{ "{:,.0f}".format(yearly_total_collections / 12) }}</h4>
                     </div>
-                    <div class="mini-box">
+                    <div class="mini-stat-box">
                         <small>Total Liters</small>
-                        <h4 class="text-info">{{ "%.2f"|format(yearly_summary|sum(attribute='liters')) }}</h4>
+                        <h4>{{ "%.2f"|format(yearly_summary|sum(attribute='liters')) }}</h4>
+                    </div>
+                    <div class="mini-stat-box">
+                        <small>Best Month</small>
+                        <h4>{{ yearly_summary|sort(attribute='collections')|last.label if yearly_summary else 'N/A' }}</h4>
                     </div>
                 </div>
 
-                <div class="table-responsive">
+                <div class="table-responsive mt-3">
                     <table class="table table-sm table-bordered mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -169,28 +122,13 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Analytics Charts -->
-<div class="row mb-4">
-    <div class="col-lg-8 mb-3">
-        <div class="card dashboard-card-panel h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Monthly Collection Trend</h5>
+        <div class="panel-box mb-0 single-pie-panel">
+            <div class="panel-box-header">
+                <h5><i class="fas fa-chart-pie"></i> Monthly Collection Share</h5>
             </div>
-            <div class="card-body">
-                <canvas id="monthlyAnalyticsChart" height="120"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4 mb-3">
-        <div class="card dashboard-card-panel h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Monthly Collection Share</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="yearSummaryChart" height="170"></canvas>
+            <div class="panel-box-body chart-body single-chart-box">
+                <canvas id="yearSummaryChart" height="260"></canvas>
             </div>
         </div>
     </div>
@@ -284,36 +222,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const monthlyLabels = {{ yearly_summary|map(attribute='label')|list|tojson }};
     const monthlyCollections = {{ yearly_summary|map(attribute='collections')|list|tojson }};
-    new Chart(document.getElementById('monthlyAnalyticsChart'), {
-        type: 'bar',
-        data: {
-            labels: monthlyLabels,
-            datasets: [{
-                label: 'Monthly Collections',
-                data: monthlyCollections,
-                backgroundColor: ['#5f3bff', '#7c4dff', '#10b981', '#14b8a6', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#f97316', '#22c55e', '#eab308', '#0ea5e9'],
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    ticks: {
-                        callback: function(value) {
-                            return '₹' + Number(value).toLocaleString();
-                        }
-                    }
-                }
-            }
-        }
-    });
 
     const yearSummaryChart = new Chart(document.getElementById('yearSummaryChart'), {
         type: 'doughnut',
